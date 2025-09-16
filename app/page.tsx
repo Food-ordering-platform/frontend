@@ -1,7 +1,7 @@
 import { Header } from "@/components/layout/header"
 import { HeroSection } from "@/components/landing/hero-section"
 import { FeaturesSection } from "@/components/landing/features-section"
-import { RestaurantGrid } from "@/components/restaurants/restaurant-grid"
+import { Restaurants } from "@/components/restaurants/restaurant"
 import { Footer } from "@/components/layout/footer"
 
 export default function HomePage() {
@@ -23,7 +23,7 @@ export default function HomePage() {
                 Browse through our curated selection of top-rated restaurants and find your next favorite meal.
               </p>
             </div>
-            <RestaurantGrid />
+            <Restaurants />
           </div>
         </section>
       </main>

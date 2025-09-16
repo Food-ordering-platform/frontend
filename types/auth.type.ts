@@ -5,6 +5,7 @@ export interface RegisterData {
   email: string;
   password: string;
   phone?: string;
+  role: "CUSTOMER" | "VENDOR"
 }
 
 export interface LoginData {
@@ -32,5 +33,6 @@ export type VerifyOtpResponse = {
   user: {
     id: string;
     email: string;
+    role: "CUSTOMER" | "VENDOR"
   };
 };

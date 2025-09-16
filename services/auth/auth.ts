@@ -10,6 +10,7 @@ export const registerUser = async (
   try {
     const response = await api.post<AuthResponse>("/auth/register", data);
     return response.data; // return only the data
+    console.log(response)
   } catch (error: any) {
     console.error("Register error:", error.response?.data || error.message);
     throw error;

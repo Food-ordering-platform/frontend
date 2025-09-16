@@ -48,23 +48,31 @@ export function SignupForm() {
     }
 
     try {
-      // call backend signup
-      const response = await registerUser({ name, email, password, phone });
+      // 👇 add role here for USER signup
+      const response = await registerUser({
+        name,
+        email,
+        password,
+        phone,
+        role: "CUSTOMER",
+      });
 
-      // expect backend to return a token
       const token = response?.token;
       if (!token) {
         throw new Error("Signup succeeded but no token returned");
       }
 
-      toast({ title: "Success", description: "Signup successful! Verify your OTP." });
+      toast({
+        title: "Success",
+        description: "Signup successful! Verify your OTP.",
+      });
 
-      // redirect to verify page with token
       router.push(`/verify-otp?token=${token}`);
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.response?.data?.error || "Failed to create account",
+        description:
+          error.response?.data?.error || "Failed to create account",
         variant: "destructive",
       });
     }

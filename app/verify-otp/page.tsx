@@ -22,13 +22,12 @@ export default function VerifyOtpPage({
 }: {
   searchParams: { token?: string };
 }) {
-  const token = searchParams?.token || ""; // 🔑 pull token directly from query
+  const token = searchParams?.token || "";
   const [code, setCode] = useState("");
   const router = useRouter();
   const { toast } = useToast();
   const { mutateAsync: verifyOtp, isPending } = useVerifyOtp();
 
-  // schema for OTP validation
   const otpSchema = z.object({
     token: z.string().min(1, "Missing token"),
     code: z.string().min(6, "OTP must be 6 digits").max(6, "OTP must be 6 digits"),
@@ -48,9 +47,16 @@ export default function VerifyOtpPage({
     }
 
     try {
-      await verifyOtp({ token, code });
+      const res = await verifyOtp({ token, code });
+
       toast({ title: "Success", description: "Account verified successfully!" });
-      router.push("/login");
+
+      // 👇 Redirect based on role
+      if (res.user?.role === "VENDOR") {
+        router.push("/dashboard/login"); // or vendor signup completion page
+      } else {
+        router.push("/login"); // default for customers
+      }
     } catch (error: any) {
       toast({
         title: "Error",
