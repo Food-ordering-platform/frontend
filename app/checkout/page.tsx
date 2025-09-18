@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { useCart } from "@/lib/cart-context"
-import { createOrder } from "@/lib/data-service"
+import { useCreateOrder } from "../../services/order/order.queries"
 import { Header } from "@/components/layout/header"
 import { ProtectedRoute } from "@/components/auth/protected-route"
 import { Button } from "@/components/ui/button"
@@ -17,12 +17,14 @@ import { useToast } from "@/hooks/use-toast"
 import { ArrowLeft, MapPin, Clock, CreditCard, Shield } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
+import { CreateOrderDto, CreateOrderResponse } from "@/types/order.type"
 
 export default function CheckoutPage() {
   const { user } = useAuth()
   const { items, getTotalPrice, clearCart } = useCart()
   const router = useRouter()
   const { toast } = useToast()
+  const { mutateAsync: placeOrder } = useCreateOrder()
 
   const [deliveryAddress, setDeliveryAddress] = useState("")
   const [phoneNumber, setPhoneNumber] = useState("")
@@ -49,41 +51,44 @@ export default function CheckoutPage() {
     setIsPlacingOrder(true)
 
     try {
-      const orderData = {
-        userId: user.id,
-        restaurantId: items[0].menuItem.restaurantId,
-        items: items.map((item) => ({
-          menuItemId: item.menuItem.id,
-          quantity: item.quantity,
-          price: item.menuItem.price,
-          specialInstructions: item.specialInstructions,
-        })),
-        status: "pending" as const,
-        totalAmount: total,
-        deliveryAddress: deliveryAddress.trim(),
-        estimatedDeliveryTime: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes from now
-      }
-
-      const order = await createOrder(orderData)
-
-      toast({
-        title: "Order placed successfully!",
-        description: `Your order #${order.id} has been placed and will be delivered in 25-35 minutes.`,
-      })
-
-      clearCart()
-      router.push(`/orders/${order.id}`)
-    } catch (error) {
-      console.error("Failed to place order:", error)
-      toast({
-        title: "Order failed",
-        description: "Failed to place your order. Please try again.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsPlacingOrder(false)
-    }
+  const orderData: CreateOrderDto = {
+    customerId: user.id,
+    restaurantId: items[0].menuItem.restaurantId,
+    items: items.map((item) => ({
+      menuItemId: item.menuItem.id,
+      quantity: item.quantity,
+      price: item.menuItem.price,
+      specialInstructions: item.specialInstructions,
+    })),
+    totalAmount: total,
+    deliveryAddress: deliveryAddress.trim(),
+    name: user.name,
+    email: user.email,
   }
+
+  const response = await placeOrder(orderData)
+  const { checkoutUrl } = response
+
+  toast({
+    title: "Order placed successfully!",
+    description: `Redirecting to payment...`,
+  })
+
+  clearCart()
+  window.location.href = checkoutUrl
+} catch (error: any) {
+  console.error("Failed to place order:", error)
+  toast({
+    title: "Order failed",
+    description: error?.message || "Failed to place your order. Please try again.",
+    variant: "destructive",
+  })
+} finally {
+  setIsPlacingOrder(false)
+}
+  }
+
+
 
   return (
     <ProtectedRoute>
@@ -261,7 +266,7 @@ export default function CheckoutPage() {
                         size="lg"
                       >
                         {isPlacingOrder ? (
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 justify-center">
                             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
                             Placing Order...
                           </div>
@@ -270,7 +275,7 @@ export default function CheckoutPage() {
                         )}
                       </Button>
 
-                      <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                      <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground mt-2">
                         <Shield className="h-4 w-4" />
                         <span>Secure checkout protected by SSL</span>
                       </div>

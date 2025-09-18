@@ -9,7 +9,7 @@ import {
   getMenuItems,
 } from "./restaurants"
 import { Restaurant, MenuItem, ApiResponse } from "../../types/restuarants.type"
-import { getMenuItemById } from "@/lib/data-service"
+
 
 // ✅ Query: Fetch all restaurants
 export const useRestaurants = () => {
