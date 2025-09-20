@@ -1,9 +1,15 @@
 import { ReactNode } from "react";
 
+export interface MenuCategory {
+  id: string;
+  name: string;
+  restaurantId: string;
+  menuItems: MenuItem[];
+}
+
 export interface Restaurant {
-  rating: ReactNode;
-  description: any;
-  cuisine: any;
+  cuisine: ReactNode;
+  description: ReactNode;
   id: string;
   name: string;
   address: string;
@@ -13,8 +19,9 @@ export interface Restaurant {
   deliveryFee: number;
   minimumOrder: number;
   isOpen: boolean;
+  categories: MenuCategory[]; // <-- changed from menuCategories
+  menuitem: MenuItem[];
 }
-
 
 export interface ApiResponse<T> {
   success: boolean;
