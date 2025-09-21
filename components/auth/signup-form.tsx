@@ -1,6 +1,5 @@
 "use client";
 
-import type React from "react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { useRegister } from "@/services/auth/auth.queries";
 
-// schema for signup validation
+// ✅ schema for signup validation
 const signupSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email("Invalid email"),
@@ -26,18 +25,27 @@ const signupSchema = z.object({
 });
 
 export function SignupForm() {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [phone, setPhone] = useState("");
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    phone: "",
+  });
+
   const router = useRouter();
   const { toast } = useToast();
   const { mutateAsync: registerUser, isPending } = useRegister();
 
+  // ✅ handle input changes
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const result = signupSchema.safeParse({ name, email, password, phone });
+    // ✅ validate form
+    const result = signupSchema.safeParse(form);
     if (!result.success) {
       toast({
         title: "Error",
@@ -48,31 +56,30 @@ export function SignupForm() {
     }
 
     try {
-      // 👇 add role here for USER signup
+      // ✅ role explicitly set here
       const response = await registerUser({
-        name,
-        email,
-        password,
-        phone,
+        ...form,
         role: "CUSTOMER",
       });
 
-      const token = response?.token;
-      if (!token) {
+      if (!response?.token) {
         throw new Error("Signup succeeded but no token returned");
       }
 
       toast({
         title: "Success",
-        description: "Signup successful! Verify your OTP.",
+        description: "Account created! Please verify your OTP.",
       });
 
-      router.push(`/verify-otp?token=${token}`);
+      // ✅ redirect to OTP verification (not login)
+      router.push(`/verify-otp?token=${response.token}`);
     } catch (error: any) {
       toast({
         title: "Error",
         description:
-          error.response?.data?.error || "Failed to create account",
+          error?.response?.data?.error ||
+          error?.message ||
+          "Failed to create account",
         variant: "destructive",
       });
     }
@@ -90,10 +97,11 @@ export function SignupForm() {
             <Label htmlFor="name">Name</Label>
             <Input
               id="name"
+              name="name"
               type="text"
               placeholder="Enter your full name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              value={form.name}
+              onChange={handleChange}
               required
             />
           </div>
@@ -101,10 +109,11 @@ export function SignupForm() {
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
+              name="email"
               type="email"
               placeholder="Enter your email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={form.email}
+              onChange={handleChange}
               required
             />
           </div>
@@ -112,10 +121,11 @@ export function SignupForm() {
             <Label htmlFor="password">Password</Label>
             <Input
               id="password"
+              name="password"
               type="password"
               placeholder="Enter your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              value={form.password}
+              onChange={handleChange}
               required
             />
           </div>
@@ -123,10 +133,11 @@ export function SignupForm() {
             <Label htmlFor="phone">Phone (optional)</Label>
             <Input
               id="phone"
+              name="phone"
               type="text"
               placeholder="Enter your phone number"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              value={form.phone}
+              onChange={handleChange}
             />
           </div>
           <Button type="submit" className="w-full" disabled={isPending}>
