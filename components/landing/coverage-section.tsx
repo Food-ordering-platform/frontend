@@ -93,7 +93,7 @@ export function RestaurantSection() {
             size="lg"
             className="bg-[#7b1e3a] hover:bg-[#66172e] text-white px-8 sm:px-10 py-3 rounded-full shadow-lg"
           >
-            <Link href="/order">Order Now</Link>
+            <Link href="/restaurants">Order Now</Link>
           </Button>
         </motion.div>
       </motion.div>

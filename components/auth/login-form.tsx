@@ -1,4 +1,3 @@
-// src/app/login/page.tsx
 "use client";
 
 import type React from "react";
@@ -17,6 +16,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
+import Link from "next/link";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid Email"),
@@ -47,7 +47,6 @@ export function LoginForm() {
       const success = await login({ email, password });
       if (success) {
         toast({ title: "Success", description: "Logged in successfully!" });
-        console.log("LoginForm - Login successful");
         router.push("/");
       } else {
         throw new Error("Login failed");
@@ -58,20 +57,25 @@ export function LoginForm() {
         description: error.message || "Failed to log in",
         variant: "destructive",
       });
-      console.error("LoginForm - Error:", error);
     }
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto border-border/50 shadow-lg">
-      <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-bold text-gradient-red">Welcome Back</CardTitle>
-        <CardDescription>Sign in to your account to continue</CardDescription>
+    <Card className="w-full max-w-md mx-auto border border-[#7b1e3a]/20 shadow-xl rounded-2xl bg-white">
+      <CardHeader className="text-center space-y-2">
+        <CardTitle className="text-3xl font-extrabold bg-gradient-to-r from-[#7b1e3a] to-[#66172e] bg-clip-text text-transparent">
+          Welcome Back
+        </CardTitle>
+        <CardDescription className="text-gray-600">
+          Sign in to your account to continue
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email" className="text-gray-700">
+              Email
+            </Label>
             <Input
               id="email"
               type="email"
@@ -79,10 +83,13 @@ export function LoginForm() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              className="focus:border-[#7b1e3a] focus:ring-[#7b1e3a]"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password" className="text-gray-700">
+              Password
+            </Label>
             <Input
               id="password"
               type="password"
@@ -90,14 +97,34 @@ export function LoginForm() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              className="focus:border-[#7b1e3a] focus:ring-[#7b1e3a]"
             />
           </div>
-          <Button type="submit" className="w-full bg-gradient-red hover:bg-gradient-red-light" disabled={isLoading}>
+
+          {/* Forgot Password link */}
+          <div className="text-right">
+            <Link
+              href="/forgot-password"
+              className="text-sm font-medium text-[#7b1e3a] hover:underline"
+            >
+              Forgot Password?
+            </Link>
+          </div>
+
+          <Button
+            type="submit"
+            className="w-full bg-[#7b1e3a] hover:bg-[#66172e] text-white font-semibold rounded-full shadow-md transition-all"
+            disabled={isLoading}
+          >
             {isLoading ? "Signing in..." : "Sign In"}
           </Button>
         </form>
-        <div className="mt-4 text-center text-sm text-muted-foreground">
-          Demo credentials: john@example.com / password
+
+        <div className="mt-4 text-center text-sm text-gray-500">
+          Demo credentials:{" "}
+          <span className="font-medium text-[#7b1e3a]">
+            john@example.com / password
+          </span>
         </div>
       </CardContent>
     </Card>

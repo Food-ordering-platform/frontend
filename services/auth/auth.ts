@@ -1,6 +1,11 @@
 import { AArrowUp } from "lucide-react";
 import api from "../axios";
-import { RegisterData, LoginData, AuthResponse, verifyOTPpayload, VerifyOtpResponse } from "@/types/auth.type";
+import { RegisterData, LoginData, AuthResponse, verifyOTPpayload, VerifyOtpResponse, ForgotPasswordPayload,
+  ForgotPasswordResponse,
+  VerifyResetOtpPayload,
+  VerifyResetOtpResponse,
+  ResetPasswordPayload,
+  ResetPasswordResponse, } from "@/types/auth.type";
 
 
 //Register new user
@@ -49,6 +54,46 @@ export const verifyOtp = async (data: verifyOTPpayload ) : Promise<VerifyOtpResp
   }
   catch(err: any) {
     console.log("OTP Verfication Failed", err.response.data || err.message)
+    throw err;
+  }
+}
+
+
+// Forgot password - send OTP
+export const forgotPassword = async (
+  data: ForgotPasswordPayload
+): Promise<ForgotPasswordResponse> => {
+  try {
+    const res = await api.post<ForgotPasswordResponse>("/auth/forgot-password", data);
+    return res.data;
+  } catch (err: any) {
+    console.error("Forgot password error:", err.response?.data || err.message);
+    throw err;
+  }
+};
+
+// Verify reset OTP
+export const verifyResetOtp = async (
+  data: VerifyResetOtpPayload
+): Promise<VerifyResetOtpResponse> => {
+  try {
+    const res = await api.post<VerifyResetOtpResponse>("/auth/verify-reset-otp", data);
+    return res.data;
+  } catch (err: any) {
+    console.error("Verify reset OTP error:", err.response?.data || err.message);
+    throw err;
+  }
+};
+
+// Reset password
+export const resetPassword = async (
+  data: ResetPasswordPayload
+): Promise<ResetPasswordResponse> => {
+  try {
+    const res = await api.post<ResetPasswordResponse>("/auth/reset-password", data);
+    return res.data;
+  } catch (err: any) {
+    console.error("Reset password error:", err.response?.data || err.message);
     throw err;
   }
 }

@@ -61,11 +61,12 @@ export function PaymentSection() {
               Easy Payment Options
             </p>
             <h2 className="text-3xl md:text-5xl font-extrabold mb-4">
-              Easy and Reliable <span className="text-[#7b1e3a]">Payment</span> Options
+              Easy and Reliable{" "}
+              <span className="text-[#7b1e3a]">Payment</span> Options
             </h2>
             <p className="text-lg text-gray-700 mb-8 max-w-prose mx-auto md:mx-0 leading-relaxed">
-              Manage your orders with secure and flexible payment methods designed
-              to make your experience seamless and stress-free.
+              Manage your orders with secure and flexible payment methods
+              designed to make your experience seamless and stress-free.
             </p>
             <Button
               size="lg"
@@ -75,29 +76,49 @@ export function PaymentSection() {
             </Button>
           </motion.div>
 
-          {/* Right SVG */}
+          {/* Right SVG + Floating Background */}
           <motion.div
             className="w-full md:w-1/2 flex justify-center relative z-10"
             variants={itemVariants}
             whileHover={{ rotate: 2, scale: 1.05 }}
             transition={{ type: "spring", stiffness: 200 }}
           >
-              <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 1, ease: "easeOut", delay: 0.3 }}
-              className="absolute top-0 left-1/4 w-72 h-96 bg-[#7b1e3a]  rounded-3xl shadow-2xl transform -rotate-6 z-0 hidden md:block"
-            ></motion.div>
+            {/* Floating background cards */}
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 1, ease: "easeOut", delay: 0.5 }}
+              animate={{ opacity: 1, scale: 1, y: [0, -10, 0] }}
+              transition={{
+                duration: 5,
+                ease: "easeInOut",
+                repeat: Infinity,
+                delay: 0.3,
+              }}
+              className="absolute top-0 left-1/4 w-72 h-96 bg-[#7b1e3a] rounded-3xl shadow-2xl transform -rotate-6 z-0 hidden md:block"
+            ></motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1, y: [0, 12, 0] }}
+              transition={{
+                duration: 6,
+                ease: "easeInOut",
+                repeat: Infinity,
+                delay: 0.5,
+              }}
               className="absolute bottom-0 right-1/4 w-72 h-96 bg-white rounded-3xl shadow-2xl transform rotate-6 z-0 hidden md:block"
             ></motion.div>
-            <img
+
+            {/* Floating foreground image */}
+            <motion.img
               src="/Mobile-payment.svg"
               alt="Mobile Payment"
               className="w-full max-w-[300px] md:max-w-[400px] object-contain drop-shadow-xl"
+              animate={{ y: [0, -15, 0] }}
+              transition={{
+                duration: 4,
+                ease: "easeInOut",
+                repeat: Infinity,
+              }}
             />
           </motion.div>
         </motion.div>

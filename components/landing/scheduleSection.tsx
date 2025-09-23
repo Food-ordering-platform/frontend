@@ -1,18 +1,25 @@
 "use client"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
+import { motion } from "framer-motion"
 
 export function SchedulingSection() {
   return (
     <section className="bg-white py-16 relative overflow-hidden">
       <div className="container relative z-10 flex flex-col md:flex-row items-center justify-between gap-12">
         
-        {/* Left: Phone image */}
+        {/* Left: Floating Phone image */}
         <div className="relative w-full md:w-1/2 flex justify-center">
-          <img
+          <motion.img
             src="/delivery.svg"
             alt="Delivery App"
             className="w-full max-w-[280px] md:max-w-[380px] mx-auto object-contain"
+            animate={{ y: [0, -15, 0] }}
+            transition={{
+              duration: 4,
+              ease: "easeInOut",
+              repeat: Infinity,
+            }}
           />
         </div>
 

@@ -48,10 +48,10 @@ export function FeaturesSection() {
           variants={containerVariants}
         >
           <motion.h2
-            className="text-3xl md:text-4xl font-bold mb-6"
+            className="text-3xl md:text-4xl font-extrabold mb-4"
             variants={itemVariants}
           >
-            Your Favorite Meals, Delivered Seamlessly
+            Your Favorite Meals, <span className="text-[#7b1e3a]">Delivered Seamlessly</span>
           </motion.h2>
           <motion.p
             className="text-lg text-muted-foreground mb-10"

@@ -72,7 +72,7 @@ export function SignupForm() {
       });
 
       // ✅ redirect to OTP verification (not login)
-      router.push(`/verify-otp?token=${response.token}`);
+      router.push(`/verify-otp?type=register&token=${response.token}`);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -86,10 +86,14 @@ export function SignupForm() {
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto border-border/50 shadow-lg">
+    <Card className="w-full max-w-md mx-auto border border-gray-200 shadow-lg bg-white">
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-bold text-gradient-red">Create an Account</CardTitle>
-        <CardDescription>Sign up to get started</CardDescription>
+        <CardTitle className="text-2xl font-bold text-[#7b1e3a]">
+          Create an Account
+        </CardTitle>
+        <CardDescription className="text-gray-600">
+          Sign up to get started
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -140,7 +144,11 @@ export function SignupForm() {
               onChange={handleChange}
             />
           </div>
-          <Button type="submit" className="w-full bg-gradient-red hover:bg-gradient-red-light" disabled={isPending}>
+          <Button
+            type="submit"
+            className="w-full bg-[#7b1e3a] hover:bg-[#66172e] text-white font-semibold"
+            disabled={isPending}
+          >
             {isPending ? "Creating account..." : "Sign Up"}
           </Button>
         </form>

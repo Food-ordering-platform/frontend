@@ -3,6 +3,7 @@
 import React, { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { motion, useAnimation, easeOut, easeInOut } from "framer-motion";
+import { FaApple, FaGooglePlay } from "react-icons/fa";
 
 const DownloadAppSection: React.FC = () => {
   // Controls for container (card + most children) and for phone (separate sequence + float)
@@ -105,19 +106,21 @@ const DownloadAppSection: React.FC = () => {
             <div className="flex flex-wrap gap-4 justify-center lg:justify-start">
               <Button
                 size="lg"
-                className="bg-black hover:bg-black/80 text-white px-8 py-3 rounded-full shadow-md font-semibold transition-transform hover:scale-105"
+                className="bg-black hover:bg-black/80 text-white px-8 py-3 rounded-full shadow-md font-semibold transition-transform hover:scale-105 flex items-center gap-2"
                 onClick={() =>
                   window.open("https://www.apple.com/app-store/", "_blank")
                 }
               >
+                <FaApple size={20} />
                 Download on the App Store
               </Button>
 
               <Button
                 size="lg"
-                className="bg-black hover:bg-black/80 text-white px-8 py-3 rounded-full shadow-md font-semibold transition-transform hover:scale-105"
+                className="bg-black hover:bg-black/80 text-white px-8 py-3 rounded-full shadow-md font-semibold transition-transform hover:scale-105 flex items-center gap-2"
                 onClick={() => window.open("https://play.google.com", "_blank")}
               >
+                <FaGooglePlay size={20} />
                 Get it on Google Play
               </Button>
             </div>
