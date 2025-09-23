@@ -86,9 +86,9 @@ export function SignupForm() {
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto">
+    <Card className="w-full max-w-md mx-auto border-border/50 shadow-lg">
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-bold">Create an Account</CardTitle>
+        <CardTitle className="text-2xl font-bold text-gradient-red">Create an Account</CardTitle>
         <CardDescription>Sign up to get started</CardDescription>
       </CardHeader>
       <CardContent>
@@ -140,7 +140,7 @@ export function SignupForm() {
               onChange={handleChange}
             />
           </div>
-          <Button type="submit" className="w-full" disabled={isPending}>
+          <Button type="submit" className="w-full bg-gradient-red hover:bg-gradient-red-light" disabled={isPending}>
             {isPending ? "Creating account..." : "Sign Up"}
           </Button>
         </form>

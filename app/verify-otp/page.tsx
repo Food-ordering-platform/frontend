@@ -69,9 +69,9 @@ export default function VerifyOtpPage({
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-red-50 p-4">
       <div className="w-full max-w-md space-y-6">
-        <Card className="w-full max-w-md mx-auto">
+        <Card className="w-full max-w-md mx-auto border-border/50 shadow-lg">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-bold">Verify OTP</CardTitle>
+            <CardTitle className="text-2xl font-bold text-gradient-red">Verify OTP</CardTitle>
             <CardDescription>
               Enter the 6-digit code sent to your email/phone
             </CardDescription>
@@ -91,7 +91,7 @@ export default function VerifyOtpPage({
                   required
                 />
               </div>
-              <Button type="submit" className="w-full" disabled={isPending}>
+              <Button type="submit" className="w-full bg-gradient-red hover:bg-gradient-red-light" disabled={isPending}>
                 {isPending ? "Verifying..." : "Verify"}
               </Button>
             </form>

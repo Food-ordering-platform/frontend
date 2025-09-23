@@ -1,8 +1,16 @@
 import { Header } from "@/components/layout/header"
 import { HeroSection } from "@/components/landing/hero-section"
 import { FeaturesSection } from "@/components/landing/features-section"
-import { Restaurants } from "@/components/restaurants/restaurant"
 import { Footer } from "@/components/layout/footer"
+import { HowItWorksSection } from "@/components/landing/how-it-works"
+import { RestaurantSection } from "@/components/landing/coverage-section"
+import { PaymentSection } from "@/components/landing/paymentSection"
+import { SchedulingSection } from "@/components/landing/scheduleSection"
+import Banner from "@/components/landing/download"
+
+
+
+
 
 export default function HomePage() {
   return (
@@ -13,19 +21,16 @@ export default function HomePage() {
 
         <FeaturesSection />
 
-        <section className="section-padding bg-muted/30">
-          <div className="container">
-            <div className="text-center space-y-4 mb-12">
-              <h2 className="text-3xl md:text-4xl font-bold text-balance">
-                Discover Amazing <span className="text-gradient-red">Restaurants</span>
-              </h2>
-              <p className="text-lg text-muted-foreground text-pretty max-w-2xl mx-auto">
-                Browse through our curated selection of top-rated restaurants and find your next favorite meal.
-              </p>
-            </div>
-            <Restaurants />
-          </div>
-        </section>
+        <RestaurantSection />
+
+        <PaymentSection />
+
+        <SchedulingSection />
+
+        <Banner />
+
+
+        
       </main>
 
       <Footer />

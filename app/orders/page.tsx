@@ -144,7 +144,7 @@ export default function OrdersPage() {
                   </div>
                   {filter === "all" && (
                     <Button asChild className="bg-gradient-red hover:bg-gradient-red-light">
-                      <Link href="/">Browse Restaurants</Link>
+                      <Link href="/restaurants">Browse Restaurants</Link>
                     </Button>
                   )}
                 </div>

@@ -110,63 +110,92 @@ const allMenuItems: ApiMenuItem[] =
     setShowDetailsMap({ ...showDetailsMap, [item.id]: false });
   };
 
-  if (isLoading) return <p>Loading...</p>;
-  if (error) return <p>Failed to load restaurant</p>;
-  if (!restaurant?.data) return <p>Restaurant not found</p>;
+  if (isLoading)
+    return (
+      <main>
+        <Header />
+        <div className="container py-16 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
+        </div>
+        <Footer />
+      </main>
+    );
+  if (error)
+    return (
+      <main>
+        <Header />
+        <div className="container py-16 text-center text-red-500">Failed to load restaurant</div>
+        <Footer />
+      </main>
+    );
+  if (!restaurant?.data)
+    return (
+      <main>
+        <Header />
+        <div className="container py-16 text-center">Restaurant not found</div>
+        <Footer />
+      </main>
+    );
 
   return (
     <main>
       <Header />
-      <div className="min-h-screen bg-background container py-8 space-y-8">
+      <div className="min-h-screen bg-background container py-0 md:py-8 space-y-8">
         {/* Restaurant Header */}
-        <div className="relative h-64 md:h-80">
+        <div className="relative h-64 md:h-80 rounded-b-3xl overflow-hidden">
           <Image
             src={restaurant.data.imageUrl || "/placeholder.svg"}
             alt={restaurant.data.name}
             fill
-            className="object-cover"
+            className="object-cover scale-105"
           />
-          <div className="absolute inset-0 bg-black/40" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
           {!restaurant.data.isOpen && (
             <Badge className="absolute inset-0 m-auto bg-white text-black p-2">Closed</Badge>
           )}
-        </div>
-
-        <div className="space-y-4">
-          <h1 className="text-3xl font-bold">{restaurant.data.name}</h1>
-          <p className="text-muted-foreground">{restaurant.data.description}</p>
-          <div className="flex items-center gap-4">
-            <Badge>{restaurant.data.cuisine}</Badge>
-            <div className="flex items-center gap-1">
-              <Clock /> {restaurant.data.deliveryTime} min
-            </div>
-            <div className="flex items-center gap-1">
-              <DollarSign /> ${restaurant.data.deliveryFee} delivery
+          <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8 text-white">
+            <h1 className="text-3xl md:text-4xl font-bold">{restaurant.data.name}</h1>
+            <p className="text-white/85 max-w-3xl mt-2">{restaurant.data.description}</p>
+            <div className="flex items-center gap-4 mt-4">
+              <Badge variant="secondary" className="bg-white text-black">{restaurant.data.cuisine}</Badge>
+              <div className="flex items-center gap-1 text-white/90">
+                <Clock className="h-4 w-4" /> {restaurant.data.deliveryTime} min
+              </div>
+              <div className="flex items-center gap-1 text-white/90">
+                <DollarSign className="h-4 w-4" /> ${restaurant.data.deliveryFee} delivery
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Category Tabs */}
-        <div className="flex gap-4 overflow-x-auto border-b pb-2 mb-4">
-          {categories.map((category) => (
-            <Button
-              key={category}
-              variant={category === activeCategory ? "default" : "outline"}
-              size="sm"
-              onClick={() => setActiveCategory(category)}
-            >
-              {category}
-            </Button>
-          ))}
+        <div className="space-y-4 mt-4">
+          <div className="sticky top-20 z-40 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+            {/* Category Tabs */}
+            <div className="container px-0 py-3 overflow-x-auto">
+              <div className="flex gap-3">
+                {categories.map((category) => (
+                  <Button
+                    key={category}
+                    variant={category === activeCategory ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setActiveCategory(category)}
+                    className="rounded-full"
+                  >
+                    {category}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Menu Items */}
-        <div className="space-y-4">
+        <div className="responsive-grid responsive-grid-cols-2 mt-4">
           {filteredItems.map((item) => (
-            <Card key={item.id} className="overflow-hidden">
+            <Card key={item.id} className="overflow-hidden hover:shadow-lg transition-shadow border-border/50">
               <CardContent className="p-0">
                 <div className="flex flex-col md:flex-row">
-                  <div className="relative h-32 md:h-24 md:w-24 flex-shrink-0">
+                  <div className="relative h-40 md:h-28 md:w-28 flex-shrink-0">
                     <Image
                       src={item.imageUrl || "/placeholder.svg"}
                       alt={item.name}
@@ -258,7 +287,7 @@ const allMenuItems: ApiMenuItem[] =
                           </div>
                         )}
 
-                        <Button onClick={() => handleAddToCart(item)} className="w-full">
+                        <Button onClick={() => handleAddToCart(item)} className="w-full bg-gradient-red hover:bg-gradient-red-light">
                           Add to Cart • ${(item.price * (quantityMap[item.id] || 1)).toFixed(2)}
                         </Button>
                       </div>

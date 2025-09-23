@@ -1,59 +1,89 @@
-import { Card, CardContent } from "@/components/ui/card"
-import { Shield, Clock, Heart, Truck } from "lucide-react"
+"use client";
+
+import { Card, CardContent } from "@/components/ui/card";
+import { motion, easeOut } from "framer-motion";
 
 const features = [
   {
-    icon: Clock,
-    title: "Lightning Fast",
-    description: "Get your favorite meals delivered in under 30 minutes with our optimized delivery network.",
+    icon: "/order-1.svg",
+    title: "Easy To Order",
+    description: "You only order through the app",
   },
   {
-    icon: Shield,
-    title: "Safe & Secure",
-    description: "Your payments and personal information are protected with bank-level security.",
+    icon: "/delivery-1.svg",
+    title: "Fastest Delivery",
+    description: "Delivery will be on time",
   },
   {
-    icon: Heart,
-    title: "Quality Guaranteed",
-    description: "We partner only with top-rated restaurants to ensure every meal meets our high standards.",
+    icon: "/courier-1.svg",
+    title: "Best Quality",
+    description: "The best quality of food for you",
   },
-  {
-    icon: Truck,
-    title: "Real-time Tracking",
-    description: "Track your order from kitchen to doorstep with live updates and accurate delivery times.",
+];
+
+// Container for staggering children
+const containerVariants = {
+  hidden: {},
+  show: {
+    transition: {
+      staggerChildren: 0.2,
+    },
   },
-]
+};
+
+// Card/heading animation
+const itemVariants = {
+  hidden: { opacity: 0, y: 40 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: easeOut } },
+};
 
 export function FeaturesSection() {
   return (
-    <section className="section-padding bg-background">
+    <section className="section-padding bg-muted/30 text-center">
       <div className="container">
-        <div className="text-center space-y-4 mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold text-balance">
-            Why Choose <span className="text-gradient-red">FoodOrder</span>?
-          </h2>
-          <p className="text-lg text-muted-foreground text-pretty max-w-2xl mx-auto">
-            We're committed to delivering not just food, but an exceptional experience that keeps you coming back.
-          </p>
-        </div>
+        <motion.div
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, amount: 0.3 }}
+          variants={containerVariants}
+        >
+          <motion.h2
+            className="text-3xl md:text-4xl font-bold mb-6"
+            variants={itemVariants}
+          >
+            Your Favorite Meals, Delivered Seamlessly
+          </motion.h2>
+          <motion.p
+            className="text-lg text-muted-foreground mb-10"
+            variants={itemVariants}
+          >
+            Fast delivery, secure payments, and quality meals from Warri’s best
+            restaurants and beyond.
+          </motion.p>
 
-        <div className="responsive-grid responsive-grid-cols-4">
-          {features.map((feature, index) => (
-            <Card
-              key={index}
-              className="group hover:shadow-lg transition-all duration-300 border-border/50 hover:border-primary/20"
-            >
-              <CardContent className="p-6 text-center">
-                <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-red-light text-white group-hover:scale-110 transition-transform duration-300">
-                  <feature.icon className="h-6 w-6" />
-                </div>
-                <h3 className="mb-2 text-xl font-semibold">{feature.title}</h3>
-                <p className="text-muted-foreground text-pretty">{feature.description}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {features.map((feature, index) => (
+              <motion.div key={index} variants={itemVariants}>
+                <Card className="group hover:shadow-md transition-all duration-300 border-border/40 hover:border-primary/30 bg-card p-4 rounded-lg">
+                  <CardContent className="p-4 text-center">
+                    <div className="mb-4 flex justify-center">
+                      <img
+                        src={feature.icon}
+                        alt={`${feature.title} icon`}
+                        className="h-16 w-16 object-contain"
+                      />
+                    </div>
+                    <h3 className="mb-2 text-lg font-semibold">{feature.title}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {feature.description}
+                    </p>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
       </div>
     </section>
-  )
+  );
 }
