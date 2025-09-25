@@ -1,9 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useParams } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
-import { getOrdersByUserId, getRestaurantById, getMenuItemById } from "@/lib/data-service"
 import { Header } from "@/components/layout/header"
 import { ProtectedRoute } from "@/components/auth/protected-route"
 import { OrderStatusTracker } from "@/components/orders/order-status-tracker"
@@ -13,45 +11,27 @@ import { Separator } from "@/components/ui/separator"
 import { ArrowLeft, MapPin, Clock } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
-import type { Order, Restaurant, MenuItem } from "@/lib/types"
+import { useGetOrderByReference } from "../../../services/order/order.queries"
 
 export default function OrderDetailsPage() {
-  const params = useParams()
+  const searchParams = useSearchParams()
+  const reference = searchParams.get("reference") || ""
   const { user } = useAuth()
-  const [order, setOrder] = useState<Order | null>(null)
-  const [restaurant, setRestaurant] = useState<Restaurant | null>(null)
-  const [menuItems, setMenuItems] = useState<MenuItem[]>([])
-  const [isLoading, setIsLoading] = useState(true)
 
-  useEffect(() => {
-    const loadOrderDetails = async () => {
-      if (!user || !params.id) return
+  type OrderStatus = 
+  | "pending" 
+  | "confirmed" 
+  | "preparing" 
+  | "out-for-delivery" 
+  | "delivered" 
+  | "cancelled";
 
-      try {
-        const userOrders = await getOrdersByUserId(user.id)
-        const foundOrder = userOrders.find((o) => o.id === params.id)
 
-        if (foundOrder) {
-          setOrder(foundOrder)
-
-          // Load restaurant details
-          const restaurantData = await getRestaurantById(foundOrder.restaurantId)
-          setRestaurant(restaurantData)
-
-          // Load menu items
-          const itemPromises = foundOrder.items.map((item) => getMenuItemById(item.menuItemId))
-          const items = await Promise.all(itemPromises)
-          setMenuItems(items.filter((item): item is MenuItem => item !== null))
-        }
-      } catch (error) {
-        console.error("Failed to load order details:", error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    loadOrderDetails()
-  }, [user, params.id])
+  const {
+    data: order,
+    isLoading,
+    error,
+  } = useGetOrderByReference(reference)
 
   if (isLoading) {
     return (
@@ -68,7 +48,7 @@ export default function OrderDetailsPage() {
     )
   }
 
-  if (!order || !restaurant) {
+  if (error || !order) {
     return (
       <ProtectedRoute>
         <div className="min-h-screen bg-background">
@@ -101,10 +81,10 @@ export default function OrderDetailsPage() {
                 </Link>
               </Button>
               <div>
-                <h1 className="text-3xl font-bold">Order #{order.id}</h1>
+                <h1 className="text-3xl font-bold">Order #{order.reference}</h1>
                 <p className="text-muted-foreground">
-                  Placed on {new Date(order.orderDate).toLocaleDateString()} at{" "}
-                  {new Date(order.orderDate).toLocaleTimeString()}
+                  Placed on {new Date(order.createdAt).toLocaleDateString()} at{" "}
+                  {new Date(order.createdAt).toLocaleTimeString()}
                 </p>
               </div>
             </div>
@@ -112,48 +92,46 @@ export default function OrderDetailsPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Order Status & Details */}
               <div className="lg:col-span-2 space-y-6">
-                {/* Order Status */}
                 <Card>
                   <CardHeader>
                     <CardTitle>Order Status</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <OrderStatusTracker status={order.status} />
+                    <OrderStatusTracker status={order.status as OrderStatus} />
                     <div className="mt-4 flex items-center space-x-2 text-sm text-muted-foreground">
                       <Clock className="h-4 w-4" />
                       <span>
-                        {order.status === "delivered" && order.actualDeliveryTime
-                          ? `Delivered at ${new Date(order.actualDeliveryTime).toLocaleTimeString()}`
-                          : order.estimatedDeliveryTime
-                            ? `Estimated delivery: ${new Date(order.estimatedDeliveryTime).toLocaleTimeString()}`
-                            : "Delivery time will be updated soon"}
+                        {order.status === "DELIVERED"
+                          ? `Delivered`
+                          : "Delivery time will be updated soon"}
                       </span>
                     </div>
                   </CardContent>
                 </Card>
 
                 {/* Restaurant Info */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Restaurant</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center space-x-3">
-                      <div className="relative h-12 w-12 flex-shrink-0">
-                        <Image
-                          src={restaurant.image || "/placeholder.svg"}
-                          alt={restaurant.name}
-                          fill
-                          className="object-cover rounded"
-                        />
+                {order.restaurant && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Restaurant</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center space-x-3">
+                        <div className="relative h-12 w-12 flex-shrink-0">
+                          {/* <Image
+                            src={order.restaurant.image || "/placeholder.svg"}
+                            alt={order.restaurant.name}
+                            fill
+                            className="object-cover rounded"
+                          /> */}
+                        </div>
+                        <div>
+                          <h3 className="font-semibold">{order.restaurant.name}</h3>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="font-semibold">{restaurant.name}</h3>
-                        <p className="text-sm text-muted-foreground">{restaurant.cuisine}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+                )}
 
                 {/* Order Items */}
                 <Card>
@@ -161,37 +139,21 @@ export default function OrderDetailsPage() {
                     <CardTitle>Order Items</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {order.items.map((orderItem, index) => {
-                      const menuItem = menuItems.find((item) => item.id === orderItem.menuItemId)
-                      if (!menuItem) return null
-
-                      return (
-                        <div key={index} className="flex items-center space-x-3">
-                          <div className="relative h-12 w-12 flex-shrink-0">
-                            <Image
-                              src={menuItem.image || "/placeholder.svg"}
-                              alt={menuItem.name}
-                              fill
-                              className="object-cover rounded"
-                            />
-                          </div>
-                          <div className="flex-1">
-                            <h4 className="font-medium">{menuItem.name}</h4>
-                            <p className="text-sm text-muted-foreground">
-                              ${orderItem.price.toFixed(2)} × {orderItem.quantity}
-                            </p>
-                            {orderItem.specialInstructions && (
-                              <p className="text-xs text-muted-foreground italic">
-                                Note: {orderItem.specialInstructions}
-                              </p>
-                            )}
-                          </div>
-                          <div className="text-right">
-                            <p className="font-medium">${(orderItem.price * orderItem.quantity).toFixed(2)}</p>
-                          </div>
+                    {order.items.map((orderItem, index) => (
+                      <div key={index} className="flex items-center space-x-3">
+                        <div className="flex-1">
+                          <h4 className="font-medium">Item #{orderItem.menuItemId}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            ₦{orderItem.price.toFixed(2)} × {orderItem.quantity}
+                          </p>
                         </div>
-                      )
-                    })}
+                        <div className="text-right">
+                          <p className="font-medium">
+                            ₦{(orderItem.price * orderItem.quantity).toFixed(2)}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
                   </CardContent>
                 </Card>
               </div>
@@ -204,22 +166,9 @@ export default function OrderDetailsPage() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span>Subtotal</span>
-                        <span>${(order.totalAmount - 2.99 - order.totalAmount * 0.08).toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Delivery Fee</span>
-                        <span>$2.99</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Tax</span>
-                        <span>${(order.totalAmount * 0.08).toFixed(2)}</span>
-                      </div>
-                      <Separator />
                       <div className="flex justify-between font-semibold text-lg">
                         <span>Total</span>
-                        <span>${order.totalAmount.toFixed(2)}</span>
+                        <span>₦{order.totalAmount.toFixed(2)}</span>
                       </div>
                     </div>
                   </CardContent>
