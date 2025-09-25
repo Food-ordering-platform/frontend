@@ -23,6 +23,7 @@ export interface Order {
   deliveryAddress: string
   items: OrderItem[]
   createdAt: string
+  restaurant?: {name: string}
 }
 // What the backend actually returns when creating an order
 export interface CreateOrderResponse {
