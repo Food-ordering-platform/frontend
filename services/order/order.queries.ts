@@ -19,7 +19,7 @@ export const useGetOrders = (customerId: string) => {
 }
 
 // ✅ Get a single order by reference
-export const useGetOrderByReference = (reference: string) => {
+export const useGetOrderByReference = (reference: string, p0: { enabled: boolean }) => {
   return useQuery<Order, Error>({
     queryKey: ["order", reference],
     queryFn: () => getOrderByReference(reference),

@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { ArrowLeft, MapPin, Clock } from "lucide-react"
 import Link from "next/link"
-import Image from "next/image"
 import { useGetOrderByReference } from "../../../services/order/order.queries"
 
 export default function OrderDetailsPage() {
@@ -18,20 +17,21 @@ export default function OrderDetailsPage() {
   const reference = searchParams.get("reference") || ""
   const { user } = useAuth()
 
-  type OrderStatus = 
-  | "pending" 
-  | "confirmed" 
-  | "preparing" 
-  | "out-for-delivery" 
-  | "delivered" 
-  | "cancelled";
-
+  type OrderStatus =
+    | "pending"
+    | "confirmed"
+    | "preparing"
+    | "out-for-delivery"
+    | "delivered"
+    | "cancelled"
 
   const {
     data: order,
     isLoading,
     error,
-  } = useGetOrderByReference(reference)
+  } = useGetOrderByReference(reference, {
+    enabled: Boolean(reference), // only fetch if reference exists
+  })
 
   if (isLoading) {
     return (
@@ -97,12 +97,14 @@ export default function OrderDetailsPage() {
                     <CardTitle>Order Status</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <OrderStatusTracker status={order.status as OrderStatus} />
+                    <OrderStatusTracker
+                      status={(order.status.toLowerCase() as OrderStatus) || "pending"}
+                    />
                     <div className="mt-4 flex items-center space-x-2 text-sm text-muted-foreground">
                       <Clock className="h-4 w-4" />
                       <span>
-                        {order.status === "DELIVERED"
-                          ? `Delivered`
+                        {order.status.toLowerCase() === "delivered"
+                          ? "Delivered"
                           : "Delivery time will be updated soon"}
                       </span>
                     </div>
@@ -117,14 +119,7 @@ export default function OrderDetailsPage() {
                     </CardHeader>
                     <CardContent>
                       <div className="flex items-center space-x-3">
-                        <div className="relative h-12 w-12 flex-shrink-0">
-                          {/* <Image
-                            src={order.restaurant.image || "/placeholder.svg"}
-                            alt={order.restaurant.name}
-                            fill
-                            className="object-cover rounded"
-                          /> */}
-                        </div>
+                        <div className="relative h-12 w-12 flex-shrink-0 bg-muted rounded" />
                         <div>
                           <h3 className="font-semibold">{order.restaurant.name}</h3>
                         </div>
