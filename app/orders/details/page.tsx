@@ -1,6 +1,7 @@
 "use client"
 
 import { useSearchParams } from "next/navigation"
+import { useGetOrderByReference } from "@/services/order/order.queries"
 import { useAuth } from "@/lib/auth-context"
 import { Header } from "@/components/layout/header"
 import { ProtectedRoute } from "@/components/auth/protected-route"
@@ -10,27 +11,15 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { ArrowLeft, MapPin, Clock } from "lucide-react"
 import Link from "next/link"
-import { useGetOrderByReference } from "../../../services/order/order.queries"
+import Image from "next/image"
 
 export default function OrderDetailsPage() {
   const searchParams = useSearchParams()
   const reference = searchParams.get("reference") || ""
+
   const { user } = useAuth()
-
-  type OrderStatus =
-    | "pending"
-    | "confirmed"
-    | "preparing"
-    | "out-for-delivery"
-    | "delivered"
-    | "cancelled"
-
-  const {
-    data: order,
-    isLoading,
-    error,
-  } = useGetOrderByReference(reference, {
-    enabled: Boolean(reference), // only fetch if reference exists
+  const { data: order, isLoading, isError } = useGetOrderByReference(reference, {
+    enabled: !!reference && !!user,
   })
 
   if (isLoading) {
@@ -48,7 +37,7 @@ export default function OrderDetailsPage() {
     )
   }
 
-  if (error || !order) {
+  if (isError || !order) {
     return (
       <ProtectedRoute>
         <div className="min-h-screen bg-background">
@@ -81,7 +70,7 @@ export default function OrderDetailsPage() {
                 </Link>
               </Button>
               <div>
-                <h1 className="text-3xl font-bold">Order #{order.reference}</h1>
+                <h1 className="text-3xl font-bold">Order Ref: {order.reference}</h1>
                 <p className="text-muted-foreground">
                   Placed on {new Date(order.createdAt).toLocaleDateString()} at{" "}
                   {new Date(order.createdAt).toLocaleTimeString()}
@@ -92,41 +81,48 @@ export default function OrderDetailsPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Order Status & Details */}
               <div className="lg:col-span-2 space-y-6">
+                {/* Order Status */}
                 <Card>
                   <CardHeader>
                     <CardTitle>Order Status</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <OrderStatusTracker
-                      status={(order.status.toLowerCase() as OrderStatus) || "pending"}
-                    />
+                    {/* <OrderStatusTracker status={order.status} /> */}
                     <div className="mt-4 flex items-center space-x-2 text-sm text-muted-foreground">
                       <Clock className="h-4 w-4" />
                       <span>
-                        {order.status.toLowerCase() === "delivered"
-                          ? "Delivered"
-                          : "Delivery time will be updated soon"}
+                        {order.status === "DELIVERED"
+                          ? `Delivered`
+                          : "Your order is being processed"}
                       </span>
                     </div>
                   </CardContent>
                 </Card>
 
                 {/* Restaurant Info */}
-                {order.restaurant && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Restaurant</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-center space-x-3">
-                        <div className="relative h-12 w-12 flex-shrink-0 bg-muted rounded" />
-                        <div>
-                          <h3 className="font-semibold">{order.restaurant.name}</h3>
-                        </div>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Restaurant</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center space-x-3">
+                      <div className="relative h-12 w-12 flex-shrink-0">
+                        {/* <Image
+                          src={order.restaurant?.image || "/placeholder.svg"}
+                          alt={order.restaurant?.name || "Restaurant"}
+                          fill
+                          className="object-cover rounded"
+                        /> */}
                       </div>
-                    </CardContent>
-                  </Card>
-                )}
+                      <div>
+                        <h3 className="font-semibold">{order.restaurant?.name}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {order.restaurant?.name || "Restaurant"}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
                 {/* Order Items */}
                 <Card>
@@ -134,17 +130,30 @@ export default function OrderDetailsPage() {
                     <CardTitle>Order Items</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {order.items.map((orderItem, index) => (
-                      <div key={index} className="flex items-center space-x-3">
+                    {order.items?.map((orderItem: any) => (
+                      <div key={orderItem.id} className="flex items-center space-x-3">
+                        <div className="relative h-12 w-12 flex-shrink-0">
+                          <Image
+                            src={orderItem.image || "/placeholder.svg"}
+                            alt={orderItem.name}
+                            fill
+                            className="object-cover rounded"
+                          />
+                        </div>
                         <div className="flex-1">
-                          <h4 className="font-medium">Item #{orderItem.menuItemId}</h4>
+                          <h4 className="font-medium">{orderItem.name}</h4>
                           <p className="text-sm text-muted-foreground">
-                            ₦{orderItem.price.toFixed(2)} × {orderItem.quantity}
+                            ₦{orderItem.price} × {orderItem.quantity}
                           </p>
+                          {orderItem.specialInstructions && (
+                            <p className="text-xs text-muted-foreground italic">
+                              Note: {orderItem.specialInstructions}
+                            </p>
+                          )}
                         </div>
                         <div className="text-right">
                           <p className="font-medium">
-                            ₦{(orderItem.price * orderItem.quantity).toFixed(2)}
+                            ₦{orderItem.price * orderItem.quantity}
                           </p>
                         </div>
                       </div>
@@ -161,9 +170,22 @@ export default function OrderDetailsPage() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span>Subtotal</span>
+                        <span>₦{order.totalAmount}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Delivery Fee</span>
+                        <span>₦500</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Tax</span>
+                        <span>₦{(order.totalAmount * 0.05).toFixed(2)}</span>
+                      </div>
+                      <Separator />
                       <div className="flex justify-between font-semibold text-lg">
                         <span>Total</span>
-                        <span>₦{order.totalAmount.toFixed(2)}</span>
+                        <span>₦{order.totalAmount + 500}</span>
                       </div>
                     </div>
                   </CardContent>
