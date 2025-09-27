@@ -43,7 +43,7 @@ export function HeroSection() {
           >
             <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-gray-100 px-4 py-2 text-sm font-medium shadow-sm mx-auto md:mx-0">
               <Star className="h-4 w-4 text-[#7b1e3a]" />
-              <span>Fast • Reliable • Delicious</span>
+              <span>Fast • Reliable • Deliciouss</span>
             </div>
 
             <h1 className="mb-4 text-3xl sm:text-4xl md:text-6xl font-extrabold leading-tight tracking-tight">
