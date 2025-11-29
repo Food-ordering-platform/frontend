@@ -17,13 +17,16 @@ export interface CreateOrderDto {
 export interface Order {
   id: string
   reference: string
+  //Temporal code
+  token?: string
   totalAmount: number
   paymentStatus: string
   status: string
   deliveryAddress: string
   items: OrderItem[]
   createdAt: string
-  restaurant?: {name: string}
+  //Temporal code
+  restaurant?: { name: string; address?: string; phone?: string }
 }
 // What the backend actually returns when creating an order
 export interface CreateOrderResponse {
