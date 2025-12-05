@@ -27,7 +27,7 @@ export const getOrders = async (customerId: string): Promise<Order[]> => {
   }
 }
 
-// ✅ Get a single order by reference
+// Get a single order by reference
 export const getOrderByReference = async (reference: string): Promise<Order> => {
   try {
     const response = await api.get<{ success: boolean; data: Order }>(
