@@ -1,37 +1,56 @@
-export interface OrderItem {
-  menuItemId: string
-  quantity: number
-  price: number
+// --- INPUT TYPES (Sending Data) ---
+
+// Used inside CreateOrderDto
+export interface OrderItemDto {
+  menuItemId: string;
+  quantity: number;
+  price: number;
 }
 
+// Payload sent to POST /api/orders
 export interface CreateOrderDto {
-  customerId: string
-  restaurantId: string
-  totalAmount: number
-  deliveryAddress: string
-  items: OrderItem[]
-  name: string
-  email: string
+  customerId: string;
+  restaurantId: string;
+  totalAmount: number;
+  deliveryAddress: string;
+  items: OrderItemDto[]; // Uses the DTO
+  name: string;
+  email: string;
 }
 
-export interface Order {
-  id: string
-  reference: string
-  //Temporal code
-  token?: string
-  totalAmount: number
-  paymentStatus: string
-  status: string
-  deliveryAddress: string
-  items: OrderItem[]
-  createdAt: string
-  //Temporal code
-  restaurant?: { name: string; address?: string; phone?: string }
+// --- OUTPUT TYPES (Receiving Data) ---
+
+// Used inside Order (Displaying History)
+export interface OrderItem {
+  quantity: number;
+  price: number;
+  menuItemName: string; // UPDATED: Now uses the snapshot name, not an ID
 }
-// What the backend actually returns when creating an order
+
+// The Order object received from GET /api/orders
+export interface Order {
+  id: string;
+  reference: string;
+  totalAmount: number;
+  deliveryFee: number; // NEW: Added to match backend changes
+  paymentStatus: string;
+  status: string;
+  deliveryAddress: string;
+  items: OrderItem[]; // Uses the Output shape
+  createdAt: string;
+  // Backend also returns restaurant details, good to have here:
+  restaurant?: {
+    name: string;
+    imageUrl: string | null;
+  };
+}
+
+// Response from the Create Order API call
 export interface CreateOrderResponse {
-  data: { checkoutUrl: any }
-  orderId: string
-  reference: string
-  checkoutUrl: string
+  success: boolean;
+  data: {
+    orderId: string;
+    reference: string;
+    checkoutUrl: string;
+  };
 }

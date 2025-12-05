@@ -15,12 +15,12 @@ export interface Restaurant {
   address: string;
   phone?: string;
   imageUrl?: string;
-  deliveryTime: string;
+  deliveryTime: string; // Note: Backend uses prepTime (int), frontend might need conversion logic
   deliveryFee: number;
   minimumOrder: number;
   isOpen: boolean;
   categories: MenuCategory[]; // <-- changed from menuCategories
-  menuitem: MenuItem[];
+  menuitem: MenuItem[]; // Note: Usually singular 'menuItem' or plural 'menuItems', kept as requested 'menuitem'
 }
 
 export interface ApiResponse<T> {
@@ -30,14 +30,14 @@ export interface ApiResponse<T> {
 }
 
 export interface MenuItem {
-  category: any;
-  id: string
-  name: string
-  description?: string
-  price: number
-  available: boolean
-  imageUrl?: string
-  restaurantId: string
-  createdAt: string   // ISO date string from backend
-  updatedAt: string
+  category: any; // Ideally typed as MenuCategory or string depending on usage
+  id: string;
+  name: string;
+  description?: string;
+  price: number;
+  available: boolean;
+  imageUrl?: string;
+  restaurantId: string;
+  createdAt: string; // ISO date string from backend
+  updatedAt: string;
 }
