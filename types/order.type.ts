@@ -7,13 +7,14 @@ export interface OrderItemDto {
   price: number;
 }
 
-// Payload sent to POST /api/orders
+// Payload sent to POST /api/payment/initialize
+// FIXED: Renamed totalAmount -> amount to match PaymentController
 export interface CreateOrderDto {
   customerId: string;
   restaurantId: string;
-  totalAmount: number;
+  amount: number; 
   deliveryAddress: string;
-  items: OrderItemDto[]; // Uses the DTO
+  items: OrderItemDto[]; 
   name: string;
   email: string;
 }
@@ -24,7 +25,7 @@ export interface CreateOrderDto {
 export interface OrderItem {
   quantity: number;
   price: number;
-  menuItemName: string; // UPDATED: Now uses the snapshot name, not an ID
+  menuItemName: string; // Correct: Matches snapshot logic
 }
 
 // The Order object received from GET /api/orders
@@ -32,25 +33,22 @@ export interface Order {
   id: string;
   reference: string;
   totalAmount: number;
-  deliveryFee: number; // NEW: Added to match backend changes
+  deliveryFee: number; // Correct: Matches Order table
   paymentStatus: string;
   status: string;
   deliveryAddress: string;
-  items: OrderItem[]; // Uses the Output shape
+  items: OrderItem[]; 
   createdAt: string;
-  // Backend also returns restaurant details, good to have here:
   restaurant?: {
     name: string;
     imageUrl: string | null;
   };
 }
 
-// Response from the Create Order API call
+// Response from POST /api/payment/initialize
+// FIXED: PaymentController returns this directly, not wrapped in { data: ... }
 export interface CreateOrderResponse {
-  success: boolean;
-  data: {
-    orderId: string;
-    reference: string;
-    checkoutUrl: string;
-  };
+  checkoutUrl: string;
+  reference: string;
+  orderId: string;
 }

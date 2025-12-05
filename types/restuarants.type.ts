@@ -8,19 +8,18 @@ export interface MenuCategory {
 }
 
 export interface Restaurant {
-  cuisine: ReactNode;
-  description: ReactNode;
   id: string;
   name: string;
   address: string;
   phone?: string;
   imageUrl?: string;
-  deliveryTime: string; // Note: Backend uses prepTime (int), frontend might need conversion logic
-  deliveryFee: number;
+  prepTime: number; 
   minimumOrder: number;
   isOpen: boolean;
-  categories: MenuCategory[]; // <-- changed from menuCategories
-  menuitem: MenuItem[]; // Note: Usually singular 'menuItem' or plural 'menuItems', kept as requested 'menuitem'
+  categories: MenuCategory[]; 
+  menuItems: MenuItem[];
+  cuisine?: ReactNode;
+  description?: ReactNode;
 }
 
 export interface ApiResponse<T> {
@@ -30,7 +29,6 @@ export interface ApiResponse<T> {
 }
 
 export interface MenuItem {
-  category: any; // Ideally typed as MenuCategory or string depending on usage
   id: string;
   name: string;
   description?: string;
@@ -38,6 +36,7 @@ export interface MenuItem {
   available: boolean;
   imageUrl?: string;
   restaurantId: string;
-  createdAt: string; // ISO date string from backend
+  categoryId: string; // Ensure this matches backend field
+  createdAt: string;
   updatedAt: string;
 }
