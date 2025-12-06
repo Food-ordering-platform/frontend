@@ -22,7 +22,6 @@ export const registerUser = async (
   }
 };
 
-
 //login a user
 export const loginUser = async (data: LoginData): Promise<AuthResponse> => {
   try {
@@ -42,6 +41,26 @@ export const loginUser = async (data: LoginData): Promise<AuthResponse> => {
     };
   } catch (error: any) {
     console.log("Login error:", error.response?.data || error.message);
+    throw error;
+  }
+};
+
+
+//Get currentUser
+
+export const getCurrentUser = async (): Promise<AuthResponse["user"]> => {
+  try {
+    // Calls the new backend endpoint we just created
+    const response = await api.get<{
+      message: string;
+      user: AuthResponse["user"];
+    }>("/auth/me");
+
+    return response.data.user;
+  } catch (error: any) {
+    // If 401 (Unauthorized) is returned, the auth-context will catch this 
+    // and log the user out automatically.
+    console.error("Token validation failed:", error.response?.data || error.message);
     throw error;
   }
 };

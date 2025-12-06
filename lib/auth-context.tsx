@@ -1,9 +1,8 @@
-// src/lib/auth-context.tsx
 "use client";
 
 import { createContext, useContext, useState, useEffect } from "react";
 import type { AuthResponse, LoginData } from "@/types/auth.type";
-import { loginUser, registerUser } from "@/services/auth/auth";
+import { loginUser, registerUser, getCurrentUser } from "@/services/auth/auth"; // ✅ Added getCurrentUser
 
 interface AuthContextType {
   user: AuthResponse["user"] | null;
@@ -21,21 +20,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // ✅ UPDATED: Validate token on mount
   useEffect(() => {
-    const storedUser = localStorage.getItem("auth-user");
-    const storedToken = localStorage.getItem("auth-token");
-    console.log("AuthProvider - Restoring from localStorage:", { storedUser, storedToken });
-    if (storedUser && storedToken) {
-      try {
-        setUser(JSON.parse(storedUser));
-        setToken(storedToken);
-      } catch (err) {
-        console.error("Error parsing stored user:", err);
-        localStorage.removeItem("auth-user");
-        localStorage.removeItem("auth-token");
+    const initializeAuth = async () => {
+      const storedToken = localStorage.getItem("auth-token");
+      
+      if (storedToken) {
+        try {
+          // 1. Set token state first so axios interceptor can pick it up
+          setToken(storedToken);
+          
+          // 2. Call backend to verify token and get fresh user data
+          // This calls the /auth/me endpoint you just created
+          const freshUser = await getCurrentUser();
+          
+          if (freshUser) {
+            setUser(freshUser);
+            // Optional: Update the cached user in local storage to keep it fresh
+            localStorage.setItem("auth-user", JSON.stringify(freshUser));
+          } else {
+            // If API returns no user (shouldn't happen if getCurrentUser throws on error), force logout
+            throw new Error("User not found");
+          }
+        } catch (error) {
+          console.error("Session verification failed:", error);
+          // 3. If any error occurs (401, 403, user deleted), clear everything
+          logout();
+        }
+      } else {
+        // No token found, ensure clean state
+        logout();
       }
-    }
-    setIsLoading(false);
+      
+      setIsLoading(false);
+    };
+
+    initializeAuth();
   }, []);
 
   const login = async (data: LoginData): Promise<boolean> => {
@@ -43,13 +63,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await loginUser(data);
       console.log("AuthProvider - Login response:", res);
+      
       if (!res.user || !res.token) {
         console.error("AuthProvider - Invalid login response:", res);
         return false;
       }
+      
       setUser(res.user);
       setToken(res.token);
-      console.log("AuthProvider - Setting localStorage:", { user: res.user, token: res.token });
+      
       localStorage.setItem("auth-user", JSON.stringify(res.user));
       localStorage.setItem("auth-token", res.token);
       return true;
