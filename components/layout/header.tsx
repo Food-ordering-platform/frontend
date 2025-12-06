@@ -1,6 +1,7 @@
 "use client"
 
 import { useAuth } from "@/lib/auth-context"
+import { useCart } from "@/lib/cart-context" // ✅ Import useCart
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
@@ -17,9 +18,11 @@ import { useRouter } from "next/navigation"
 
 export function Header() {
   const { user, logout } = useAuth()
+  const { clearCart } = useCart() // ✅ Get the clearCart function
   const router = useRouter()
 
   const handleLogout = () => {
+    clearCart() // ✅ CRITICAL: Clears old items so they don't conflict with new DB data
     logout()
     router.push("/")
   }
@@ -103,7 +106,7 @@ export function Header() {
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onClick={handleLogout}
-                      className="py-3 text-destructive focus:text-destructive"
+                      className="py-3 text-destructive focus:text-destructive cursor-pointer"
                     >
                       <LogOut className="mr-3 h-4 w-4" />
                       <span>Sign Out</span>
