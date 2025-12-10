@@ -13,11 +13,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
-import { useToast } from "@/hooks/use-toast"
-import { ArrowLeft, MapPin, Clock, CreditCard, Shield, Bike, Utensils } from "lucide-react"
+import { useToast } from "@/components/ui/use-toast"
+import { ArrowLeft, MapPin, Clock, CreditCard, ShieldCheck, ShoppingBag, Phone, StickyNote, Wallet } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import { CreateOrderDto } from "@/types/order.type"
+import { motion } from "framer-motion"
 
 export default function CheckoutPage() {
   const { user } = useAuth()
@@ -33,8 +34,8 @@ export default function CheckoutPage() {
 
   // Pricing Logic (Naira)
   const subtotal = getTotalPrice()
-  const deliveryFee = 1500 // ₦1500 flat delivery
-  const taxRate = 0.075 // 7.5% VAT
+  const deliveryFee = 1500
+  const taxRate = 0.075 
   const tax = subtotal * taxRate
   const total = subtotal + deliveryFee + tax
 
@@ -52,8 +53,17 @@ export default function CheckoutPage() {
 
     if (!deliveryAddress.trim()) {
       toast({
-        title: "Address Missing",
+        title: "Address Required",
         description: "Please enter your delivery address to continue.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!phoneNumber.trim()) {
+      toast({
+        title: "Phone Number Required",
+        description: "We need your phone number for delivery updates.",
         variant: "destructive",
       })
       return
@@ -81,8 +91,8 @@ export default function CheckoutPage() {
       const { checkoutUrl } = response
 
       toast({
-        title: "Order placed successfully!",
-        description: `Redirecting to payment gateway...`,
+        title: "Order initiated!",
+        description: `Redirecting to secure payment...`,
       })
 
       clearCart()
@@ -91,7 +101,7 @@ export default function CheckoutPage() {
       console.error("Failed to place order:", error)
       toast({
         title: "Order failed",
-        description: error?.message || "Failed to place your order. Please try again.",
+        description: error?.message || "Something went wrong. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -101,195 +111,241 @@ export default function CheckoutPage() {
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-gray-50/50">
+      <div className="min-h-screen bg-[#faf9f8] font-sans">
         <Header />
-        <main className="container py-8 md:py-12">
-          <div className="max-w-6xl mx-auto">
-            {/* Page Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-              <div className="flex items-center gap-3">
-                <Button variant="outline" size="icon" asChild className="rounded-full h-10 w-10">
-                  <Link href="/restaurants">
-                    <ArrowLeft className="h-4 w-4" />
-                  </Link>
-                </Button>
-                <div>
-                  <h1 className="text-3xl font-bold tracking-tight text-gray-900">Checkout</h1>
-                  <p className="text-muted-foreground">Review your order and complete payment</p>
-                </div>
+        
+        <main className="container py-8 md:py-12 max-w-7xl mx-auto px-4 sm:px-6">
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8"
+          >
+            <Button variant="ghost" className="pl-0 hover:bg-transparent hover:text-[#7b1e3a] mb-2" asChild>
+                <Link href="/restaurants" className="flex items-center gap-2">
+                    <ArrowLeft className="h-4 w-4" /> 
+                    <span>Continue Shopping</span>
+                </Link>
+            </Button>
+            <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight">Checkout</h1>
+          </motion.div>
+
+          {items.length === 0 ? (
+            <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="flex flex-col items-center justify-center py-24 text-center bg-white rounded-3xl border border-dashed border-gray-200"
+            >
+              <div className="h-24 w-24 bg-orange-50 rounded-full flex items-center justify-center mb-6">
+                <ShoppingBag className="h-10 w-10 text-orange-400" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">Your cart is empty</h3>
+              <p className="text-gray-500 mb-8 max-w-sm">Looks like you haven't added any delicious food yet.</p>
+              <Button asChild size="lg" className="bg-[#7b1e3a] hover:bg-[#66172e] rounded-full px-8 shadow-lg shadow-red-900/20">
+                <Link href="/restaurants">Browse Restaurants</Link>
+              </Button>
+            </motion.div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
+              
+              {/* Left Column - Forms */}
+              <div className="lg:col-span-7 space-y-8">
+                
+                {/* Delivery Information */}
+                <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.1 }}
+                >
+                    <Card className="border-0 shadow-sm ring-1 ring-gray-200 rounded-2xl overflow-hidden bg-white">
+                        <CardHeader className="bg-gray-50/50 border-b border-gray-100 pb-4">
+                            <CardTitle className="flex items-center gap-2 text-lg font-bold text-gray-800">
+                                <MapPin className="h-5 w-5 text-[#7b1e3a]" />
+                                Delivery Details
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-6 space-y-6">
+                            <div className="grid gap-6">
+                                <div className="space-y-2">
+                                    <Label htmlFor="address" className="text-sm font-semibold text-gray-700">Delivery Address</Label>
+                                    <div className="relative">
+                                        <Textarea
+                                            id="address"
+                                            placeholder="Street address, apartment, suite, etc."
+                                            value={deliveryAddress}
+                                            onChange={(e) => setDeliveryAddress(e.target.value)}
+                                            className="min-h-[100px] resize-none pl-4 focus-visible:ring-[#7b1e3a] border-gray-200 bg-gray-50/50"
+                                        />
+                                    </div>
+                                </div>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="phone" className="text-sm font-semibold text-gray-700">Phone Number</Label>
+                                        <div className="relative">
+                                            <Phone className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                                            <Input
+                                                id="phone"
+                                                type="tel"
+                                                placeholder="0801 234 5678"
+                                                value={phoneNumber}
+                                                onChange={(e) => setPhoneNumber(e.target.value)}
+                                                className="pl-9 focus-visible:ring-[#7b1e3a] border-gray-200 bg-gray-50/50"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="notes" className="text-sm font-semibold text-gray-700">Instructions (Optional)</Label>
+                                        <div className="relative">
+                                            <StickyNote className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                                            <Input
+                                                id="notes"
+                                                placeholder="Gate code, knock hard..."
+                                                value={orderNotes}
+                                                onChange={(e) => setOrderNotes(e.target.value)}
+                                                className="pl-9 focus-visible:ring-[#7b1e3a] border-gray-200 bg-gray-50/50"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </motion.div>
+
+                {/* Order Items Review */}
+                <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.2 }}
+                >
+                    <Card className="border-0 shadow-sm ring-1 ring-gray-200 rounded-2xl overflow-hidden bg-white">
+                        <CardHeader className="bg-gray-50/50 border-b border-gray-100 pb-4">
+                            <CardTitle className="flex items-center gap-2 text-lg font-bold text-gray-800">
+                                <ShoppingBag className="h-5 w-5 text-[#7b1e3a]" />
+                                Your Items
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            <div className="divide-y divide-gray-100">
+                                {items.map((item, index) => (
+                                    <div key={`${item.menuItem.id}-${index}`} className="flex gap-4 p-5 hover:bg-gray-50/50 transition-colors">
+                                        <div className="relative h-20 w-20 flex-shrink-0 bg-gray-100 rounded-xl overflow-hidden border border-gray-200">
+                                            <Image
+                                                src={item.menuItem.image || "/placeholder.svg"}
+                                                alt={item.menuItem.name}
+                                                fill
+                                                className="object-cover"
+                                            />
+                                        </div>
+                                        <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                            <div className="flex justify-between items-start mb-1">
+                                                <h4 className="font-bold text-gray-900 truncate pr-4">{item.menuItem.name}</h4>
+                                                <p className="font-bold text-gray-900 whitespace-nowrap">
+                                                    {formatMoney(item.menuItem.price * item.quantity)}
+                                                </p>
+                                            </div>
+                                            <div className="flex items-center text-sm text-gray-500">
+                                                <span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-medium mr-2 text-gray-700">
+                                                    Qty: {item.quantity}
+                                                </span>
+                                                <span>{formatMoney(item.menuItem.price)} each</span>
+                                            </div>
+                                            {item.specialInstructions && (
+                                                <p className="text-xs text-orange-600 mt-2 flex items-center gap-1">
+                                                    <span className="w-1 h-1 rounded-full bg-orange-600" />
+                                                    {item.specialInstructions}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                </motion.div>
+              </div>
+
+              {/* Right Column - Payment Summary */}
+              <div className="lg:col-span-5 relative">
+                <motion.div
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="sticky top-24"
+                >
+                    <Card className="border-0 shadow-xl shadow-gray-200/50 ring-1 ring-gray-200 rounded-3xl overflow-hidden bg-white">
+                        <div className="bg-[#7b1e3a] p-6 text-white relative overflow-hidden">
+                            <div className="absolute top-0 right-0 p-4 opacity-10">
+                                <Wallet className="h-24 w-24 transform rotate-12" />
+                            </div>
+                            <h2 className="text-xl font-bold relative z-10 flex items-center gap-2">
+                                <CreditCard className="h-5 w-5" /> Payment Summary
+                            </h2>
+                            <p className="text-white/80 text-sm mt-1 relative z-10">Complete your purchase securely</p>
+                        </div>
+
+                        <CardContent className="p-6 md:p-8 space-y-6">
+                            <div className="space-y-4">
+                                <div className="flex justify-between items-center text-gray-600">
+                                    <span>Subtotal</span>
+                                    <span className="font-medium text-gray-900">{formatMoney(subtotal)}</span>
+                                </div>
+                                <div className="flex justify-between items-center text-gray-600">
+                                    <span>Delivery Fee</span>
+                                    <span className="font-medium text-gray-900">{formatMoney(deliveryFee)}</span>
+                                </div>
+                                <div className="flex justify-between items-center text-gray-600">
+                                    <span>VAT (7.5%)</span>
+                                    <span className="font-medium text-gray-900">{formatMoney(tax)}</span>
+                                </div>
+                            </div>
+
+                            <Separator className="bg-gray-100" />
+
+                            <div className="flex justify-between items-end">
+                                <span className="text-lg font-bold text-gray-900">Total to Pay</span>
+                                <div className="text-right">
+                                    <span className="text-3xl font-extrabold text-[#7b1e3a] leading-none">
+                                        {formatMoney(total)}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 flex gap-3 items-start">
+                                <div className="bg-white p-1.5 rounded-full shadow-sm shrink-0">
+                                    <Clock className="h-4 w-4 text-orange-600" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-bold text-orange-800">Estimated Delivery</p>
+                                    <p className="text-xs text-orange-700/80 mt-0.5">30-45 minutes from order confirmation</p>
+                                </div>
+                            </div>
+
+                            <Button
+                                onClick={handlePlaceOrder}
+                                disabled={isPlacingOrder}
+                                className="w-full h-14 bg-[#7b1e3a] hover:bg-[#66172e] text-white font-bold text-lg rounded-xl shadow-lg shadow-red-900/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                            >
+                                {isPlacingOrder ? (
+                                    <div className="flex items-center gap-2">
+                                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                                        Processing...
+                                    </div>
+                                ) : (
+                                    `Pay ${formatMoney(total)}`
+                                )}
+                            </Button>
+
+                            <div className="flex items-center justify-center gap-2 text-xs text-gray-400 font-medium pt-2">
+                                <ShieldCheck className="h-4 w-4 text-green-500" />
+                                <span>Payments are secure and encrypted</span>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </motion.div>
               </div>
             </div>
-
-            {items.length === 0 ? (
-              <Card className="border-dashed border-2 shadow-none bg-transparent">
-                <CardContent className="text-center py-20 flex flex-col items-center">
-                  <div className="h-24 w-24 bg-orange-100 rounded-full flex items-center justify-center mb-6">
-                    <Utensils className="h-10 w-10 text-orange-600" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-gray-900 mb-2">Your cart is empty</h3>
-                  <p className="text-gray-500 mb-8 max-w-sm">Looks like you haven't added any food yet. Browse our restaurants to find something delicious.</p>
-                  <Button asChild size="lg" className="bg-[#7b1e3a] hover:bg-[#66172e] rounded-full px-8">
-                    <Link href="/restaurants">Start Ordering</Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                {/* Left Column - Details */}
-                <div className="lg:col-span-7 space-y-6">
-                  {/* Delivery Info */}
-                  <Card className="shadow-sm border-0 ring-1 ring-gray-200">
-                    <CardHeader className="pb-4">
-                      <div className="flex items-center gap-2 text-[#7b1e3a]">
-                        <MapPin className="h-5 w-5" />
-                        <h2 className="font-bold text-lg">Delivery Details</h2>
-                      </div>
-                    </CardHeader>
-                    <Separator />
-                    <CardContent className="p-6 space-y-5">
-                      <div className="space-y-2">
-                        <Label htmlFor="address" className="text-sm font-medium text-gray-700">
-                          Delivery Address
-                        </Label>
-                        <Textarea
-                          id="address"
-                          placeholder="Example: 12 Adeola Odeku Street, Victoria Island, Lagos"
-                          value={deliveryAddress}
-                          onChange={(e) => setDeliveryAddress(e.target.value)}
-                          className="min-h-[100px] resize-none focus:border-[#7b1e3a] focus:ring-[#7b1e3a]"
-                        />
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="phone" className="text-sm font-medium text-gray-700">Phone Number</Label>
-                            <Input
-                            id="phone"
-                            type="tel"
-                            placeholder="0801 234 5678"
-                            value={phoneNumber}
-                            onChange={(e) => setPhoneNumber(e.target.value)}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="notes" className="text-sm font-medium text-gray-700">Instructions (Optional)</Label>
-                            <Input
-                            id="notes"
-                            placeholder="Gate code, knock loudly..."
-                            value={orderNotes}
-                            onChange={(e) => setOrderNotes(e.target.value)}
-                            />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Order Items */}
-                  <Card className="shadow-sm border-0 ring-1 ring-gray-200">
-                     <CardHeader className="pb-4">
-                      <div className="flex items-center gap-2 text-[#7b1e3a]">
-                        <Utensils className="h-5 w-5" />
-                        <h2 className="font-bold text-lg">Your Items</h2>
-                      </div>
-                    </CardHeader>
-                    <Separator />
-                    <CardContent className="p-6 divide-y">
-                      {items.map((item, index) => (
-                        <div key={`${item.menuItem.id}-${index}`} className="flex gap-4 py-4 first:pt-0 last:pb-0">
-                           <div className="relative h-20 w-20 flex-shrink-0 rounded-xl overflow-hidden bg-gray-100">
-                            <Image
-                              src={item.menuItem.image || "/placeholder.svg"}
-                              alt={item.menuItem.name}
-                              fill
-                              className="object-cover"
-                            />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-semibold text-gray-900 truncate">{item.menuItem.name}</h4>
-                             <p className="text-sm text-gray-500 mt-1">
-                              {formatMoney(item.menuItem.price)} × {item.quantity}
-                            </p>
-                            {item.specialInstructions && (
-                              <p className="text-xs text-[#d97706] bg-orange-50 inline-block px-2 py-1 rounded mt-2">
-                                "{item.specialInstructions}"
-                              </p>
-                            )}
-                          </div>
-                          <div className="text-right">
-                            <p className="font-bold text-gray-900">
-                              {formatMoney(item.menuItem.price * item.quantity)}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Right Column - Summary */}
-                <div className="lg:col-span-5 space-y-6">
-                  <Card className="shadow-lg border-0 ring-1 ring-gray-200 sticky top-24 bg-white/80 backdrop-blur-xl">
-                    <CardHeader className="bg-[#7b1e3a] text-white rounded-t-xl py-6">
-                      <CardTitle className="flex items-center gap-2">
-                        <CreditCard className="h-5 w-5" />
-                        Payment Summary
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-6 space-y-4">
-                        <div className="flex justify-between text-gray-600">
-                            <span>Subtotal</span>
-                            <span>{formatMoney(subtotal)}</span>
-                        </div>
-                        <div className="flex justify-between text-gray-600">
-                            <span>Delivery Fee</span>
-                            <span>{formatMoney(deliveryFee)}</span>
-                        </div>
-                        <div className="flex justify-between text-gray-600">
-                            <span>VAT (7.5%)</span>
-                            <span>{formatMoney(tax)}</span>
-                        </div>
-                        
-                        <Separator className="my-2" />
-                        
-                        <div className="flex justify-between items-end">
-                            <span className="font-bold text-lg text-gray-900">Total</span>
-                            <span className="font-extrabold text-3xl text-[#7b1e3a]">{formatMoney(total)}</span>
-                        </div>
-
-                        <div className="bg-orange-50 rounded-lg p-3 flex gap-3 items-start mt-4">
-                            <Clock className="h-5 w-5 text-[#d97706] mt-0.5" />
-                            <div className="text-sm text-[#92400e]">
-                                <p className="font-semibold">Est. Delivery: 35-45 mins</p>
-                                <p className="opacity-90">Based on standard Lagos traffic</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                    <CardFooter className="p-6 pt-0">
-                        <Button
-                            onClick={handlePlaceOrder}
-                            disabled={isPlacingOrder}
-                            className="w-full h-14 bg-[#7b1e3a] hover:bg-[#66172e] font-bold text-lg rounded-xl shadow-lg shadow-red-900/10 transition-all hover:scale-[1.02]"
-                        >
-                            {isPlacingOrder ? (
-                            <div className="flex items-center gap-2">
-                                <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-                                Processing...
-                            </div>
-                            ) : (
-                            `Pay ${formatMoney(total)}`
-                            )}
-                        </Button>
-                    </CardFooter>
-                    <div className="pb-6 text-center">
-                        <div className="flex items-center justify-center gap-2 text-xs text-gray-400">
-                            <Shield className="h-3 w-3" />
-                            <span>Secured by Paystack/Flutterwave</span>
-                        </div>
-                    </div>
-                  </Card>
-                </div>
-              </div>
-            )}
-          </div>
+          )}
         </main>
       </div>
     </ProtectedRoute>
