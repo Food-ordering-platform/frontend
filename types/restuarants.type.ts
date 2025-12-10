@@ -20,6 +20,9 @@ export interface Restaurant {
   menuItems: MenuItem[];
   cuisine?: ReactNode;
   description?: ReactNode;
+  rating?: number;
+  deliveryFee?: number;
+  deliveryTime?: number;
 }
 
 export interface ApiResponse<T> {
