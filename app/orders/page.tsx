@@ -156,7 +156,7 @@ export default function OrdersPage() {
                         {filteredOrders.map((order) => (
                             <Link 
                                 key={order.id} 
-                                href={`/order/${order.reference}`}
+                                href={`/orders/details?=${order.reference}`}
                                 className="block group"
                             >
                                 <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition-all hover:border-[#7b1e3a]/30">
