@@ -1,122 +1,101 @@
-import type { Order } from "@/lib/types"
+"use client"
+
+import type { Order } from "@/types/order.type"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Clock, MapPin, Package, ArrowRight } from "lucide-react"
+import { Clock, MapPin, Package, ArrowRight, ChefHat, Truck, CheckCircle2, XCircle } from "lucide-react"
 import Link from "next/link"
+import { motion } from "framer-motion"
 
 interface OrderCardProps {
   order: Order
 }
 
-const statusColors = {
-  pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
-  confirmed: "bg-blue-100 text-blue-800 border-blue-200",
-  preparing: "bg-orange-100 text-orange-800 border-orange-200",
-  "out-for-delivery": "bg-purple-100 text-purple-800 border-purple-200",
-  delivered: "bg-green-100 text-green-800 border-green-200",
-  cancelled: "bg-red-100 text-red-800 border-red-200",
+// Helper for Naira
+const formatMoney = (amount: number) => {
+  return new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    minimumFractionDigits: 0,
+  }).format(amount)
 }
 
-const statusLabels = {
-  pending: "Order Pending",
-  confirmed: "Confirmed",
-  preparing: "Being Prepared",
-  "out-for-delivery": "Out for Delivery",
-  delivered: "Delivered",
-  cancelled: "Cancelled",
-}
-
-const statusIcons = {
-  pending: Clock,
-  confirmed: Package,
-  preparing: Package,
-  "out-for-delivery": Package,
-  delivered: Package,
-  cancelled: Package,
-}
+const statusConfig = {
+  pending: { label: "Pending", icon: Clock, color: "bg-yellow-100 text-yellow-700 border-yellow-200" },
+  confirmed: { label: "Confirmed", icon: CheckCircle2, color: "bg-blue-100 text-blue-700 border-blue-200" },
+  preparing: { label: "Cooking", icon: ChefHat, color: "bg-orange-100 text-orange-700 border-orange-200" },
+  out_for_delivery: { label: "On the way", icon: Truck, color: "bg-purple-100 text-purple-700 border-purple-200" },
+  delivered: { label: "Delivered", icon: Package, color: "bg-green-100 text-green-700 border-green-200" },
+  cancelled: { label: "Cancelled", icon: XCircle, color: "bg-red-100 text-red-700 border-red-200" },
+} as const
 
 export function OrderCard({ order }: OrderCardProps) {
-  const StatusIcon = statusIcons[order.status]
+  // Safe fallback for status
+  const statusKey = (order.status?.toLowerCase().replace(/-/g, "_") || "pending") as keyof typeof statusConfig
+  const config = statusConfig[statusKey] || statusConfig.pending
+  const StatusIcon = config.icon
 
   return (
-    <Card className="hover:shadow-lg transition-all duration-300 border-border/50 hover:border-primary/20 bg-card">
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between mb-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 bg-gradient-red-light rounded-lg flex items-center justify-center">
-                <StatusIcon className="h-5 w-5 text-white" />
-              </div>
-              <div>
-                <h3 className="font-bold text-xl">Order #{order.id}</h3>
-                <p className="text-sm text-muted-foreground">
-                  {new Date(order.orderDate).toLocaleDateString("en-US", {
-                    weekday: "short",
-                    month: "short",
-                    day: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </p>
-              </div>
-            </div>
-          </div>
-          <Badge className={`${statusColors[order.status]} font-semibold px-3 py-1 border`}>
-            {statusLabels[order.status]}
-          </Badge>
-        </div>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -4 }}
+      transition={{ duration: 0.3 }}
+    >
+      <Link href={`/orders/details?reference=${order.reference}`} className="block group">
+        <Card className="overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 rounded-2xl bg-white relative">
+          
+          {/* Decorative side bar */}
+          <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${statusKey === 'delivered' ? 'bg-green-500' : 'bg-[#7b1e3a]'}`} />
 
-        <div className="space-y-3 mb-6 bg-muted/30 p-4 rounded-lg">
-          <div className="flex items-center space-x-3">
-            <MapPin className="h-5 w-5 text-primary flex-shrink-0" />
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Delivery Address</p>
-              <p className="font-medium truncate">{order.deliveryAddress}</p>
+          <CardContent className="p-5 pl-7">
+            <div className="flex justify-between items-start mb-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Order ID</span>
+                  <Badge variant="outline" className="font-mono text-[10px] text-gray-500">
+                    #{order.reference?.slice(-6).toUpperCase() || "REF"}
+                  </Badge>
+                </div>
+                <h3 className="font-bold text-lg text-gray-900 group-hover:text-[#7b1e3a] transition-colors">
+                  {formatMoney(order.totalAmount)}
+                </h3>
+              </div>
+              <Badge className={`${config.color} border shadow-none px-2.5 py-0.5 rounded-full flex items-center gap-1.5`}>
+                <StatusIcon className="h-3 w-3" />
+                <span className="font-semibold text-[10px] uppercase tracking-wide">{config.label}</span>
+              </Badge>
             </div>
-          </div>
-          <div className="flex items-center space-x-3">
-            <Clock className="h-5 w-5 text-primary flex-shrink-0" />
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">
-                {order.status === "delivered" ? "Delivered At" : "Estimated Delivery"}
-              </p>
-              <p className="font-medium">
-                {order.status === "delivered" && order.actualDeliveryTime
-                  ? new Date(order.actualDeliveryTime).toLocaleTimeString("en-US", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })
-                  : order.estimatedDeliveryTime
-                    ? new Date(order.estimatedDeliveryTime).toLocaleTimeString("en-US", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
-                    : "Calculating..."}
-              </p>
-            </div>
-          </div>
-        </div>
 
-        <div className="flex items-center justify-between pt-4 border-t border-border/50">
-          <div className="space-y-1">
-            <p className="text-sm text-muted-foreground">
-              {order.items.length} item{order.items.length !== 1 ? "s" : ""} ordered
-            </p>
-            <p className="font-bold text-2xl text-primary">${order.totalAmount.toFixed(2)}</p>
-          </div>
-          <Button
-            variant="outline"
-            asChild
-            className="border-primary/20 hover:bg-primary/10 hover:border-primary/40 font-semibold bg-transparent"
-          >
-            <Link href={`/orders/${order.id}`} className="flex items-center gap-2">
-              View Details
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+            <div className="space-y-3">
+              <div className="flex items-start gap-3 text-sm text-gray-600 bg-gray-50/50 p-2.5 rounded-lg">
+                <MapPin className="h-4 w-4 text-[#7b1e3a] mt-0.5 shrink-0" />
+                <span className="line-clamp-1 font-medium">{order.deliveryAddress}</span>
+              </div>
+              
+              <div className="flex items-center gap-3 text-xs text-gray-500 px-1">
+                <div className="flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5" />
+                  <span>{new Date(order.createdAt).toLocaleDateString()}</span>
+                </div>
+                <span className="text-gray-300">•</span>
+                <div className="flex items-center gap-1.5">
+                  <Package className="h-3.5 w-3.5" />
+                  <span>{order.items?.length || 0} Items</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 pt-4 border-t border-gray-100 flex justify-between items-center">
+               <span className="text-xs font-semibold text-[#7b1e3a] group-hover:underline">View Receipt</span>
+               <div className="h-8 w-8 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-[#7b1e3a] group-hover:text-white transition-colors">
+                  <ArrowRight className="h-4 w-4" />
+               </div>
+            </div>
+          </CardContent>
+        </Card>
+      </Link>
+    </motion.div>
   )
 }
