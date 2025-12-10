@@ -19,10 +19,11 @@ export const useGetOrders = (customerId: string) => {
 }
 
 // ✅ Get a single order by reference
-export const useGetOrderByReference = (reference: string, p0: { enabled: boolean }) => {
+export const useGetOrderByReference = (reference: string, options?: { enabled?: boolean }) => {
   return useQuery<Order, Error>({
     queryKey: ["order", reference],
     queryFn: () => getOrderByReference(reference),
-    enabled: !!reference, // only run if reference exists
+    // Use passed enabled option, fallback to !!reference if not provided
+    enabled: options?.enabled ?? !!reference, 
   })
 }
