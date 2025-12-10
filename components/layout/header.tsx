@@ -1,7 +1,7 @@
 "use client"
 
 import { useAuth } from "@/lib/auth-context"
-import { useCart } from "@/lib/cart-context" // ✅ Import useCart
+import { useCart } from "@/lib/cart-context"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
@@ -18,11 +18,11 @@ import { useRouter } from "next/navigation"
 
 export function Header() {
   const { user, logout } = useAuth()
-  const { clearCart } = useCart() // ✅ Get the clearCart function
+  const { clearCart } = useCart()
   const router = useRouter()
 
   const handleLogout = () => {
-    clearCart() // ✅ CRITICAL: Clears old items so they don't conflict with new DB data
+    clearCart()
     logout()
     router.push("/")
   }
@@ -30,12 +30,12 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur-md border-b shadow-sm">
       <div className="container flex h-16 items-center justify-between">
-        {/* Logo */}
+        {/* Logo - Renamed to Choweazy */}
         <Link href="/" className="flex items-center space-x-2 group">
           <div className="h-9 w-9 rounded-xl bg-[#7b1e3a] flex items-center justify-center shadow-md">
-            <span className="text-white font-bold">F</span>
+            <span className="text-white font-bold">C</span>
           </div>
-          <span className="font-bold text-xl text-[#7b1e3a]">FoodOrder</span>
+          <span className="font-bold text-xl text-[#7b1e3a]">Choweazy</span>
         </Link>
 
         {/* Nav links */}
