@@ -5,13 +5,20 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
+import { GoogleLoginBtn } from "./google-button";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid Email"),
@@ -28,7 +35,7 @@ export function LoginForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const result = loginSchema.safeParse({ email, password });
-    
+
     if (!result.success) {
       toast({
         title: "Error",
@@ -69,7 +76,9 @@ export function LoginForm() {
       <CardContent className="px-8 pb-10">
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-2">
-            <Label htmlFor="email" className="text-gray-700 font-medium">Email Address</Label>
+            <Label htmlFor="email" className="text-gray-700 font-medium">
+              Email Address
+            </Label>
             <Input
               id="email"
               type="email"
@@ -82,10 +91,15 @@ export function LoginForm() {
           </div>
           <div className="space-y-2">
             <div className="flex justify-between items-center">
-                <Label htmlFor="password" className="text-gray-700 font-medium">Password</Label>
-                <Link href="/forgot-password" className="text-sm font-semibold text-[#7b1e3a] hover:underline">
-                  Forgot?
-                </Link>
+              <Label htmlFor="password" className="text-gray-700 font-medium">
+                Password
+              </Label>
+              <Link
+                href="/forgot-password"
+                className="text-sm font-semibold text-[#7b1e3a] hover:underline"
+              >
+                Forgot?
+              </Link>
             </div>
             <Input
               id="password"
@@ -104,16 +118,38 @@ export function LoginForm() {
             disabled={isLoading}
           >
             {isLoading ? (
-                <span className="flex items-center justify-center gap-2">
-                    <Loader2 className="h-5 w-5 animate-spin" /> 
-                    Logging in...
-                </span>
-            ) : "Sign In"}
+              <span className="flex items-center justify-center gap-2">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Logging in...
+              </span>
+            ) : (
+              "Sign In"
+            )}
           </Button>
         </form>
+        <div className="relative my-4">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-white px-2 text-gray-500">
+              Or continue with
+            </span>
+          </div>
+        </div>
+
+        <GoogleLoginBtn />
 
         <div className="mt-8 text-center">
-             <p className="text-gray-500">Don't have an account? <Link href="/signup" className="font-bold text-[#7b1e3a] hover:underline">Sign up</Link></p>
+          <p className="text-gray-500">
+            Don't have an account?{" "}
+            <Link
+              href="/signup"
+              className="font-bold text-[#7b1e3a] hover:underline"
+            >
+              Sign up
+            </Link>
+          </p>
         </div>
       </CardContent>
     </Card>
