@@ -16,6 +16,8 @@ export interface LoginData {
 export interface AuthResponse {
   token: string;
   user: {
+    phone: string;
+    image: string | undefined;
     id: string;
     name: string;
     email: string;

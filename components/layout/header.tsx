@@ -30,7 +30,6 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur-md border-b shadow-sm">
       <div className="container flex h-16 items-center justify-between">
-        {/* Logo - Renamed to Choweazy */}
         <Link href="/" className="flex items-center space-x-2 group">
           <div className="h-9 w-9 rounded-xl bg-[#7b1e3a] flex items-center justify-center shadow-md">
             <span className="text-white font-bold">C</span>
@@ -38,7 +37,6 @@ export function Header() {
           <span className="font-bold text-xl text-[#7b1e3a]">Choweazy</span>
         </Link>
 
-        {/* Nav links */}
         <nav className="hidden md:flex items-center gap-8 text-sm absolute left-1/2 transform -translate-x-1/2">
           {[
             { href: "/restaurants", label: "Restaurants" },
@@ -57,7 +55,6 @@ export function Header() {
           ))}
         </nav>
 
-        {/* Right side */}
         <div className="flex items-center space-x-4">
           {user ? (
             <>
@@ -89,21 +86,28 @@ export function Header() {
                   </div>
 
                   <div className="p-2">
-                    <DropdownMenuItem className="py-3">
-                      <User className="mr-3 h-4 w-4" />
-                      <span>My Profile</span>
+                    {/* FIXED: Added Link component here so it actually navigates */}
+                    <DropdownMenuItem asChild className="py-3 cursor-pointer">
+                      <Link href="/profile">
+                        <User className="mr-3 h-4 w-4" />
+                        <span>My Profile</span>
+                      </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem asChild className="py-3">
+                    
+                    <DropdownMenuItem asChild className="py-3 cursor-pointer">
                       <Link href="/orders">
                         <ShoppingBag className="mr-3 h-4 w-4" />
                         <span>Order History</span>
                       </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="py-3">
+                    
+                    <DropdownMenuItem className="py-3 cursor-pointer">
                       <Heart className="mr-3 h-4 w-4" />
                       <span>Favorites</span>
                     </DropdownMenuItem>
+                    
                     <DropdownMenuSeparator />
+                    
                     <DropdownMenuItem
                       onClick={handleLogout}
                       className="py-3 text-destructive focus:text-destructive cursor-pointer"
