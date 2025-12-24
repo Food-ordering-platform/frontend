@@ -83,6 +83,7 @@ export default function CheckoutPage() {
         })),
         totalAmount: total,
         deliveryAddress: deliveryAddress.trim(),
+        deliveryNotes:orderNotes.trim(),
         name: user.name,
         email: user.email,
       }

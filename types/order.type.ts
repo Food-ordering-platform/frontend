@@ -14,6 +14,7 @@ export interface CreateOrderDto {
   restaurantId: string;
   amount: number; 
   deliveryAddress: string;
+  deliveryNotes: string | null
   items: OrderItemDto[]; 
   name: string;
   email: string;
@@ -37,6 +38,7 @@ export interface Order {
   paymentStatus: string;
   status: string;
   deliveryAddress: string;
+  deliveryNotes:string | null
   items: OrderItem[]; 
   createdAt: string;
   restaurant?: {
