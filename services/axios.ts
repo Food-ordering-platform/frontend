@@ -5,7 +5,7 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  withCredentials: true, // <--- CRITICAL: Enables Cookies for Session Auth
+  // <--- CRITICAL: Enables Cookies for Session Auth
 });
 
 // Add a request interceptor to include the token if it exists (Optional fallback)
