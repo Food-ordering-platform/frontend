@@ -2,10 +2,11 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getCurrentUser, loginUser, registerUser } from "@/services/auth/auth";
-import { LoginData, RegisterData, AuthResponse } from "@/types/auth.type";
+import { useQueryClient } from "@tanstack/react-query";
+import { LoginData, RegisterData } from "@/types/auth.type";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/error-utils";
+import { useCurrentUser, useLogin, useRegister } from "@/services/auth/auth.queries";
 
 interface User {
   id: string;
@@ -26,42 +27,49 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  // We use local state to track the presence of a token to enable/disable the query
+  const [hasToken, setHasToken] = useState<boolean>(false);
   const router = useRouter();
+  const queryClient = useQueryClient();
 
-  // Restore session from JWT in localStorage
-  const checkAuth = async () => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      setIsLoading(false);
-      return;
-    }
+  // 1. Setup Mutations and Queries
+  const loginMutation = useLogin();
+  const registerMutation = useRegister();
+  
+  // The query automatically runs if 'hasToken' is true. 
+  // It fetches the user profile using the token in localStorage (handled by axios interceptor/utils)
+  const { 
+    data: user, 
+    isLoading: isUserLoading, 
+    refetch 
+  } = useCurrentUser(hasToken);
 
-    try {
-      const userData = await getCurrentUser();
-      setUser(userData as User);
-    } catch (error) {
-      console.error("Session restoration failed:", error);
-      localStorage.removeItem("token");
-      setUser(null);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  // 2. Initialize: Check for token on mount to enable the query
   useEffect(() => {
-    checkAuth();
+    const token = localStorage.getItem("token");
+    setHasToken(!!token);
   }, []);
 
+  // 3. Login Action
   const login = async (data: LoginData) => {
     try {
-      const res = await loginUser(data);
+      const res = await loginMutation.mutateAsync(data);
       
+      // [CRITICAL FIX] Handle Unverified Users
+      if (res.requireOtp) {
+        toast.info("Please verify your account.");
+        if (res.token) {
+          localStorage.setItem("tempToken", res.token);
+        }
+        router.push("/verify-otp");
+        return;
+      }
+
+      // [Standard Login]
       if (res.token) {
-        // [JWT STRATEGY] Save token manually
         localStorage.setItem("token", res.token);
-        setUser(res.user as User);
+        setHasToken(true); // Enable the user query
+        await refetch();   // Ensure we get fresh data immediately
         toast.success("Welcome back!");
         router.push("/restaurants");
       }
@@ -71,26 +79,60 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // 4. Register Action
   const register = async (data: RegisterData) => {
     try {
-      await registerUser(data);
+      const res = await registerMutation.mutateAsync(data);
+      
       toast.success("Registration successful! Please verify your email.");
-      // The signup process usually returns a temp token for OTP, handled in the page
+      
+      // [CRITICAL FIX] Store temp token for the Verify OTP page
+      if (res.token) {
+        localStorage.setItem("tempToken", res.token);
+      }
+      
+      router.push("/verify-otp");
     } catch (error: any) {
       toast.error(getErrorMessage(error));
       throw error;
     }
   };
 
+  // 5. Logout Action
   const logout = () => {
     localStorage.removeItem("token");
-    setUser(null);
+    setHasToken(false);
+    queryClient.setQueryData(["currentUser"], null); // Clear React Query cache
+    queryClient.removeQueries({ queryKey: ["currentUser"] });
     toast.success("Logged out successfully");
     router.push("/login");
   };
 
+  // 6. Manual Check Auth
+  const checkAuth = async () => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      setHasToken(true);
+      await refetch();
+    } else {
+      setHasToken(false);
+    }
+  };
+
+  // derived state
+  const isLoading = isUserLoading && hasToken; // Only loading if we have a token and are fetching
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout, checkAuth }}>
+    <AuthContext.Provider 
+      value={{ 
+        user: (user as User) || null, 
+        isLoading, 
+        login, 
+        register, 
+        logout, 
+        checkAuth 
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

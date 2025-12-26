@@ -9,15 +9,22 @@ const api = axios.create({
 });
 
 // Add a request interceptor to include the token if it exists (Optional fallback)
-api.interceptors.request.use((config) => {
-  if (typeof window !== "undefined") {
-    const token = localStorage.getItem("token");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+// Add a request interceptor
+api.interceptors.request.use(
+  (config) => {
+    // Only run this in the browser
+    if (typeof window !== "undefined") {
+      const token = localStorage.getItem("token");
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
   }
-  return config;
-});
+);
 api.interceptors.response.use(
   (response) => response,
   (error) => {

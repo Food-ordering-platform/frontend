@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { verifyOtp } from "@/services/auth/auth";
+import { useVerifyOtp } from "@/services/auth/auth.queries"; // Using the query hook
 import { useAuth } from "@/lib/auth-context";
 import { Header } from "@/components/layout/header";
-import { getErrorMessage } from "@/lib/error-utils"; // Import
+import { getErrorMessage } from "@/lib/error-utils";
 import {
   Card,
   CardContent,
@@ -25,47 +25,66 @@ import { Loader2, Mail } from "lucide-react";
 
 function VerifyOtpContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { checkAuth } = useAuth();
   
+  // React Query Mutation
+  const { mutateAsync: verifyOtpMutate, isPending } = useVerifyOtp();
+
   const [code, setCode] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  
-  const tempToken = searchParams.get("token"); 
+  const [token, setToken] = useState<string | null>(null);
+
+  // [FIX] Read token from localStorage on mount
+  useEffect(() => {
+    const storedToken = localStorage.getItem("tempToken");
+    if (!storedToken) {
+      // If no temp token, maybe they are already logged in? 
+      // Or they shouldn't be here.
+      toast.error("No verification session found. Please login or register again.");
+      router.push("/login");
+    } else {
+      setToken(storedToken);
+    }
+  }, [router]);
 
   const handleVerify = async () => {
-    if (!tempToken) {
-      toast.error("Invalid session. Please login again.");
-      router.push("/login");
-      return;
-    }
+    if (!token) return;
 
     if (code.length !== 6) {
       toast.error("Please enter the full 6-digit code");
       return;
     }
 
-    setIsLoading(true);
     try {
-      await verifyOtp({
-        token: tempToken,
+      // Use the mutation hook
+      const res = await verifyOtpMutate({
+        token: token,
         code,
         clientType: "web",
       });
 
       toast.success("Account verified successfully!");
 
-      // Refresh session
+      // 1. Clean up temp token
+      localStorage.removeItem("tempToken");
+
+      // 2. Set the real session token (if returned) or use the one we had
+      // The backend usually returns the permanent token in this step
+      if (res.token) {
+        localStorage.setItem("token", res.token);
+      } else {
+        // Fallback if backend doesn't return it (though it should)
+        localStorage.setItem("token", token);
+      }
+
+      // 3. Update Auth Context to fetch user data immediately
       await checkAuth();
 
-      // Redirect to Restaurants
+      // 4. Redirect
       router.push("/restaurants");
 
     } catch (error: any) {
-      const message = getErrorMessage(error)
+      const message = getErrorMessage(error);
       toast.error(message);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -108,9 +127,9 @@ function VerifyOtpContent() {
             <Button 
               className="w-full" 
               onClick={handleVerify} 
-              disabled={isLoading || code.length < 6}
+              disabled={isPending || code.length < 6}
             >
-              {isLoading ? (
+              {isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Verifying...
