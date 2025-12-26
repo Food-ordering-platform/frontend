@@ -2,9 +2,10 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getCurrentUser, loginUser, registerUser } from "@/services/auth/auth"; // Ensure imports match
-import { LoginData, RegisterData } from "@/types/auth.type";
+import { getCurrentUser, loginUser, registerUser } from "@/services/auth/auth";
+import { LoginData, RegisterData, AuthResponse } from "@/types/auth.type";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/error-utils";
 
 interface User {
   id: string;
@@ -29,15 +30,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  // 1. Check Auth on Mount (Ask the server "Do you know me?")
+  // Restore session from JWT in localStorage
   const checkAuth = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      const user = await getCurrentUser(); // Calls /auth/me with the Cookie
-      setUser(user as User);
+      const userData = await getCurrentUser();
+      setUser(userData as User);
     } catch (error) {
-      setUser(null); // Session invalid or expired
-      // Optional: remove token if you still have legacy tokens
+      console.error("Session restoration failed:", error);
       localStorage.removeItem("token");
+      setUser(null);
     } finally {
       setIsLoading(false);
     }
@@ -47,51 +54,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkAuth();
   }, []);
 
-  // 2. Login
   const login = async (data: LoginData) => {
     try {
       const res = await loginUser(data);
       
-      if (res.requireOtp) {
-         // handle OTP redirect
-         return; 
-      }
-
-      if (res.user) {
+      if (res.token) {
+        // [JWT STRATEGY] Save token manually
+        localStorage.setItem("token", res.token);
         setUser(res.user as User);
         toast.success("Welcome back!");
-        // Update this line:
-        router.push("/restaurants"); 
+        router.push("/restaurants");
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.error || "Login failed");
+      toast.error(getErrorMessage(error));
       throw error;
     }
   };
 
-  // 3. Register
   const register = async (data: RegisterData) => {
     try {
       await registerUser(data);
-      toast.success("Account created! Please verify OTP.");
-      router.push("/verify-otp");
+      toast.success("Registration successful! Please verify your email.");
+      // The signup process usually returns a temp token for OTP, handled in the page
     } catch (error: any) {
-      toast.error(error.response?.data?.error || "Registration failed");
+      toast.error(getErrorMessage(error));
       throw error;
     }
   };
 
-  // 4. Logout
-  const logout = async () => {
-    try {
-      // You should create a logout endpoint in backend to destroy session
-      // await api.post("/auth/logout"); 
-      setUser(null);
-      router.push("/login");
-      toast.success("Logged out");
-    } catch (error) {
-      console.error("Logout error", error);
-    }
+  const logout = () => {
+    localStorage.removeItem("token");
+    setUser(null);
+    toast.success("Logged out successfully");
+    router.push("/login");
   };
 
   return (
@@ -103,8 +98,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
+  if (context === undefined) throw new Error("useAuth must be used within AuthProvider");
   return context;
 };
