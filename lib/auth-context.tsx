@@ -27,7 +27,10 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  // 👇 1. Add 'isCheckingToken' and start it as TRUE
+  const [isCheckingToken, setIsCheckingToken] = useState<boolean>(true);
   const [hasToken, setHasToken] = useState<boolean>(false);
+  
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -43,6 +46,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const token = localStorage.getItem("token");
     setHasToken(!!token);
+    // 👇 2. Only turn off checking AFTER we've looked at localStorage
+    setIsCheckingToken(false); 
   }, []);
 
   const login = async (data: LoginData) => {
@@ -60,14 +65,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem("token", res.token);
         setHasToken(true);
         
-        // [CRITICAL FIX] OPTIMISTIC UPDATE
-        // We manually inject the user data we just got from the login response.
-        // This makes the Header update INSTANTLY.
         if (res.user) {
           queryClient.setQueryData(["currentUser"], res.user);
         }
 
-        await refetch(); // Still fetch in background to be safe
+        await refetch();
         
         toast.success("Welcome back!");
         router.push("/restaurants");
@@ -93,7 +95,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = () => {
     localStorage.removeItem("token");
     setHasToken(false);
-    // Clear the cache immediately
     queryClient.setQueryData(["currentUser"], null); 
     queryClient.removeQueries({ queryKey: ["currentUser"] });
     toast.success("Logged out successfully");
@@ -110,8 +111,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // If we have a token but no user yet, we are "loading"
-  const isLoading = (isUserLoading && hasToken) || (hasToken && !user);
+  // 👇 3. Fix the Loading Logic
+  // We are loading if:
+  // - We are still checking localStorage (isCheckingToken) OR
+  // - React Query is fetching the user (isUserLoading && hasToken) OR
+  // - We have a token but user data hasn't arrived yet (hasToken && !user)
+  const isLoading = 
+    isCheckingToken || 
+    (isUserLoading && hasToken) || 
+    (hasToken && !user);
 
   return (
     <AuthContext.Provider value={{ user: (user as User) || null, isLoading, login, register, logout, checkAuth }}>
