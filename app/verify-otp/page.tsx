@@ -1,24 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input"; // Or your InputOTP component
 import { toast } from "sonner";
 import { verifyOtp } from "@/services/auth/auth";
 import { useAuth } from "@/lib/auth-context";
+import { Header } from "@/components/layout/header";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from "@/components/ui/input-otp";
+import { Loader2, Mail } from "lucide-react";
 
-export default function VerifyOtpPage() {
+function VerifyOtpContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { checkAuth } = useAuth(); // We need this to refresh the user state after verification
+  const { checkAuth } = useAuth();
   
   const [code, setCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   
-  // Get token from URL (sent during signup/login)
-  // If you store this in a "temp" localStorage during login, fetch it from there.
-  // For now, let's assume it's passed via query param or you saved it in context.
   const tempToken = searchParams.get("token"); 
 
   const handleVerify = async () => {
@@ -28,24 +39,26 @@ export default function VerifyOtpPage() {
       return;
     }
 
+    if (code.length !== 6) {
+      toast.error("Please enter the full 6-digit code");
+      return;
+    }
+
     setIsLoading(true);
     try {
-      // 1. Verify OTP
       await verifyOtp({
         token: tempToken,
         code,
-        clientType: "web", // <--- CRITICAL UPDATE
+        clientType: "web",
       });
 
-      toast.success("Account verified!");
+      toast.success("Account verified successfully!");
 
-      // 2. Refresh Auth Context
-      // Since the backend just set a HTTP-Only cookie, the JS doesn't know we are logged in yet.
-      // We must tell the AuthContext to hit /auth/me to confirm the session.
+      // Refresh session
       await checkAuth();
 
-      // 3. Redirect
-      router.push("/restaurant");
+      // Redirect to Restaurants
+      router.push("/restaurants");
 
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Verification failed");
@@ -55,31 +68,72 @@ export default function VerifyOtpPage() {
   };
 
   return (
-    <div className="container flex h-screen w-screen flex-col items-center justify-center">
-      <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
-        <div className="flex flex-col space-y-2 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight">Verify Account</h1>
-          <p className="text-sm text-muted-foreground">
-            Enter the code sent to your email.
-          </p>
-        </div>
-
-        <div className="grid gap-4">
-          <div className="grid gap-2">
-             {/* Replace with <InputOTP /> if you have that component */}
-             <Input 
-                placeholder="123456" 
-                value={code} 
-                onChange={(e) => setCode(e.target.value)}
+    <div className="flex min-h-screen w-full flex-col bg-muted/40">
+      <Header />
+      <main className="flex flex-1 items-center justify-center p-4">
+        <Card className="w-full max-w-md shadow-lg">
+          <CardHeader className="space-y-1 text-center">
+            <div className="flex justify-center mb-4">
+              <div className="rounded-full bg-primary/10 p-3">
+                <Mail className="h-6 w-6 text-primary" />
+              </div>
+            </div>
+            <CardTitle className="text-2xl font-bold">Verify your email</CardTitle>
+            <CardDescription>
+              We've sent a 6-digit code to your email address.
+              <br />Enter it below to confirm your account.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center justify-center space-y-4">
+            <div className="flex justify-center py-4">
+              <InputOTP
                 maxLength={6}
-                className="text-center text-lg tracking-widest"
-              />
-          </div>
-          <Button disabled={isLoading} onClick={handleVerify}>
-            {isLoading ? "Verifying..." : "Verify Code"}
-          </Button>
-        </div>
-      </div>
+                value={code}
+                onChange={(value) => setCode(value)}
+              >
+                <InputOTPGroup>
+                  <InputOTPSlot index={0} />
+                  <InputOTPSlot index={1} />
+                  <InputOTPSlot index={2} />
+                  <InputOTPSlot index={3} />
+                  <InputOTPSlot index={4} />
+                  <InputOTPSlot index={5} />
+                </InputOTPGroup>
+              </InputOTP>
+            </div>
+          </CardContent>
+          <CardFooter className="flex flex-col space-y-4">
+            <Button 
+              className="w-full" 
+              onClick={handleVerify} 
+              disabled={isLoading || code.length < 6}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Verifying...
+                </>
+              ) : (
+                "Verify Account"
+              )}
+            </Button>
+            <div className="text-center text-sm text-muted-foreground">
+              Didn't receive code?{" "}
+              <Button variant="link" className="p-0 h-auto font-normal text-primary">
+                Resend
+              </Button>
+            </div>
+          </CardFooter>
+        </Card>
+      </main>
     </div>
+  );
+}
+
+export default function VerifyOtpPage() {
+  return (
+    <Suspense>
+      <VerifyOtpContent />
+    </Suspense>
   );
 }

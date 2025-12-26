@@ -5,10 +5,10 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/lib/auth-context"; // Ensure this path is correct
+import Link from "next/link";
+import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { toast } from "sonner";
 import {
   Form,
   FormControl,
@@ -17,8 +17,8 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { FaSpinner } from "react-icons/fa"; // Assuming you have icons
-import { GoogleLoginBtn} from "./google-button";
+import { Loader2 } from "lucide-react"; // Better looking spinner
+import { GoogleLoginBtn } from "./google-button";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address" }),
@@ -27,7 +27,7 @@ const formSchema = z.object({
 
 export function LoginForm() {
   const router = useRouter();
-  const { login } = useAuth(); // Use the Context method we updated earlier
+  const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -41,21 +41,18 @@ export function LoginForm() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     try {
-      // 1. Call Login (Context handles the API call)
-      // Note: We don't need to manually pass clientType here if context/service does it,
-      // but passing it explicitly is safer.
       await login({
         email: values.email,
         password: values.password,
-        clientType: "web", // <--- CRITICAL UPDATE
+        clientType: "web",
       });
       
-      // 2. Context handles the redirect to /dashboard or /verify-otp
-      // We don't need to do anything else here.
+      // Explicitly redirect to restaurants page on success
+      router.push("/restaurants");
 
     } catch (error: any) {
-      // Error is handled by the toast in Context, but we catch here to stop loading
       console.error(error);
+      // Toast error is handled in auth-context
     } finally {
       setIsLoading(false);
     }
@@ -72,7 +69,7 @@ export function LoginForm() {
               <FormItem>
                 <FormLabel>Email</FormLabel>
                 <FormControl>
-                  <Input placeholder="name@example.com" {...field} />
+                  <Input placeholder="name@example.com" type="email" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -83,7 +80,15 @@ export function LoginForm() {
             name="password"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Password</FormLabel>
+                <div className="flex items-center justify-between">
+                  <FormLabel>Password</FormLabel>
+                  <Link
+                    href="/forgot-password"
+                    className="text-xs font-medium text-primary hover:underline"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
                 <FormControl>
                   <Input type="password" placeholder="••••••••" {...field} />
                 </FormControl>
@@ -92,7 +97,7 @@ export function LoginForm() {
             )}
           />
           <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading && <FaSpinner className="mr-2 h-4 w-4 animate-spin" />}
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Sign In
           </Button>
         </form>

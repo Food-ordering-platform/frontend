@@ -52,17 +52,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await loginUser(data);
       
-      // If backend requires OTP, handle it (usually UI redirects to /verify-otp)
       if (res.requireOtp) {
-         // You might want to return here or handle the redirect in the UI component
+         // handle OTP redirect
          return; 
       }
 
-      // If we got a user back, we are logged in!
       if (res.user) {
         setUser(res.user as User);
         toast.success("Welcome back!");
-        router.push("/dashboard"); // or wherever
+        // Update this line:
+        router.push("/restaurants"); 
       }
     } catch (error: any) {
       toast.error(error.response?.data?.error || "Login failed");
