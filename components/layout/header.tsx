@@ -4,7 +4,6 @@ import { useAuth } from "@/lib/auth-context"
 import { useCart } from "@/lib/cart-context"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Skeleton } from "@/components/ui/skeleton" // Make sure you have this component or use a simple div
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,8 +17,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 
 export function Header() {
-  // [FIX] Get isLoading from context
-  const { user, logout, isLoading } = useAuth()
+  const { user, logout } = useAuth()
   const { clearCart } = useCart()
   const router = useRouter()
 
@@ -39,7 +37,6 @@ export function Header() {
           <span className="font-bold text-xl text-[#7b1e3a]">Choweazy</span>
         </Link>
 
-        {/* ... (Navigation Links remain same) ... */}
         <nav className="hidden md:flex items-center gap-8 text-sm absolute left-1/2 transform -translate-x-1/2">
           {[
             { href: "/restaurants", label: "Restaurants" },
@@ -59,12 +56,7 @@ export function Header() {
         </nav>
 
         <div className="flex items-center space-x-4">
-          {/* [FIX] Show Skeleton while loading, prevents flashing 'Sign In' */}
-          {isLoading ? (
-             <div className="flex items-center gap-4">
-               <Skeleton className="h-10 w-10 rounded-full" />
-             </div>
-          ) : user ? (
+          {user ? (
             <>
               <CartDrawer />
               <DropdownMenu>
@@ -94,6 +86,7 @@ export function Header() {
                   </div>
 
                   <div className="p-2">
+                    {/* FIXED: Added Link component here so it actually navigates */}
                     <DropdownMenuItem asChild className="py-3 cursor-pointer">
                       <Link href="/profile">
                         <User className="mr-3 h-4 w-4" />
