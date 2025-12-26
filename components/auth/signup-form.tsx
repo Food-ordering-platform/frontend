@@ -1,112 +1,167 @@
 "use client";
 
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useRouter } from "next/navigation";
-import { useToast } from "@/hooks/use-toast";
-import { z } from "zod";
-import { useRegister } from "@/services/auth/auth.queries";
-import { Loader2 } from "lucide-react";
-import Link from "next/link";
+import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/error-utils"; // Import utility
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Loader2, Eye, EyeOff } from "lucide-react";
+import { GoogleLoginBtn } from "./google-button";
 
-const signupSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  email: z.string().email("Invalid email"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  phone: z.string().optional(),
+// Improved Schema with better messages
+const formSchema = z.object({
+  name: z.string().min(2, { message: "Name must be at least 2 characters" }),
+  email: z.string().email({ message: "Please enter a valid email address" }),
+  password: z.string().min(6, { message: "Password must be at least 6 characters" }),
+  phone: z.string().min(10, { message: "Please enter a valid phone number" }),
 });
 
 export function SignupForm() {
-  const [form, setForm] = useState({ name: "", email: "", password: "", phone: "" });
   const router = useRouter();
-  const { toast } = useToast();
-  const { mutateAsync: registerUser, isPending } = useRegister();
+  const { register: registerUser } = useAuth(); // Renamed to avoid conflict with RHF
+  const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      password: "",
+      phone: "",
+    },
+  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const result = signupSchema.safeParse(form);
-    
-    if (!result.success) {
-      toast({
-        title: "Error",
-        description: result.error.errors[0].message,
-        variant: "destructive",
-      });
-      return;
-    }
-
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    setIsLoading(true);
     try {
-      const response = await registerUser({ ...form, role: "CUSTOMER" });
-
-      if (!response?.token) {
-        throw new Error("Signup succeeded but no token returned");
-      }
-
-      toast({
-        title: "Success",
-        description: "Account created! Please verify your OTP.",
+      await registerUser({
+        name: values.name,
+        email: values.email,
+        password: values.password,
+        phone: values.phone,
+        role: "CUSTOMER", // Default role
       });
+      
+      // Success is handled in AuthContext (toast + redirect), but we can double check
+      // Typically context redirects to /verify-otp
 
-      router.push(`/verify-otp?type=register&token=${response.token}`);
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error?.response?.data?.error || error?.message || "Failed to create account",
-        variant: "destructive",
-      });
+      // THE NEW ERROR HANDLING
+      const friendlyMessage = getErrorMessage(error);
+      toast.error(friendlyMessage);
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }
 
   return (
-    <Card className="w-full max-w-md mx-auto border border-gray-200 shadow-2xl rounded-3xl bg-white overflow-hidden">
-      <div className="h-2 w-full bg-gradient-to-r from-[#ff5722] to-[#7b1e3a]" />
-      <CardHeader className="text-center pt-10 pb-6">
-        <CardTitle className="text-3xl font-bold text-[#7b1e3a]">
-          Join Choweazy
-        </CardTitle>
-        <CardDescription className="text-gray-600">
-          Sign up to get started
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="px-8 pb-10">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Name</Label>
-            <Input id="name" name="name" type="text" placeholder="Enter your full name" value={form.name} onChange={handleChange} required className="h-11 rounded-xl bg-gray-50/50 focus:border-[#7b1e3a]" />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" name="email" type="email" placeholder="Enter your email" value={form.email} onChange={handleChange} required className="h-11 rounded-xl bg-gray-50/50 focus:border-[#7b1e3a]" />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input id="password" name="password" type="password" placeholder="Enter your password" value={form.password} onChange={handleChange} required className="h-11 rounded-xl bg-gray-50/50 focus:border-[#7b1e3a]" />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="phone">Phone (optional)</Label>
-            <Input id="phone" name="phone" type="text" placeholder="Enter your phone number" value={form.phone} onChange={handleChange} className="h-11 rounded-xl bg-gray-50/50 focus:border-[#7b1e3a]" />
-          </div>
-          <Button
-            type="submit"
-            className="w-full h-12 mt-4 bg-[#7b1e3a] hover:bg-[#66172e] text-white font-semibold rounded-xl shadow-lg transition-all active:scale-[0.98] duration-200 disabled:opacity-70 disabled:cursor-not-allowed"
-            disabled={isPending}
-          >
-             {isPending ? (
-                <span className="flex items-center justify-center gap-2">
-                    <Loader2 className="h-5 w-5 animate-spin" /> 
-                    Signing up...
-                </span>
-            ) : "Sign Up"}
+    <div className="grid gap-6">
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <FormField
+            control={form.control}
+            name="name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Full Name</FormLabel>
+                <FormControl>
+                  <Input placeholder="John Doe" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <Input placeholder="name@example.com" type="email" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+           <FormField
+            control={form.control}
+            name="phone"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Phone Number</FormLabel>
+                <FormControl>
+                  <Input placeholder="08012345678" type="tel" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Password</FormLabel>
+                <FormControl>
+                  <div className="relative">
+                    <Input 
+                      type={showPassword ? "text" : "password"} 
+                      placeholder="Create a password" 
+                      {...field} 
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <Eye className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </Button>
+                  </div>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Create Account
           </Button>
         </form>
-      </CardContent>
-    </Card>
+      </Form>
+      
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t" />
+        </div>
+        <div className="relative flex justify-center text-xs uppercase">
+          <span className="bg-background px-2 text-muted-foreground">
+            Or continue with
+          </span>
+        </div>
+      </div>
+      
+      <GoogleLoginBtn />
+    </div>
   );
 }

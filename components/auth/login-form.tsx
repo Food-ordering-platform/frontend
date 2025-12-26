@@ -9,6 +9,8 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { toast } from "sonner"; // Using Sonner directly here
+import { getErrorMessage } from "@/lib/error-utils"; // Import the new utility
 import {
   Form,
   FormControl,
@@ -17,18 +19,19 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Loader2 } from "lucide-react"; // Better looking spinner
+import { Loader2, Eye, EyeOff } from "lucide-react"; // Added Eye icons for password
 import { GoogleLoginBtn } from "./google-button";
 
 const formSchema = z.object({
-  email: z.string().email({ message: "Invalid email address" }),
-  password: z.string().min(6, { message: "Password must be at least 6 characters" }),
+  email: z.string().email({ message: "Please enter a valid email address" }),
+  password: z.string().min(1, { message: "Password is required" }),
 });
 
 export function LoginForm() {
   const router = useRouter();
   const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false); // Password toggle state
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -47,12 +50,12 @@ export function LoginForm() {
         clientType: "web",
       });
       
-      // Explicitly redirect to restaurants page on success
       router.push("/restaurants");
 
     } catch (error: any) {
-      console.error(error);
-      // Toast error is handled in auth-context
+      // THE NEW ERROR HANDLING
+      const friendlyMessage = getErrorMessage(error);
+      toast.error(friendlyMessage); 
     } finally {
       setIsLoading(false);
     }
@@ -90,7 +93,26 @@ export function LoginForm() {
                   </Link>
                 </div>
                 <FormControl>
-                  <Input type="password" placeholder="••••••••" {...field} />
+                  <div className="relative">
+                    <Input 
+                      type={showPassword ? "text" : "password"} 
+                      placeholder="••••••••" 
+                      {...field} 
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <Eye className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </Button>
+                  </div>
                 </FormControl>
                 <FormMessage />
               </FormItem>

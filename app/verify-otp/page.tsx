@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { verifyOtp } from "@/services/auth/auth";
 import { useAuth } from "@/lib/auth-context";
 import { Header } from "@/components/layout/header";
+import { getErrorMessage } from "@/lib/error-utils"; // Import
 import {
   Card,
   CardContent,
@@ -61,7 +62,8 @@ function VerifyOtpContent() {
       router.push("/restaurants");
 
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Verification failed");
+      const message = getErrorMessage(error)
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
