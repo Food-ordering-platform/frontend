@@ -1,157 +1,115 @@
 "use client";
 
-import type React from "react";
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth-context"; // Ensure this path is correct
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { useAuth } from "@/lib/auth-context";
-import { useRouter } from "next/navigation";
-import { useToast } from "@/hooks/use-toast";
-import { z } from "zod";
-import Link from "next/link";
-import { Loader2 } from "lucide-react";
-import { GoogleLoginBtn } from "./google-button";
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { FaSpinner } from "react-icons/fa"; // Assuming you have icons
+import { GoogleLoginBtn} from "./google-button";
 
-const loginSchema = z.object({
-  email: z.string().email("Invalid Email"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+const formSchema = z.object({
+  email: z.string().email({ message: "Invalid email address" }),
+  password: z.string().min(6, { message: "Password must be at least 6 characters" }),
 });
 
 export function LoginForm() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const { login, isLoading } = useAuth();
   const router = useRouter();
-  const { toast } = useToast();
+  const { login } = useAuth(); // Use the Context method we updated earlier
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const result = loginSchema.safeParse({ email, password });
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
 
-    if (!result.success) {
-      toast({
-        title: "Error",
-        description: result.error.errors[0].message,
-        variant: "destructive",
-      });
-      return;
-    }
-
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    setIsLoading(true);
     try {
-      const success = await login({ email, password });
-      if (success) {
-        toast({ title: "Success", description: "Logged in successfully!" });
-        router.push("/");
-      } else {
-        throw new Error("Login failed");
-      }
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to log in",
-        variant: "destructive",
+      // 1. Call Login (Context handles the API call)
+      // Note: We don't need to manually pass clientType here if context/service does it,
+      // but passing it explicitly is safer.
+      await login({
+        email: values.email,
+        password: values.password,
+        clientType: "web", // <--- CRITICAL UPDATE
       });
+      
+      // 2. Context handles the redirect to /dashboard or /verify-otp
+      // We don't need to do anything else here.
+
+    } catch (error: any) {
+      // Error is handled by the toast in Context, but we catch here to stop loading
+      console.error(error);
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }
 
   return (
-    <Card className="w-full max-w-md mx-auto border border-[#7b1e3a]/10 shadow-2xl rounded-3xl bg-white overflow-hidden">
-      <div className="h-2 w-full bg-gradient-to-r from-[#7b1e3a] to-[#ff5722]" />
-      <CardHeader className="text-center space-y-2 pb-8 pt-10">
-        <CardTitle className="text-3xl font-extrabold text-[#7b1e3a]">
-          Welcome Back
-        </CardTitle>
-        <CardDescription className="text-gray-500 text-base">
-          Sign in to continue your food journey
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="px-8 pb-10">
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div className="space-y-2">
-            <Label htmlFor="email" className="text-gray-700 font-medium">
-              Email Address
-            </Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="name@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="h-11 rounded-xl border-gray-200 focus:border-[#7b1e3a] focus:ring-[#7b1e3a]/20 transition-all bg-gray-50/50"
-            />
-          </div>
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <Label htmlFor="password" className="text-gray-700 font-medium">
-                Password
-              </Label>
-              <Link
-                href="/forgot-password"
-                className="text-sm font-semibold text-[#7b1e3a] hover:underline"
-              >
-                Forgot?
-              </Link>
-            </div>
-            <Input
-              id="password"
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="h-11 rounded-xl border-gray-200 focus:border-[#7b1e3a] focus:ring-[#7b1e3a]/20 transition-all bg-gray-50/50"
-            />
-          </div>
-
-          <Button
-            type="submit"
-            className="w-full h-12 bg-[#7b1e3a] hover:bg-[#66172e] text-white font-bold text-lg rounded-xl shadow-lg shadow-[#7b1e3a]/20 transition-all active:scale-[0.98] duration-200 disabled:opacity-70 disabled:cursor-not-allowed"
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <span className="flex items-center justify-center gap-2">
-                <Loader2 className="h-5 w-5 animate-spin" />
-                Logging in...
-              </span>
-            ) : (
-              "Sign In"
+    <div className="grid gap-6">
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <Input placeholder="name@example.com" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
             )}
+          />
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Password</FormLabel>
+                <FormControl>
+                  <Input type="password" placeholder="••••••••" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading && <FaSpinner className="mr-2 h-4 w-4 animate-spin" />}
+            Sign In
           </Button>
         </form>
-        <div className="relative my-4">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-white px-2 text-gray-500">
-              Or continue with
-            </span>
-          </div>
+      </Form>
+      
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t" />
         </div>
-
-        <GoogleLoginBtn />
-
-        <div className="mt-8 text-center">
-          <p className="text-gray-500">
-            Don't have an account?{" "}
-            <Link
-              href="/signup"
-              className="font-bold text-[#7b1e3a] hover:underline"
-            >
-              Sign up
-            </Link>
-          </p>
+        <div className="relative flex justify-center text-xs uppercase">
+          <span className="bg-background px-2 text-muted-foreground">
+            Or continue with
+          </span>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+      
+      <GoogleLoginBtn />
+    </div>
   );
 }

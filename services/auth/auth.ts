@@ -21,62 +21,31 @@ export const registerUser = async (
     throw error;
   }
 };
-
-//login a user
+// Login (HYBRID UPDATE)
 export const loginUser = async (data: LoginData): Promise<AuthResponse> => {
-  try {
-    const response = await api.post("/auth/login", data);
-    const { result } = response.data; // Destructure result
-    if (!result || !result.user || !result.token) {
-      throw new Error("Invalid login response");
-    }
-    return {
-      token: result.token,
-      user: {
-        id: result.user.id,
-        name: result.user.name,
-        email: result.user.email,
-        role: result.user.role,
-      },
-    };
-  } catch (error: any) {
-    console.log("Login error:", error.response?.data || error.message);
-    throw error;
-  }
+  // Force clientType to 'web'
+  const payload = { ...data, clientType: "web" as const };
+  
+  const response = await api.post<AuthResponse>("/auth/login", payload);
+  
+  // Note: response.data.token might be undefined for web, which is correct (Session used)
+  return response.data;
 };
 
-
-//Get currentUser
-
+// Get Current User (Session Check)
 export const getCurrentUser = async (): Promise<AuthResponse["user"]> => {
-  try {
-    // Calls the new backend endpoint we just created
-    const response = await api.get<{
-      message: string;
-      user: AuthResponse["user"];
-    }>("/auth/me");
-
-    return response.data.user;
-  } catch (error: any) {
-    // If 401 (Unauthorized) is returned, the auth-context will catch this 
-    // and log the user out automatically.
-    console.error("Token validation failed:", error.response?.data || error.message);
-    throw error;
-  }
+  const response = await api.get<{ user: AuthResponse["user"] }>("/auth/me");
+  return response.data.user;
 };
 
-//verify otp
-export const verifyOtp = async (data: verifyOTPpayload ) : Promise<VerifyOtpResponse> => {
-  try{
-    const response = await api.post<VerifyOtpResponse>("/auth/verify-otp", data)
-    return response.data
-  }
-  catch(err: any) {
-    console.log("OTP Verfication Failed", err.response.data || err.message)
-    throw err;
-  }
-}
-
+// Verify OTP (HYBRID UPDATE)
+export const verifyOtp = async (data: verifyOTPpayload): Promise<VerifyOtpResponse> => {
+  // Force clientType to 'web'
+  const payload = { ...data, clientType: "web" as const };
+  
+  const response = await api.post<VerifyOtpResponse>("/auth/verify-otp", payload);
+  return response.data;
+};
 
 // Forgot password - send OTP
 export const forgotPassword = async (

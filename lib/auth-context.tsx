@@ -1,124 +1,111 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { AuthResponse, LoginData, RegisterData } from "@/types/auth.type";
-import { loginUser, registerUser } from "@/services/auth/auth";
-import { useCurrentUser } from "@/services/auth/auth.queries";
-import api from "@/services/axios"; // Import your axios instance
+import { createContext, useContext, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { getCurrentUser, loginUser, registerUser } from "@/services/auth/auth"; // Ensure imports match
+import { LoginData, RegisterData } from "@/types/auth.type";
+import { toast } from "sonner";
+
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+}
 
 interface AuthContextType {
-  user: AuthResponse["user"] | null;
-  token: string | null;
-  login: (data: LoginData) => Promise<boolean>;
-  googleLogin: (token: string) => Promise<boolean>; // New Method
-  register: (data: RegisterData) => Promise<boolean>;
-  logout: () => void;
+  user: User | null;
   isLoading: boolean;
-  isInitializing: boolean; // Useful for showing a splash screen
+  login: (data: LoginData) => Promise<void>;
+  register: (data: RegisterData) => Promise<void>;
+  logout: () => void;
+  checkAuth: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const queryClient = useQueryClient();
-  const [token, setToken] = useState<string | null>(null);
-  const [isInitializing, setIsInitializing] = useState(true);
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
 
-  // 1. Safe Initialization (Fixes Hydration Error)
-  useEffect(() => {
-    const storedToken = localStorage.getItem("auth-token");
-    if (storedToken) {
-      setToken(storedToken);
+  // 1. Check Auth on Mount (Ask the server "Do you know me?")
+  const checkAuth = async () => {
+    try {
+      const user = await getCurrentUser(); // Calls /auth/me with the Cookie
+      setUser(user as User);
+    } catch (error) {
+      setUser(null); // Session invalid or expired
+      // Optional: remove token if you still have legacy tokens
+      localStorage.removeItem("token");
+    } finally {
+      setIsLoading(false);
     }
-    setIsInitializing(false);
+  };
+
+  useEffect(() => {
+    checkAuth();
   }, []);
 
-  // 2. Fetch User Data
-  const { data: user, error, isLoading: isUserLoading } = useCurrentUser(!!token);
-
-  // 3. Handle Logout
-  const logout = () => {
-    setToken(null);
-    localStorage.removeItem("auth-token");
-    localStorage.removeItem("auth-user");
-    queryClient.removeQueries({ queryKey: ["currentUser"] });
-    // Optional: Redirect to login
-    // window.location.href = "/login"; 
-  };
-
-  // 4. Auto-logout specifically on 401 Unauthorized
-  useEffect(() => {
-    if (error) {
-      // @ts-ignore
-      if (error?.response?.status === 401) {
-        logout();
-      }
-    }
-  }, [error]);
-
-  // 5. Standard Login
-  const login = async (data: LoginData): Promise<boolean> => {
+  // 2. Login
+  const login = async (data: LoginData) => {
     try {
       const res = await loginUser(data);
-      handleAuthSuccess(res);
-      return true;
-    } catch (err) {
-      return false;
+      
+      // If backend requires OTP, handle it (usually UI redirects to /verify-otp)
+      if (res.requireOtp) {
+         // You might want to return here or handle the redirect in the UI component
+         return; 
+      }
+
+      // If we got a user back, we are logged in!
+      if (res.user) {
+        setUser(res.user as User);
+        toast.success("Welcome back!");
+        router.push("/dashboard"); // or wherever
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || "Login failed");
+      throw error;
     }
   };
 
-  // 6. Google Login Handler
-  const googleLogin = async (googleToken: string): Promise<boolean> => {
-    try {
-        // We call the API directly here or create a service function for it
-        const res = await api.post("/auth/google", { token: googleToken });
-        handleAuthSuccess(res.data.result);
-        return true;
-    } catch (err) {
-        console.error("Google Login Failed", err);
-        return false;
-    }
-  }
-
-  // Helper to centralize state updates
-  const handleAuthSuccess = (res: AuthResponse) => {
-    if (!res.user || !res.token) return;
-    setToken(res.token);
-    localStorage.setItem("auth-token", res.token);
-    localStorage.setItem("auth-user", JSON.stringify(res.user));
-    queryClient.setQueryData(["currentUser"], res.user);
-  };
-
-  const register = async (data: RegisterData): Promise<boolean> => {
+  // 3. Register
+  const register = async (data: RegisterData) => {
     try {
       await registerUser(data);
-      return true;
-    } catch (err) {
-      return false;
+      toast.success("Account created! Please verify OTP.");
+      router.push("/verify-otp");
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || "Registration failed");
+      throw error;
+    }
+  };
+
+  // 4. Logout
+  const logout = async () => {
+    try {
+      // You should create a logout endpoint in backend to destroy session
+      // await api.post("/auth/logout"); 
+      setUser(null);
+      router.push("/login");
+      toast.success("Logged out");
+    } catch (error) {
+      console.error("Logout error", error);
     }
   };
 
   return (
-    <AuthContext.Provider 
-      value={{ 
-        user: user ?? null, 
-        token, 
-        login, 
-        googleLogin,
-        register, 
-        logout, 
-        isLoading: isUserLoading,
-        isInitializing
-      }}
-    >
-      {!isInitializing && children} 
+    <AuthContext.Provider value={{ user, isLoading, login, register, logout, checkAuth }}>
+      {children}
     </AuthContext.Provider>
   );
 }
 
-export function useAuth() {
+export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) throw new Error("useAuth must be used within an AuthProvider");
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
   return context;
-}
+};

@@ -3,41 +3,40 @@
 export interface RegisterData {
   name: string;
   email: string;
-  password: string;
+  password?: string;
   phone?: string;
-  role: "CUSTOMER" | "VENDOR"
+  role?: "CUSTOMER" | "VENDOR" | "RIDER";
 }
 
 export interface LoginData {
   email: string;
   password: string;
+  clientType?: "web" | "mobile"; // <--- ADDED
 }
 
 export interface AuthResponse {
-  token: string;
-  user: {
-    phone: string;
-    image: string | undefined;
+  message?: string;
+  token?: string; // Token is now Optional (Won't be sent for Web)
+  user?: {
     id: string;
     name: string;
     email: string;
     role: string;
+    isVerified?: boolean;
   };
+  requireOtp?: boolean;
 }
 
-export interface verifyOTPpayload{
-  token: string,
-  code:string
+export interface verifyOTPpayload {
+  token: string;
+  code: string;
+  clientType?: "web" | "mobile"; // <--- ADDED
 }
-
-export type VerifyOtpResponse = {
+export interface VerifyOtpResponse {
   message: string;
-  user: {
-    id: string;
-    email: string;
-    role: "CUSTOMER" | "VENDOR"
-  };
-};
+  user?: AuthResponse["user"];
+  token?: string;
+}
 
 // Forgot Password
 export interface ForgotPasswordPayload {
