@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useCart } from "@/lib/cart-context";
 import { useCreateOrder } from "../../services/order/order.queries";
+import { useGetRestaurant } from "@/services/restaurants/restaurants.queries"; // Need this to get restaurant coords
 import { Header } from "@/components/layout/header";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { Button } from "@/components/ui/button";
@@ -18,9 +19,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { CreateOrderDto } from "@/types/order.type";
 import { motion } from "framer-motion";
+import { calculateDistance, calculateDeliveryFee } from "@/lib/utils"; // Import math utils
 
-// 💰 PRICING CONSTANTS
-const DELIVERY_FEE = 500;
 const PLATFORM_FEE = 350;
 
 type AddressResult = {
@@ -37,6 +37,10 @@ export default function CheckoutPage() {
   const { toast } = useToast();
   const { mutateAsync: placeOrder } = useCreateOrder();
 
+  // 1. Get Restaurant ID from cart items to fetch coordinates
+  const restaurantId = items.length > 0 ? items[0].menuItem.restaurantId : "";
+  const { data: restaurant } = useGetRestaurant(restaurantId);
+
   const [phoneNumber, setPhoneNumber] = useState(user?.phone || "");
   const [orderNotes, setOrderNotes] = useState("");
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
@@ -52,9 +56,26 @@ export default function CheckoutPage() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
 
+  // 💰 DYNAMIC DELIVERY FEE STATE
+  const [deliveryFee, setDeliveryFee] = useState(500); // Default fallback
+
+  // 🧮 CALCULATE FEE EFFECT
+  useEffect(() => {
+    if (restaurant && coords && restaurant.latitude && restaurant.longitude) {
+      const dist = calculateDistance(
+        restaurant.latitude,
+        restaurant.longitude,
+        coords.lat,
+        coords.lng
+      );
+      const fee = calculateDeliveryFee(dist);
+      setDeliveryFee(fee);
+    }
+  }, [restaurant, coords]);
+
   // 💰 DISPLAY CALCULATION (Visual Only)
   const subtotal = getTotalPrice();
-  const total = subtotal + DELIVERY_FEE + PLATFORM_FEE;
+  const total = subtotal + deliveryFee + PLATFORM_FEE;
 
   const formatMoney = (amount: number) => {
     return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", minimumFractionDigits: 0 }).format(amount);
@@ -119,6 +140,16 @@ export default function CheckoutPage() {
     if (!deliveryAddress.trim()) {
       toast({ title: "Address Required", description: "Please enter your delivery address.", variant: "destructive" });
       return;
+    }
+
+    // ⚠️ CRITICAL: Ensure we have coordinates for accurate billing
+    if (!coords) {
+        toast({ 
+            title: "Location Pin Required", 
+            description: "Please select an address from the dropdown or use GPS so we can calculate the delivery fee.", 
+            variant: "destructive" 
+        });
+        return;
     }
 
     if (!phoneNumber.trim()) {
@@ -312,7 +343,7 @@ export default function CheckoutPage() {
                                 </div>
                                 <div className="flex justify-between items-center text-gray-600">
                                     <span className="text-sm font-medium">Delivery Fee</span>
-                                    <span className="font-semibold text-gray-900">{formatMoney(DELIVERY_FEE)}</span>
+                                    <span className="font-semibold text-gray-900">{formatMoney(deliveryFee)}</span>
                                 </div>
                                 <div className="flex justify-between items-center text-gray-600">
                                     <span className="text-sm font-medium">Platform Fee</span>
