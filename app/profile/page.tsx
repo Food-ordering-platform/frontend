@@ -2,6 +2,7 @@
 
 import { useAuth } from "@/lib/auth-context";
 import { useGetOrders } from "@/services/order/order.queries";
+import { updateUserProfile } from "@/services/auth/auth"; // Import service
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { Button } from "@/components/ui/button";
@@ -10,11 +11,19 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-import { ShoppingBag, Heart, MapPin, User, LogOut, Camera } from "lucide-react";
+import { ShoppingBag, Heart, MapPin, LogOut, Camera, Loader2, Locate } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/cart-context";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+
+// Type for OpenStreetMap results
+type AddressResult = {
+  place_id: number;
+  lat: string;
+  lon: string;
+  display_name: string;
+};
 
 export default function ProfilePage() {
   const { user, logout } = useAuth();
@@ -22,23 +31,103 @@ export default function ProfilePage() {
   const router = useRouter();
   const { toast } = useToast();
   
+  // 1. Form States
+  const [isSaving, setIsSaving] = useState(false);
+  const [name, setName] = useState(user?.name || "");
+  const [phone, setPhone] = useState(user?.phone || "");
+  
+  // 2. Location States
+  const [address, setAddress] = useState(user?.address || "");
+  const [coords, setCoords] = useState<{lat: number, lng: number} | null>(
+    user?.latitude && user?.longitude ? { lat: user.latitude, lng: user.longitude } : null
+  );
+  
+  // 3. Search States
+  const [suggestions, setSuggestions] = useState<AddressResult[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+
   // Fetch orders for stats
   const { data: orders = [] } = useGetOrders(user?.id || "");
-
-  // Derived stats
   const totalOrders = orders.length;
   const activeOrders = orders.filter(o => ["pending", "preparing", "out_for_delivery", "confirmed"].includes(o.status)).length;
-  const completedOrders = orders.filter(o => ["delivered"].includes(o.status)).length;
+
+  // 🔎 Address Search Logic
+  useEffect(() => {
+    if (!showSuggestions || address.length < 3) return;
+    
+    const timer = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const res = await fetch(
+            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&countrycodes=ng&limit=5`
+        );
+        const data = await res.json();
+        setSuggestions(data);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, [address, showSuggestions]);
+
+  const handleSelectAddress = (item: AddressResult) => {
+    setAddress(item.display_name);
+    setCoords({ lat: parseFloat(item.lat), lng: parseFloat(item.lon) });
+    setShowSuggestions(false);
+  };
+
+  // 📍 GPS Logic
+  const handleUseGPS = () => {
+    if (!navigator.geolocation) {
+      toast({ title: "Error", description: "Geolocation not supported", variant: "destructive" });
+      return;
+    }
+    toast({ title: "Locating...", description: "Fetching your current position." });
+    
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        setCoords({ lat: latitude, lng: longitude });
+        
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+          const data = await res.json();
+          if (data.display_name) setAddress(data.display_name);
+        } catch (error) {
+          setAddress(`${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+        }
+      },
+      () => toast({ title: "Error", description: "Could not retrieve location.", variant: "destructive" })
+    );
+  };
 
   const handleLogout = () => {
-    toast({
-        title: "Signed Out",
-        description: "See you next time!",
-        variant: "default"
-    });
+    toast({ title: "Signed Out", description: "See you next time!" });
     clearCart();
     logout();
     router.push("/");
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await updateUserProfile({
+        name,
+        phone,
+        address,
+        latitude: coords?.lat,
+        longitude: coords?.lng
+      });
+      toast({ title: "Success", description: "Profile updated successfully!" });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to update profile", variant: "destructive" });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (!user) {
@@ -49,26 +138,21 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-gray-50/30 flex flex-col font-sans">
       <Header />
-      <main className="container py-8 md:py-12 flex-1 max-w-5xl mx-auto space-y-8">
+      <main className="container py-8 md:py-12 flex-1 max-w-5xl mx-auto space-y-8 px-4">
         
         {/* Profile Header */}
         <div className="flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
            <div className="flex items-center gap-4">
-                <div className="relative group cursor-pointer">
-                    <Avatar className="h-20 w-20 md:h-24 md:w-24 border-4 border-white shadow-xl">
-                        <AvatarImage src={user.image} alt={user.name} />
-                        <AvatarFallback className="bg-[#7b1e3a] text-white text-2xl md:text-3xl font-bold">
-                            {user.name.charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                    </Avatar>
-                    <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <Camera className="h-6 w-6 text-white" />
-                    </div>
-                </div>
-                <div className="space-y-1">
+                <Avatar className="h-20 w-20 md:h-24 md:w-24 border-4 border-white shadow-xl">
+                    <AvatarImage src={user.image} alt={user.name} />
+                    <AvatarFallback className="bg-[#7b1e3a] text-white text-2xl font-bold">
+                        {user.name?.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                </Avatar>
+                <div>
                     <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">{user.name}</h1>
                     <p className="text-gray-500 font-medium">{user.email}</p>
-                    <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                    <div className="inline-flex items-center px-2.5 py-0.5 mt-2 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
                         {user.role}
                     </div>
                 </div>
@@ -76,10 +160,10 @@ export default function ProfilePage() {
            
            <Button 
                 variant="outline" 
-                className="text-red-600 border-red-100 hover:bg-red-50 hover:text-red-700 gap-2"
+                className="text-red-600 border-red-100 hover:bg-red-50"
                 onClick={handleLogout}
             >
-                <LogOut className="h-4 w-4" /> Sign Out
+                <LogOut className="h-4 w-4 mr-2" /> Sign Out
            </Button>
         </div>
 
@@ -96,28 +180,7 @@ export default function ProfilePage() {
                     </div>
                 </CardContent>
             </Card>
-            <Card className="border-none shadow-md bg-white">
-                <CardContent className="p-6 flex items-center justify-between">
-                    <div>
-                        <p className="text-gray-500 font-medium text-sm">Active Orders</p>
-                        <h3 className="text-3xl font-bold mt-1 text-gray-900">{activeOrders}</h3>
-                    </div>
-                    <div className="p-3 bg-orange-50 rounded-xl">
-                        <ShoppingBag className="h-6 w-6 text-orange-500" />
-                    </div>
-                </CardContent>
-            </Card>
-            <Card className="border-none shadow-md bg-white">
-                 <CardContent className="p-6 flex items-center justify-between">
-                    <div>
-                        <p className="text-gray-500 font-medium text-sm">Favorites</p>
-                        <h3 className="text-3xl font-bold mt-1 text-gray-900">0</h3>
-                    </div>
-                    <div className="p-3 bg-pink-50 rounded-xl">
-                        <Heart className="h-6 w-6 text-pink-500" />
-                    </div>
-                </CardContent>
-            </Card>
+            {/* ... other stats cards ... */}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -125,29 +188,89 @@ export default function ProfilePage() {
             <Card className="md:col-span-2 shadow-sm border-gray-200">
                 <CardHeader>
                     <CardTitle>Personal Information</CardTitle>
-                    <CardDescription>Update your personal details here.</CardDescription>
+                    <CardDescription>Update your contact and default delivery details.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4">
                         <div className="space-y-2">
-                            <Label htmlFor="name">Full Name</Label>
-                            <Input id="name" defaultValue={user.name} className="focus:ring-[#7b1e3a] focus:border-[#7b1e3a]" />
+                            <Label>Full Name</Label>
+                            <Input value={name} onChange={(e) => setName(e.target.value)} />
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="email">Email</Label>
-                            <Input id="email" defaultValue={user.email} disabled className="bg-gray-50 text-gray-500" />
+                            <Label>Phone Number</Label>
+                            <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+234..." />
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="phone">Phone Number</Label>
-                            <Input id="phone" defaultValue={user.phone || ""} placeholder="+234..." className="focus:ring-[#7b1e3a] focus:border-[#7b1e3a]" />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="address">Default Address</Label>
-                            <Input id="address" placeholder="Add an address" className="focus:ring-[#7b1e3a] focus:border-[#7b1e3a]" />
+
+                        {/* ADDRESS SECTION */}
+                        <div className="space-y-2 relative">
+                            <div className="flex justify-between items-center">
+                                <Label>Default Address</Label>
+                                <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="h-8 text-[#7b1e3a] hover:text-[#7b1e3a]/90 hover:bg-orange-50"
+                                    onClick={handleUseGPS}
+                                    type="button"
+                                >
+                                    <Locate className="h-3 w-3 mr-1" /> Use GPS
+                                </Button>
+                            </div>
+                            
+                            <div className="relative">
+                                <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                                <Input 
+                                    value={address}
+                                    onChange={(e) => {
+                                        setAddress(e.target.value);
+                                        setShowSuggestions(true);
+                                    }}
+                                    placeholder="Search your street address..." 
+                                    className="pl-9"
+                                />
+                                {isSearching && (
+                                    <div className="absolute right-3 top-3">
+                                        <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* SEARCH DROPDOWN */}
+                            {showSuggestions && suggestions.length > 0 && (
+                                <div className="absolute z-10 w-full bg-white border border-gray-200 rounded-md shadow-lg mt-1 max-h-60 overflow-y-auto">
+                                    {suggestions.map((item) => (
+                                        <button
+                                            key={item.place_id}
+                                            className="w-full text-left px-4 py-3 hover:bg-gray-50 text-sm border-b last:border-0 border-gray-100 transition-colors"
+                                            onClick={() => handleSelectAddress(item)}
+                                            type="button"
+                                        >
+                                            {item.display_name}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Coordinates Indicator */}
+                            <div className="text-xs flex items-center gap-2 mt-1">
+                                {coords ? (
+                                    <span className="text-green-600 flex items-center font-medium">
+                                        <MapPin className="h-3 w-3 mr-1" /> Location Pinned
+                                    </span>
+                                ) : (
+                                    <span className="text-gray-400 italic">No GPS location set</span>
+                                )}
+                            </div>
                         </div>
                     </div>
+
                     <div className="pt-4 flex justify-end">
-                        <Button className="bg-[#7b1e3a] hover:bg-[#66172e] text-white">Save Changes</Button>
+                        <Button 
+                            className="bg-[#7b1e3a] hover:bg-[#66172e] text-white min-w-[120px]"
+                            onClick={handleSave}
+                            disabled={isSaving}
+                        >
+                            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Changes"}
+                        </Button>
                     </div>
                 </CardContent>
             </Card>
@@ -159,9 +282,6 @@ export default function ProfilePage() {
                 </CardHeader>
                 <CardContent className="space-y-2">
                     <Button variant="ghost" className="w-full justify-start h-12 text-gray-600 hover:text-[#7b1e3a] hover:bg-orange-50">
-                        <MapPin className="mr-3 h-5 w-5" /> Saved Addresses
-                    </Button>
-                    <Button variant="ghost" className="w-full justify-start h-12 text-gray-600 hover:text-[#7b1e3a] hover:bg-orange-50">
                         <Heart className="mr-3 h-5 w-5" /> Favorites
                     </Button>
                     <Separator className="my-2"/>
@@ -171,7 +291,6 @@ export default function ProfilePage() {
                 </CardContent>
             </Card>
         </div>
-
       </main>
       <Footer />
     </div>

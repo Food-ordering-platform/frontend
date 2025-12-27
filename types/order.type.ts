@@ -15,6 +15,8 @@ export interface CreateOrderDto {
   amount: number; 
   deliveryAddress: string;
   deliveryNotes: string | null
+  deliveryLatitude?: number | undefined
+  deliveryLongitude?: number | undefined
   items: OrderItemDto[]; 
   name: string;
   email: string;
@@ -39,6 +41,8 @@ export interface Order {
   status: string;
   deliveryAddress: string;
   deliveryNotes:string | null
+  deliveryLatitude?: number | undefined
+  deliveryLongitude?: number | undefined
   items: OrderItem[]; 
   createdAt: string;
   restaurant?: {
