@@ -4,7 +4,6 @@
 export interface OrderItemDto {
   menuItemId: string;
   quantity: number;
-  price: number;
 }
 
 // Payload sent to POST /api/payment/initialize
@@ -12,7 +11,6 @@ export interface OrderItemDto {
 export interface CreateOrderDto {
   customerId: string;
   restaurantId: string;
-  amount: number; 
   deliveryAddress: string;
   deliveryNotes: string | null
   deliveryLatitude?: number | undefined

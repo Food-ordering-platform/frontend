@@ -1,23 +1,30 @@
-"use client"
+// food-ordering-platform/frontend/frontend-wip-staging/app/checkout/page.tsx
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { useAuth } from "@/lib/auth-context"
-import { useCart } from "@/lib/cart-context"
-import { useCreateOrder } from "../../services/order/order.queries"
-import { Header } from "@/components/layout/header"
-import { ProtectedRoute } from "@/components/auth/protected-route"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Separator } from "@/components/ui/separator"
-import { useToast } from "@/hooks/use-toast"
-import { ArrowLeft, MapPin, ShoppingBag, Loader2, Locate } from "lucide-react"
-import Link from "next/link"
-import Image from "next/image"
-import { CreateOrderDto } from "@/types/order.type"
-import { motion } from "framer-motion"
+"use client";
+
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
+import { useCart } from "@/lib/cart-context";
+import { useCreateOrder } from "../../services/order/order.queries";
+import { Header } from "@/components/layout/header";
+import { ProtectedRoute } from "@/components/auth/protected-route";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { useToast } from "@/hooks/use-toast";
+import { ArrowLeft, MapPin, ShoppingBag, Loader2, Locate } from "lucide-react";
+import Link from "next/link";
+import Image from "next/image";
+import { CreateOrderDto } from "@/types/order.type"; // Uses the updated type
+import { motion } from "framer-motion";
+
+// Pricing Constants (Must match Backend)
+const DELIVERY_FEE = 1500;
+const PLATFORM_FEE = 350; // 👈 Added Platform Fee
+const TAX_RATE = 0.075;
 
 type AddressResult = {
   place_id: number;
@@ -27,37 +34,40 @@ type AddressResult = {
 };
 
 export default function CheckoutPage() {
-  const { user } = useAuth()
-  const { items, getTotalPrice, clearCart } = useCart()
-  const router = useRouter()
-  const { toast } = useToast()
-  const { mutateAsync: placeOrder } = useCreateOrder()
+  const { user } = useAuth();
+  const { items, getTotalPrice, clearCart } = useCart();
+  const router = useRouter();
+  const { toast } = useToast();
+  const { mutateAsync: placeOrder } = useCreateOrder();
 
-  const [phoneNumber, setPhoneNumber] = useState(user?.phone || "")
-  const [orderNotes, setOrderNotes] = useState("")
-  const [isPlacingOrder, setIsPlacingOrder] = useState(false)
+  // Form State
+  const [phoneNumber, setPhoneNumber] = useState(user?.phone || "");
+  const [orderNotes, setOrderNotes] = useState("");
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
 
-  // 👇 LOCATION STATES
-  const [deliveryAddress, setDeliveryAddress] = useState(user?.address || "")
-  const [coords, setCoords] = useState<{lat: number, lng: number} | null>(null)
-  
-  // 👇 SEARCH STATES
-  const [suggestions, setSuggestions] = useState<AddressResult[]>([])
-  const [showSuggestions, setShowSuggestions] = useState(false)
-  const [isSearching, setIsSearching] = useState(false)
+  // Location State (Pre-fill from User Profile if available)
+  const [deliveryAddress, setDeliveryAddress] = useState(user?.address || "");
+  const [coords, setCoords] = useState<{lat: number, lng: number} | null>(
+    user?.latitude && user?.longitude 
+      ? { lat: user.latitude, lng: user.longitude } 
+      : null
+  );
 
-  // Pricing Logic
-  const subtotal = getTotalPrice()
-  const deliveryFee = 1500
-  const taxRate = 0.075 
-  const tax = subtotal * taxRate
-  const total = subtotal + deliveryFee + tax
+  // Search State
+  const [suggestions, setSuggestions] = useState<AddressResult[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+
+  // 💰 DISPLAY CALCULATION (Visual Only)
+  const subtotal = getTotalPrice();
+  const tax = subtotal * TAX_RATE;
+  const total = subtotal + DELIVERY_FEE + tax + PLATFORM_FEE;
 
   const formatMoney = (amount: number) => {
-    return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", minimumFractionDigits: 0 }).format(amount)
-  }
+    return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", minimumFractionDigits: 0 }).format(amount);
+  };
 
-  // 1. SEARCH ADDRESS (Debounced)
+  // 🔎 1. ADDRESS SEARCH (Debounced)
   useEffect(() => {
     if (!showSuggestions || deliveryAddress.length < 3) return;
     
@@ -79,14 +89,14 @@ export default function CheckoutPage() {
     return () => clearTimeout(timer);
   }, [deliveryAddress, showSuggestions]);
 
-  // 2. SELECT ADDRESS
+  // 📍 2. SELECT ADDRESS
   const handleSelectAddress = (item: AddressResult) => {
     setDeliveryAddress(item.display_name);
     setCoords({ lat: parseFloat(item.lat), lng: parseFloat(item.lon) });
     setShowSuggestions(false);
   };
 
-  // 3. USE GPS
+  // 🛰️ 3. USE GPS
   const handleUseGPS = () => {
     if (!navigator.geolocation) {
       toast({ title: "Error", description: "Geolocation not supported", variant: "destructive" });
@@ -112,52 +122,59 @@ export default function CheckoutPage() {
   };
 
   const handlePlaceOrder = async () => {
-    if (!user || items.length === 0) return
+    if (!user || items.length === 0) return;
 
     if (!deliveryAddress.trim()) {
-      toast({ title: "Address Required", description: "Please enter your delivery address.", variant: "destructive" })
-      return
+      toast({ title: "Address Required", description: "Please enter your delivery address.", variant: "destructive" });
+      return;
     }
+
+    // Optional: Enforce GPS coordinates for accurate delivery
+    // if (!coords) { ... }
 
     if (!phoneNumber.trim()) {
-      toast({ title: "Phone Required", description: "We need a number for updates.", variant: "destructive" })
-      return
+      toast({ title: "Phone Required", description: "We need a number for updates.", variant: "destructive" });
+      return;
     }
 
-    setIsPlacingOrder(true)
+    setIsPlacingOrder(true);
 
     try {
+      // 👇 CONSTRUCT PAYLOAD (No Total Amount sent)
       const orderData: CreateOrderDto = {
         customerId: user.id,
         restaurantId: items[0].menuItem.restaurantId,
         items: items.map((item) => ({
           menuItemId: item.menuItem.id,
           quantity: item.quantity,
-          price: item.menuItem.price,
+          // Price is intentionally omitted here
         })),
-        totalAmount: total, // Matches the updated interface
+        // Total Amount omitted
         deliveryAddress: deliveryAddress.trim(),
         deliveryNotes: orderNotes.trim(),
         deliveryLatitude: coords?.lat,
         deliveryLongitude: coords?.lng,
         name: user.name,
         email: user.email,
-      }
+      };
 
-      const response = await placeOrder(orderData)
+      const response = await placeOrder(orderData);
       
-      // The backend returns { checkoutUrl } directly inside response
+      // Backend returns the secure checkout URL
       const { checkoutUrl } = response;
 
-      toast({ title: "Order initiated!", description: `Redirecting to payment...` })
-      clearCart()
-      window.location.href = checkoutUrl
+      toast({ title: "Order initiated!", description: `Redirecting to payment...` });
+      clearCart();
+      
+      // Redirect to Paystack/Payment Gateway
+      window.location.href = checkoutUrl;
+      
     } catch (error: any) {
-      toast({ title: "Order failed", description: error?.message || "Please try again.", variant: "destructive" })
+      toast({ title: "Order failed", description: error?.message || "Please try again.", variant: "destructive" });
     } finally {
-      setIsPlacingOrder(false)
+      setIsPlacingOrder(false);
     }
-  }
+  };
 
   return (
     <ProtectedRoute>
@@ -179,10 +196,10 @@ export default function CheckoutPage() {
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
               
-              {/* Left Column */}
+              {/* Left Column: Address & Items */}
               <div className="lg:col-span-7 space-y-8">
                 
-                {/* DELIVERY CARD */}
+                {/* 1. DELIVERY ADDRESS CARD */}
                 <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}>
                     <Card className="border-0 shadow-sm ring-1 ring-gray-200 rounded-2xl overflow-visible bg-white">
                         <CardHeader className="bg-gray-50/50 border-b border-gray-100 pb-4">
@@ -197,7 +214,7 @@ export default function CheckoutPage() {
                         </CardHeader>
                         <CardContent className="p-6 space-y-6">
                             <div className="grid gap-6">
-                                {/* ADDRESS INPUT WITH DROPDOWN */}
+                                {/* SMART ADDRESS INPUT */}
                                 <div className="space-y-2 relative z-50"> 
                                     <Label className="text-sm font-semibold text-gray-700">Delivery Address</Label>
                                     <div className="relative">
@@ -218,7 +235,7 @@ export default function CheckoutPage() {
                                         )}
                                     </div>
 
-                                    {/* SEARCH RESULTS */}
+                                    {/* SEARCH RESULTS DROPDOWN */}
                                     {showSuggestions && suggestions.length > 0 && (
                                         <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto">
                                             {suggestions.map((item) => (
@@ -268,7 +285,7 @@ export default function CheckoutPage() {
                     </Card>
                 </motion.div>
 
-                {/* ITEMS CARD */}
+                {/* 2. ITEMS LIST */}
                 <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
                     <Card className="border-0 shadow-sm ring-1 ring-gray-200 rounded-2xl overflow-hidden bg-white">
                         <CardHeader className="bg-gray-50/50 border-b border-gray-100 pb-4">
@@ -300,24 +317,31 @@ export default function CheckoutPage() {
                 </motion.div>
               </div>
 
-              {/* Right Column - Payment */}
+              {/* Right Column: Payment Summary */}
               <div className="lg:col-span-5 relative">
                 <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }} className="sticky top-24">
                     <Card className="border-0 shadow-xl shadow-gray-200/50 ring-1 ring-gray-200 rounded-3xl overflow-hidden bg-white">
                         <CardHeader className="bg-[#7b1e3a] text-white p-6"><CardTitle>Payment Summary</CardTitle></CardHeader>
                         <CardContent className="p-6 space-y-6">
                             <div className="space-y-4">
-                                <div className="flex justify-between"><span>Subtotal</span><span>{formatMoney(subtotal)}</span></div>
-                                <div className="flex justify-between"><span>Delivery Fee</span><span>{formatMoney(deliveryFee)}</span></div>
-                                <div className="flex justify-between"><span>VAT (7.5%)</span><span>{formatMoney(tax)}</span></div>
+                                <div className="flex justify-between text-gray-600"><span>Subtotal</span><span className="font-medium text-gray-900">{formatMoney(subtotal)}</span></div>
+                                <div className="flex justify-between text-gray-600"><span>Delivery Fee</span><span className="font-medium text-gray-900">{formatMoney(DELIVERY_FEE)}</span></div>
+                                <div className="flex justify-between text-gray-600"><span>Platform Fee</span><span className="font-medium text-gray-900">{formatMoney(PLATFORM_FEE)}</span></div>
+                                <div className="flex justify-between text-gray-600"><span>VAT (7.5%)</span><span className="font-medium text-gray-900">{formatMoney(tax)}</span></div>
                             </div>
                             <Separator />
                             <div className="flex justify-between items-end">
-                                <span className="font-bold text-lg">Total</span>
+                                <span className="font-bold text-lg text-gray-900">Total</span>
                                 <span className="font-extrabold text-3xl text-[#7b1e3a]">{formatMoney(total)}</span>
                             </div>
-                            <Button onClick={handlePlaceOrder} disabled={isPlacingOrder} className="w-full h-14 bg-[#7b1e3a] text-white text-lg rounded-xl">
-                                {isPlacingOrder ? "Processing..." : `Pay ${formatMoney(total)}`}
+                            <Button onClick={handlePlaceOrder} disabled={isPlacingOrder} className="w-full h-14 bg-[#7b1e3a] text-white text-lg rounded-xl hover:bg-[#60132a] transition-all">
+                                {isPlacingOrder ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Processing...
+                                  </>
+                                ) : (
+                                  `Pay ${formatMoney(total)}`
+                                )}
                             </Button>
                         </CardContent>
                     </Card>
@@ -329,5 +353,5 @@ export default function CheckoutPage() {
         </main>
       </div>
     </ProtectedRoute>
-  )
+  );
 }

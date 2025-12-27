@@ -14,16 +14,23 @@ export interface LoginData {
   clientType?: "web" | "mobile"; // <--- ADDED
 }
 
+// 👇 UPDATED USER INTERFACE
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  phone?: string;      // Added
+  address?: string;    // Added
+  latitude?: number;   // Added
+  longitude?: number;  // Added
+  isVerified?: boolean;
+}
+
 export interface AuthResponse {
   message?: string;
-  token?: string; // Token is now Optional (Won't be sent for Web)
-  user?: {
-    id: string;
-    name: string;
-    email: string;
-    role: string;
-    isVerified?: boolean;
-  };
+  token?: string;
+  user?: User; // Uses the updated interface above
   requireOtp?: boolean;
 }
 

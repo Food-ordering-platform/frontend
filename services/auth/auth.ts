@@ -85,3 +85,14 @@ export const resetPassword = async (
     throw err;
   }
 }
+
+export const updateProfile = async (data: {
+  name?: string;
+  phone?: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+}): Promise<AuthResponse> => {
+  const response = await api.put("/auth/profile", data);
+  return response.data;
+};

@@ -1,22 +1,17 @@
+// food-ordering-platform/frontend/frontend-wip-staging/lib/auth-context.tsx
+
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { LoginData, RegisterData } from "@/types/auth.type";
+import { LoginData, RegisterData, User } from "@/types/auth.type"; // 👈 Import User
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/error-utils";
 import { useCurrentUser, useLogin, useRegister } from "@/services/auth/auth.queries";
 
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-}
-
 interface AuthContextType {
-  user: User | null;
+  user: User | null; // 👈 Uses the strict User type with address/phone/coords
   isLoading: boolean;
   login: (data: LoginData) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
@@ -27,7 +22,6 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  // 👇 1. Add 'isCheckingToken' and start it as TRUE
   const [isCheckingToken, setIsCheckingToken] = useState<boolean>(true);
   const [hasToken, setHasToken] = useState<boolean>(false);
   
@@ -46,7 +40,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const token = localStorage.getItem("token");
     setHasToken(!!token);
-    // 👇 2. Only turn off checking AFTER we've looked at localStorage
     setIsCheckingToken(false); 
   }, []);
 
@@ -64,13 +57,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (res.token) {
         localStorage.setItem("token", res.token);
         setHasToken(true);
-        
         if (res.user) {
           queryClient.setQueryData(["currentUser"], res.user);
         }
-
         await refetch();
-        
         toast.success("Welcome back!");
         router.push("/restaurants");
       }
@@ -111,18 +101,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // 👇 3. Fix the Loading Logic
-  // We are loading if:
-  // - We are still checking localStorage (isCheckingToken) OR
-  // - React Query is fetching the user (isUserLoading && hasToken) OR
-  // - We have a token but user data hasn't arrived yet (hasToken && !user)
-  const isLoading = 
-    isCheckingToken || 
-    (isUserLoading && hasToken) || 
-    (hasToken && !user);
+  const isLoading = isCheckingToken || (isUserLoading && hasToken) || (hasToken && !user);
 
   return (
-    <AuthContext.Provider value={{ user: (user as User) || null, isLoading, login, register, logout, checkAuth }}>
+    <AuthContext.Provider value={{ user: user || null, isLoading, login, register, logout, checkAuth }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,11 +1,12 @@
-import { useMutation, useQuery} from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
 import { RegisterData, LoginData, AuthResponse, VerifyOtpResponse, verifyOTPpayload,  ForgotPasswordPayload,
   ForgotPasswordResponse,
   VerifyResetOtpPayload,
   VerifyResetOtpResponse,
   ResetPasswordPayload,
   ResetPasswordResponse, } from "@/types/auth.type";
-import { registerUser, loginUser, verifyOtp, forgotPassword, verifyResetOtp, resetPassword, getCurrentUser} from "./auth"
+import { registerUser, loginUser, verifyOtp, forgotPassword, verifyResetOtp, resetPassword, getCurrentUser, updateProfile} from "./auth"
+import { toast } from "sonner";
 
 
 //Register User
@@ -57,5 +58,28 @@ export const useVerifyResetOtp = () => {
 export const useResetPassword = () => {
   return useMutation<ResetPasswordResponse, Error, ResetPasswordPayload>({
     mutationFn: resetPassword,
+  });
+};
+
+export const useUpdateProfile = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: updateProfile,
+    onSuccess: (data) => {
+      // 1. Update the cache immediately with the new user data
+      if (data.user) {
+        queryClient.setQueryData(["currentUser"], data.user);
+      }
+      
+      // 2. Force a refetch to be safe (syncs with backend)
+      queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+      
+      toast.success("Profile updated successfully!");
+    },
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || error.message || "Failed to update profile";
+      toast.error(msg);
+    },
   });
 };

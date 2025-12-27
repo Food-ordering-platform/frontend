@@ -1,8 +1,13 @@
 "use client";
 
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { useCart } from "@/lib/cart-context";
 import { useGetOrders } from "@/services/order/order.queries";
-import { updateUserProfile } from "@/services/auth/auth"; // Import service
+import { useUpdateProfile } from "@/services/auth/auth.queries"; // 👈 Import the Hook
+import { useToast } from "@/hooks/use-toast";
+
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { Button } from "@/components/ui/button";
@@ -11,11 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-import { ShoppingBag, Heart, MapPin, LogOut, Camera, Loader2, Locate } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useCart } from "@/lib/cart-context";
-import { useToast } from "@/hooks/use-toast";
-import { useState, useEffect } from "react";
+import { ShoppingBag, Heart, MapPin, LogOut, Loader2, Locate } from "lucide-react";
 
 // Type for OpenStreetMap results
 type AddressResult = {
@@ -31,15 +32,19 @@ export default function ProfilePage() {
   const router = useRouter();
   const { toast } = useToast();
   
+  // 👇 Use the Mutation Hook (Handles API + Loading State)
+  const { mutateAsync: updateProfile, isPending: isSaving } = useUpdateProfile();
+
   // 1. Form States
-  const [isSaving, setIsSaving] = useState(false);
   const [name, setName] = useState(user?.name || "");
   const [phone, setPhone] = useState(user?.phone || "");
   
   // 2. Location States
   const [address, setAddress] = useState(user?.address || "");
   const [coords, setCoords] = useState<{lat: number, lng: number} | null>(
-    user?.latitude && user?.longitude ? { lat: user.latitude, lng: user.longitude } : null
+    user?.latitude && user?.longitude 
+      ? { lat: user.latitude, lng: user.longitude } 
+      : null
   );
   
   // 3. Search States
@@ -50,7 +55,6 @@ export default function ProfilePage() {
   // Fetch orders for stats
   const { data: orders = [] } = useGetOrders(user?.id || "");
   const totalOrders = orders.length;
-  const activeOrders = orders.filter(o => ["pending", "preparing", "out_for_delivery", "confirmed"].includes(o.status)).length;
 
   // 🔎 Address Search Logic
   useEffect(() => {
@@ -113,20 +117,18 @@ export default function ProfilePage() {
   };
 
   const handleSave = async () => {
-    setIsSaving(true);
     try {
-      await updateUserProfile({
+      // 👇 Call Mutation
+      await updateProfile({
         name,
         phone,
         address,
         latitude: coords?.lat,
         longitude: coords?.lng
       });
-      toast({ title: "Success", description: "Profile updated successfully!" });
+      // Success toast is handled in the hook!
     } catch (error: any) {
-      toast({ title: "Error", description: error.message || "Failed to update profile", variant: "destructive" });
-    } finally {
-      setIsSaving(false);
+      // Error toast is handled in the hook!
     }
   };
 
@@ -144,7 +146,7 @@ export default function ProfilePage() {
         <div className="flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
            <div className="flex items-center gap-4">
                 <Avatar className="h-20 w-20 md:h-24 md:w-24 border-4 border-white shadow-xl">
-                    <AvatarImage src={user.image} alt={user.name} />
+                    <AvatarImage alt={user.name} />
                     <AvatarFallback className="bg-[#7b1e3a] text-white text-2xl font-bold">
                         {user.name?.charAt(0).toUpperCase()}
                     </AvatarFallback>
@@ -180,7 +182,7 @@ export default function ProfilePage() {
                     </div>
                 </CardContent>
             </Card>
-            {/* ... other stats cards ... */}
+            {/* You can add more stat cards here */}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
