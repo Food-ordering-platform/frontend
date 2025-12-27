@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, MapPin, ShoppingBag, Loader2, Locate } from "lucide-react";
+import { ArrowLeft, MapPin, ShoppingBag, Loader2, Locate, CreditCard, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { CreateOrderDto } from "@/types/order.type";
@@ -22,7 +22,6 @@ import { motion } from "framer-motion";
 // 💰 PRICING CONSTANTS
 const DELIVERY_FEE = 500;
 const PLATFORM_FEE = 350;
-// No Tax
 
 type AddressResult = {
   place_id: number;
@@ -53,7 +52,7 @@ export default function CheckoutPage() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
 
-  // 💰 DISPLAY CALCULATION
+  // 💰 DISPLAY CALCULATION (Visual Only)
   const subtotal = getTotalPrice();
   const total = subtotal + DELIVERY_FEE + PLATFORM_FEE;
 
@@ -68,9 +67,7 @@ export default function CheckoutPage() {
     const timer = setTimeout(async () => {
       setIsSearching(true);
       try {
-        // 👇 RESTRICTION LOGIC ADDED HERE
         const searchQuery = `${deliveryAddress}, Delta State, Nigeria`;
-
         const res = await fetch(
             `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5&addressdetails=1&countrycodes=ng`
         );
@@ -87,7 +84,6 @@ export default function CheckoutPage() {
   }, [deliveryAddress, showSuggestions]);
 
   const handleSelectAddress = (item: AddressResult) => {
-    // Clean up the name slightly for display if needed
     setDeliveryAddress(item.display_name);
     setCoords({ lat: parseFloat(item.lat), lng: parseFloat(item.lon) });
     setShowSuggestions(false);
@@ -185,7 +181,7 @@ export default function CheckoutPage() {
               {/* Left Column */}
               <div className="lg:col-span-7 space-y-8">
                 
-                {/* DELIVERY DETAILS */}
+                {/* DELIVERY CARD */}
                 <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}>
                     <Card className="border-0 shadow-sm ring-1 ring-gray-200 rounded-2xl overflow-visible bg-white">
                         <CardHeader className="bg-gray-50/50 border-b border-gray-100 pb-4">
@@ -220,7 +216,6 @@ export default function CheckoutPage() {
                                         )}
                                     </div>
 
-                                    {/* SEARCH DROPDOWN */}
                                     {showSuggestions && suggestions.length > 0 && (
                                         <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto">
                                             {suggestions.map((item) => (
@@ -268,7 +263,7 @@ export default function CheckoutPage() {
                     </Card>
                 </motion.div>
 
-                {/* ITEMS */}
+                {/* ITEMS CARD */}
                 <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
                     <Card className="border-0 shadow-sm ring-1 ring-gray-200 rounded-2xl overflow-hidden bg-white">
                         <CardHeader className="bg-gray-50/50 border-b border-gray-100 pb-4">
@@ -300,31 +295,53 @@ export default function CheckoutPage() {
                 </motion.div>
               </div>
 
-              {/* Right Column: Payment */}
+              {/* Right Column - Payment (RESTORED DESIGN) */}
               <div className="lg:col-span-5 relative">
                 <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }} className="sticky top-24">
                     <Card className="border-0 shadow-xl shadow-gray-200/50 ring-1 ring-gray-200 rounded-3xl overflow-hidden bg-white">
-                        <CardHeader className="bg-[#7b1e3a] text-white p-6"><CardTitle>Payment Summary</CardTitle></CardHeader>
+                        <CardHeader className="bg-[#7b1e3a] text-white p-6">
+                            <CardTitle className="text-xl font-bold flex items-center gap-2">
+                                <CreditCard className="h-5 w-5 text-white/80" /> Payment Summary
+                            </CardTitle>
+                        </CardHeader>
                         <CardContent className="p-6 space-y-6">
                             <div className="space-y-4">
-                                <div className="flex justify-between text-gray-600"><span>Subtotal</span><span className="font-medium text-gray-900">{formatMoney(subtotal)}</span></div>
-                                <div className="flex justify-between text-gray-600"><span>Delivery Fee</span><span className="font-medium text-gray-900">{formatMoney(DELIVERY_FEE)}</span></div>
-                                <div className="flex justify-between text-gray-600"><span>Platform Fee</span><span className="font-medium text-gray-900">{formatMoney(PLATFORM_FEE)}</span></div>
+                                <div className="flex justify-between items-center text-gray-600">
+                                    <span className="text-sm font-medium">Subtotal</span>
+                                    <span className="font-semibold text-gray-900">{formatMoney(subtotal)}</span>
+                                </div>
+                                <div className="flex justify-between items-center text-gray-600">
+                                    <span className="text-sm font-medium">Delivery Fee</span>
+                                    <span className="font-semibold text-gray-900">{formatMoney(DELIVERY_FEE)}</span>
+                                </div>
+                                <div className="flex justify-between items-center text-gray-600">
+                                    <span className="text-sm font-medium">Platform Fee</span>
+                                    <span className="font-semibold text-gray-900">{formatMoney(PLATFORM_FEE)}</span>
+                                </div>
                             </div>
-                            <Separator />
+                            <Separator className="bg-gray-100" />
                             <div className="flex justify-between items-end">
-                                <span className="font-bold text-lg text-gray-900">Total</span>
-                                <span className="font-extrabold text-3xl text-[#7b1e3a]">{formatMoney(total)}</span>
+                                <span className="font-bold text-lg text-gray-900">Total to Pay</span>
+                                <span className="font-extrabold text-3xl text-[#7b1e3a] tracking-tight">{formatMoney(total)}</span>
                             </div>
-                            <Button onClick={handlePlaceOrder} disabled={isPlacingOrder} className="w-full h-14 bg-[#7b1e3a] text-white text-lg rounded-xl hover:bg-[#60132a] transition-all">
+                            
+                            <Button 
+                                onClick={handlePlaceOrder} 
+                                disabled={isPlacingOrder} 
+                                className="w-full h-14 bg-[#7b1e3a] hover:bg-[#60132a] text-white text-lg font-bold rounded-xl shadow-lg shadow-[#7b1e3a]/20 transition-all active:scale-[0.98]"
+                            >
                                 {isPlacingOrder ? (
                                   <>
                                     <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Processing...
                                   </>
                                 ) : (
-                                  `Pay ${formatMoney(total)}`
+                                  `Secure Checkout ${formatMoney(total)}`
                                 )}
                             </Button>
+                            
+                            <div className="flex items-center justify-center gap-2 text-xs text-gray-400 font-medium pt-2">
+                                <ShieldCheck className="h-3 w-3" /> Secure Payment by Paystack
+                            </div>
                         </CardContent>
                     </Card>
                 </motion.div>
