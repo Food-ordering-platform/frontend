@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useCart } from "@/lib/cart-context";
 import { useGetOrders } from "@/services/order/order.queries";
-import { useUpdateProfile } from "@/services/auth/auth.queries"; // 👈 Import the Hook
+import { useUpdateProfile } from "@/services/auth/auth.queries";
 import { useToast } from "@/hooks/use-toast";
 
 import { Header } from "@/components/layout/header";
@@ -16,9 +16,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-import { ShoppingBag, Heart, MapPin, LogOut, Loader2, Locate } from "lucide-react";
+import { ShoppingBag, Heart, MapPin, LogOut, Loader2, Locate, Clock, CheckCircle } from "lucide-react";
 
-// Type for OpenStreetMap results
 type AddressResult = {
   place_id: number;
   lat: string;
@@ -32,14 +31,14 @@ export default function ProfilePage() {
   const router = useRouter();
   const { toast } = useToast();
   
-  // 👇 Use the Mutation Hook (Handles API + Loading State)
+  // Update Mutation Hook
   const { mutateAsync: updateProfile, isPending: isSaving } = useUpdateProfile();
 
-  // 1. Form States
+  // Form States
   const [name, setName] = useState(user?.name || "");
   const [phone, setPhone] = useState(user?.phone || "");
   
-  // 2. Location States
+  // Location States
   const [address, setAddress] = useState(user?.address || "");
   const [coords, setCoords] = useState<{lat: number, lng: number} | null>(
     user?.latitude && user?.longitude 
@@ -47,24 +46,36 @@ export default function ProfilePage() {
       : null
   );
   
-  // 3. Search States
+  // Search States
   const [suggestions, setSuggestions] = useState<AddressResult[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
 
-  // Fetch orders for stats
+  // 📊 CALCULATE ORDER STATS
   const { data: orders = [] } = useGetOrders(user?.id || "");
+  
   const totalOrders = orders.length;
+  
+  const activeOrders = orders.filter(o => 
+    ["PENDING", "PREPARING", "OUT_FOR_DELIVERY", "CONFIRMED"].includes(o.status)
+  ).length;
+  
+  const completedOrders = orders.filter(o => 
+    o.status === "DELIVERED"
+  ).length;
 
-  // 🔎 Address Search Logic
+  // 🔎 RESTRICTED SEARCH (Delta State)
   useEffect(() => {
     if (!showSuggestions || address.length < 3) return;
     
     const timer = setTimeout(async () => {
       setIsSearching(true);
       try {
+        // Restricted Query
+        const searchQuery = `${address}, Delta State, Nigeria`;
+
         const res = await fetch(
-            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&countrycodes=ng&limit=5`
+            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5&addressdetails=1&countrycodes=ng`
         );
         const data = await res.json();
         setSuggestions(data);
@@ -84,7 +95,6 @@ export default function ProfilePage() {
     setShowSuggestions(false);
   };
 
-  // 📍 GPS Logic
   const handleUseGPS = () => {
     if (!navigator.geolocation) {
       toast({ title: "Error", description: "Geolocation not supported", variant: "destructive" });
@@ -118,7 +128,6 @@ export default function ProfilePage() {
 
   const handleSave = async () => {
     try {
-      // 👇 Call Mutation
       await updateProfile({
         name,
         phone,
@@ -126,9 +135,8 @@ export default function ProfilePage() {
         latitude: coords?.lat,
         longitude: coords?.lng
       });
-      // Success toast is handled in the hook!
     } catch (error: any) {
-      // Error toast is handled in the hook!
+      // Error handled by query hook
     }
   };
 
@@ -169,8 +177,9 @@ export default function ProfilePage() {
            </Button>
         </div>
 
-        {/* Stats Grid */}
+        {/* 👇 STATS GRID (RESTORED) */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Card 1: Total Orders */}
             <Card className="border-none shadow-md bg-gradient-to-br from-[#7b1e3a] to-[#5a162b] text-white">
                 <CardContent className="p-6 flex items-center justify-between">
                     <div>
@@ -182,7 +191,32 @@ export default function ProfilePage() {
                     </div>
                 </CardContent>
             </Card>
-            {/* You can add more stat cards here */}
+
+            {/* Card 2: Active Orders */}
+            <Card className="border-none shadow-md bg-white">
+                <CardContent className="p-6 flex items-center justify-between">
+                    <div>
+                        <p className="text-gray-500 font-medium text-sm">Active Orders</p>
+                        <h3 className="text-3xl font-bold mt-1 text-[#7b1e3a]">{activeOrders}</h3>
+                    </div>
+                    <div className="p-3 bg-orange-50 rounded-xl">
+                        <Clock className="h-6 w-6 text-orange-500" />
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* Card 3: Completed Orders */}
+            <Card className="border-none shadow-md bg-white">
+                <CardContent className="p-6 flex items-center justify-between">
+                    <div>
+                        <p className="text-gray-500 font-medium text-sm">Delivered</p>
+                        <h3 className="text-3xl font-bold mt-1 text-green-600">{completedOrders}</h3>
+                    </div>
+                    <div className="p-3 bg-green-50 rounded-xl">
+                        <CheckCircle className="h-6 w-6 text-green-600" />
+                    </div>
+                </CardContent>
+            </Card>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -226,7 +260,7 @@ export default function ProfilePage() {
                                         setAddress(e.target.value);
                                         setShowSuggestions(true);
                                     }}
-                                    placeholder="Search your street address..." 
+                                    placeholder="Enter street name (e.g. Airport Road, Warri)"
                                     className="pl-9"
                                 />
                                 {isSearching && (
