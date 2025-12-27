@@ -8,7 +8,7 @@ export interface MenuCategory {
 }
 
 export interface Restaurant {
-  id: string;
+  id: string | null;
   name: string;
   address: string;
   phone?: string;
@@ -23,6 +23,8 @@ export interface Restaurant {
   rating?: number;
   deliveryFee?: number;
   deliveryTime?: number;
+  latitude?: number; 
+  longitude?: number;
 }
 
 export interface ApiResponse<T> {

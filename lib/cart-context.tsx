@@ -1,114 +1,139 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { createContext, useContext, useState, useEffect } from "react"
-import type { CartItem, MenuItem } from "./types"
+import { createContext, useContext, useState, useEffect } from "react";
+import { MenuItem } from "@/types/restuarants.type"; // Ensure this import matches your file structure
+import { toast } from "sonner"; // Or your preferred toast
 
-interface CartContextType {
-  items: CartItem[]
-  addItem: (menuItem: MenuItem, quantity?: number, specialInstructions?: string) => void
-  removeItem: (menuItemId: string) => void
-  updateQuantity: (menuItemId: string, quantity: number) => void
-  clearCart: () => void
-  getTotalItems: () => number
-  getTotalPrice: () => number
-  getRestaurantId: () => string | null
+// Define Cart Item
+export interface CartItem {
+  menuItem: MenuItem;
+  quantity: number;
+  specialInstructions?: string;
 }
 
-const CartContext = createContext<CartContextType | undefined>(undefined)
+// Define Context Shape
+interface CartContextType {
+  items: CartItem[];
+  restaurantId: string | null // 👈 NEW: Explicitly track this
+  addToCart: (item: MenuItem, quantity: number, instructions?: string) => void;
+  removeFromCart: (itemId: string) => void;
+  updateQuantity: (itemId: string, delta: number) => void;
+  clearCart: () => void;
+  getTotalPrice: () => number;
+}
+
+const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>([])
+  const [items, setItems] = useState<CartItem[]>([]);
+  const [restaurantId, setRestaurantId] = useState<string | null>(null); // 👈 State for it
 
-  // Load cart from localStorage on mount
+  // Load from LocalStorage on mount
   useEffect(() => {
-    const savedCart = localStorage.getItem("cart-items")
-    if (savedCart) {
-      try {
-        setItems(JSON.parse(savedCart))
-      } catch (error) {
-        console.error("Failed to load cart from localStorage:", error)
-      }
+    const savedCart = localStorage.getItem("cart");
+    const savedRestaurantId = localStorage.getItem("cart_restaurant_id");
+    if (savedCart) setItems(JSON.parse(savedCart));
+    if (savedRestaurantId) setRestaurantId(savedRestaurantId);
+  }, []);
+
+  // Persist to LocalStorage
+  useEffect(() => {
+    localStorage.setItem("cart", JSON.stringify(items));
+    if (restaurantId) {
+      localStorage.setItem("cart_restaurant_id", restaurantId);
+    } else {
+      localStorage.removeItem("cart_restaurant_id");
     }
-  }, [])
+  }, [items, restaurantId]);
 
-  // Save cart to localStorage whenever items change
-  useEffect(() => {
-    localStorage.setItem("cart-items", JSON.stringify(items))
-  }, [items])
-
-  const addItem = (menuItem: MenuItem, quantity = 1, specialInstructions?: string) => {
-    setItems((currentItems) => {
-      // Check if item already exists in cart
-      const existingItemIndex = currentItems.findIndex(
-        (item) => item.menuItem.id === menuItem.id && item.specialInstructions === specialInstructions,
-      )
-
-      if (existingItemIndex >= 0) {
-        // Update quantity of existing item
-        const updatedItems = [...currentItems]
-        updatedItems[existingItemIndex].quantity += quantity
-        return updatedItems
+  const addToCart = (menuItem: MenuItem, quantity: number, specialInstructions?: string) => {
+    // 1. CHECK RESTAURANT CONFLICT
+    if (restaurantId && restaurantId !== menuItem.restaurantId) {
+      // Logic: Ask user to clear cart or just reject
+      // For simplicity, we'll just reject/alert here, but you can trigger a modal
+      if (confirm("Start a new order? You have items from another restaurant.")) {
+        clearCart(); // Clear old items
+        setRestaurantId(menuItem.restaurantId); // Set new restaurant
+        // Continue adding...
       } else {
-        // Add new item to cart
-        return [...currentItems, { menuItem, quantity, specialInstructions }]
+        return; // Cancel
       }
-    })
-  }
-
-  const removeItem = (menuItemId: string) => {
-    setItems((currentItems) => currentItems.filter((item) => item.menuItem.id !== menuItemId))
-  }
-
-  const updateQuantity = (menuItemId: string, quantity: number) => {
-    if (quantity <= 0) {
-      removeItem(menuItemId)
-      return
     }
 
-    setItems((currentItems) =>
-      currentItems.map((item) => (item.menuItem.id === menuItemId ? { ...item, quantity } : item)),
-    )
-  }
+    // 2. SET RESTAURANT IF EMPTY
+    if (items.length === 0) {
+      setRestaurantId(menuItem.restaurantId);
+    }
+
+    setItems((prev) => {
+      const existing = prev.find((i) => i.menuItem.id === menuItem.id);
+      if (existing) {
+        return prev.map((i) =>
+          i.menuItem.id === menuItem.id
+            ? { ...i, quantity: i.quantity + quantity }
+            : i
+        );
+      }
+      return [...prev, { menuItem, quantity, specialInstructions }];
+    });
+    
+    toast.success("Added to cart");
+  };
+
+  const removeFromCart = (itemId: string) => {
+    setItems((prev) => {
+      const newItems = prev.filter((i) => i.menuItem.id !== itemId);
+      // If cart becomes empty, clear restaurantId
+      if (newItems.length === 0) setRestaurantId(null); 
+      return newItems;
+    });
+  };
 
   const clearCart = () => {
-    setItems([])
-  }
+    setItems([]);
+    setRestaurantId(null); // 👈 Clear it here
+  };
 
-  const getTotalItems = () => {
-    return items.reduce((total, item) => total + item.quantity, 0)
-  }
+  const updateQuantity = (itemId: string, delta: number) => {
+    setItems((prev) => {
+      return prev.map((item) => {
+        if (item.menuItem.id === itemId) {
+          const newQty = Math.max(0, item.quantity + delta);
+          return { ...item, quantity: newQty };
+        }
+        return item;
+      }).filter(i => i.quantity > 0); // Remove if 0
+    });
+    
+    // Safety check if cart becomes empty after update
+    if (items.length === 1 && items[0].quantity + delta <= 0) {
+        setRestaurantId(null);
+    }
+  };
 
   const getTotalPrice = () => {
-    return items.reduce((total, item) => total + item.menuItem.price * item.quantity, 0)
-  }
-
-  const getRestaurantId = () => {
-    return items.length > 0 ? items[0].menuItem.restaurantId : null
-  }
+    return items.reduce((total, item) => total + item.menuItem.price * item.quantity, 0);
+  };
 
   return (
     <CartContext.Provider
       value={{
         items,
-        addItem,
-        removeItem,
+        restaurantId,
+        addToCart,
+        removeFromCart,
         updateQuantity,
         clearCart,
-        getTotalItems,
         getTotalPrice,
-        getRestaurantId,
       }}
     >
       {children}
     </CartContext.Provider>
-  )
+  );
 }
 
-export function useCart() {
-  const context = useContext(CartContext)
-  if (context === undefined) {
-    throw new Error("useCart must be used within a CartProvider")
-  }
-  return context
-}
+export const useCart = () => {
+  const context = useContext(CartContext);
+  if (context === undefined) throw new Error("useCart must be used within a CartProvider");
+  return context;
+};
