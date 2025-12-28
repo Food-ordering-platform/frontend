@@ -5,9 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useCart } from "@/lib/cart-context";
 import { useCreateOrder } from "../../services/order/order.queries";
-import { useRestaurantById } from "@/services/restaurants/restaurants.queries"; 
-import { calculateDistance, calculateDeliveryFee } from "@/lib/utils";
-
+import { useRestaurantById } from "@/services/restaurants/restaurants.queries"; // Need this to get restaurant coords
 import { Header } from "@/components/layout/header";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { Button } from "@/components/ui/button";
@@ -21,6 +19,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { CreateOrderDto } from "@/types/order.type";
 import { motion } from "framer-motion";
+import { calculateDistance, calculateDeliveryFee } from "@/lib/utils"; // Import math utils
 
 const PLATFORM_FEE = 350;
 
@@ -33,21 +32,19 @@ type AddressResult = {
 
 export default function CheckoutPage() {
   const { user } = useAuth();
-  const { items, getTotalPrice, clearCart, restaurantId } = useCart();
+  const { items, getTotalPrice, clearCart } = useCart();
   const router = useRouter();
   const { toast } = useToast();
   const { mutateAsync: placeOrder } = useCreateOrder();
 
-  // 1. GET RESTAURANT DATA
-  // We pass "" if restaurantId is null to satisfy TS, but the hook won't fetch if id is empty/invalid usually
-  const { data: restaurantResponse, isLoading: isLoadingRestaurant } = useRestaurantById(restaurantId || "");
-  const restaurant = restaurantResponse?.data;
+  // 1. Get Restaurant ID from cart items to fetch coordinates
+  const restaurantId = items.length > 0 ? items[0].menuItem.restaurantId : "";
+  const { data: restaurant } = useRestaurantById(restaurantId);
 
   const [phoneNumber, setPhoneNumber] = useState(user?.phone || "");
   const [orderNotes, setOrderNotes] = useState("");
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
 
-  // Location State
   const [deliveryAddress, setDeliveryAddress] = useState(user?.address || "");
   const [coords, setCoords] = useState<{lat: number, lng: number} | null>(
     user?.latitude && user?.longitude 
@@ -59,29 +56,24 @@ export default function CheckoutPage() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
 
-  // 💰 DYNAMIC DELIVERY FEE STATE (Default 500)
-  const [deliveryFee, setDeliveryFee] = useState(500);
+  // 💰 DYNAMIC DELIVERY FEE STATE
+  const [deliveryFee, setDeliveryFee] = useState(500); // Default fallback
 
   // 🧮 CALCULATE FEE EFFECT
   useEffect(() => {
-    // Check if we have coordinates for BOTH restaurant and user
-    if (restaurant?.latitude && restaurant?.longitude && coords?.lat && coords?.lng) {
-      
+    if (restaurant && coords && restaurant.data?.latitude && restaurant.data?.longitude) {
       const dist = calculateDistance(
-        restaurant.latitude,
-        restaurant.longitude,
+        restaurant.data.latitude,
+        restaurant.data?.longitude,
         coords.lat,
         coords.lng
       );
-      
       const fee = calculateDeliveryFee(dist);
       setDeliveryFee(fee);
-      
-      console.log(`📏 Distance: ${dist}km | Fee: ₦${fee}`);
     }
   }, [restaurant, coords]);
 
-  // Display Totals
+  // 💰 DISPLAY CALCULATION (Visual Only)
   const subtotal = getTotalPrice();
   const total = subtotal + deliveryFee + PLATFORM_FEE;
 
@@ -89,7 +81,7 @@ export default function CheckoutPage() {
     return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", minimumFractionDigits: 0 }).format(amount);
   };
 
-  // Search Logic (Delta State)
+  // 🔎 1. RESTRICTED SEARCH (Delta State)
   useEffect(() => {
     if (!showSuggestions || deliveryAddress.length < 3) return;
     
@@ -150,10 +142,11 @@ export default function CheckoutPage() {
       return;
     }
 
+    // ⚠️ CRITICAL: Ensure we have coordinates for accurate billing
     if (!coords) {
         toast({ 
             title: "Location Pin Required", 
-            description: "Please select an address or use GPS so we can calculate delivery.", 
+            description: "Please select an address from the dropdown or use GPS so we can calculate the delivery fee.", 
             variant: "destructive" 
         });
         return;
@@ -176,8 +169,8 @@ export default function CheckoutPage() {
         })),
         deliveryAddress: deliveryAddress.trim(),
         deliveryNotes: orderNotes.trim(),
-        deliveryLatitude: coords.lat,
-        deliveryLongitude: coords.lng,
+        deliveryLatitude: coords?.lat,
+        deliveryLongitude: coords?.lng,
         name: user.name,
         email: user.email,
       };
@@ -314,7 +307,7 @@ export default function CheckoutPage() {
                                 {items.map((item, index) => (
                                     <div key={`${item.menuItem.id}-${index}`} className="flex gap-4 p-5 hover:bg-gray-50/50 transition-colors">
                                         <div className="relative h-20 w-20 flex-shrink-0 bg-gray-100 rounded-xl overflow-hidden border border-gray-200">
-                                            <Image src={item.menuItem.imageUrl || "/placeholder.svg"} alt={item.menuItem.name} fill className="object-cover" />
+                                            <Image src={item.menuItem.image || "/placeholder.svg"} alt={item.menuItem.name} fill className="object-cover" />
                                         </div>
                                         <div className="flex-1 min-w-0 flex flex-col justify-center">
                                             <div className="flex justify-between items-start mb-1">
@@ -333,7 +326,7 @@ export default function CheckoutPage() {
                 </motion.div>
               </div>
 
-              {/* Right Column - Payment */}
+              {/* Right Column - Payment (RESTORED DESIGN) */}
               <div className="lg:col-span-5 relative">
                 <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }} className="sticky top-24">
                     <Card className="border-0 shadow-xl shadow-gray-200/50 ring-1 ring-gray-200 rounded-3xl overflow-hidden bg-white">
@@ -348,16 +341,10 @@ export default function CheckoutPage() {
                                     <span className="text-sm font-medium">Subtotal</span>
                                     <span className="font-semibold text-gray-900">{formatMoney(subtotal)}</span>
                                 </div>
-                                
                                 <div className="flex justify-between items-center text-gray-600">
-                                    <div className="flex items-center gap-1">
-                                        <span className="text-sm font-medium">Delivery Fee</span>
-                                        {/* Show spinner only if we have items but fee is still default */}
-                                        {isLoadingRestaurant && <Loader2 className="h-3 w-3 animate-spin"/>}
-                                    </div>
+                                    <span className="text-sm font-medium">Delivery Fee</span>
                                     <span className="font-semibold text-gray-900">{formatMoney(deliveryFee)}</span>
                                 </div>
-                                
                                 <div className="flex justify-between items-center text-gray-600">
                                     <span className="text-sm font-medium">Platform Fee</span>
                                     <span className="font-semibold text-gray-900">{formatMoney(PLATFORM_FEE)}</span>
