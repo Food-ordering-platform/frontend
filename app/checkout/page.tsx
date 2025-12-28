@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useCart } from "@/lib/cart-context";
 import { useCreateOrder } from "../../services/order/order.queries";
-// 👇 IMPORT THE CORRECT HOOK
 import { useRestaurantById } from "@/services/restaurants/restaurants.queries"; 
 import { calculateDistance, calculateDeliveryFee } from "@/lib/utils";
 
@@ -34,16 +33,14 @@ type AddressResult = {
 
 export default function CheckoutPage() {
   const { user } = useAuth();
+  // 👇 Getting restaurantId from Context (it is string | null)
   const { items, getTotalPrice, clearCart, restaurantId } = useCart();
   const router = useRouter();
   const { toast } = useToast();
   const { mutateAsync: placeOrder } = useCreateOrder();
 
- 
- 
-  // 👇 USING THE CORRECT HOOK
-  const { data: restaurantResponse, isLoading: isLoadingRestaurant } = useRestaurantById(restaurantId);
-  // Extract the actual restaurant object from the API response wrapper
+  // 👇 FIX: Pass fallback string. The hook's `enabled` check prevents invalid fetches.
+  const { data: restaurantResponse, isLoading: isLoadingRestaurant } = useRestaurantById(restaurantId || "");
   const restaurant = restaurantResponse?.data;
 
   const [phoneNumber, setPhoneNumber] = useState(user?.phone || "");
@@ -355,6 +352,7 @@ export default function CheckoutPage() {
                                 <div className="flex justify-between items-center text-gray-600">
                                     <div className="flex items-center gap-1">
                                         <span className="text-sm font-medium">Delivery Fee</span>
+                                        {/* Show spinner only if we have items but fee is still default */}
                                         {isLoadingRestaurant && <Loader2 className="h-3 w-3 animate-spin"/>}
                                     </div>
                                     <span className="font-semibold text-gray-900">{formatMoney(deliveryFee)}</span>
