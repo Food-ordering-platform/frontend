@@ -33,13 +33,13 @@ type AddressResult = {
 
 export default function CheckoutPage() {
   const { user } = useAuth();
-  // 👇 Getting restaurantId from Context (it is string | null)
   const { items, getTotalPrice, clearCart, restaurantId } = useCart();
   const router = useRouter();
   const { toast } = useToast();
   const { mutateAsync: placeOrder } = useCreateOrder();
 
-  // 👇 FIX: Pass fallback string. The hook's `enabled` check prevents invalid fetches.
+  // 1. GET RESTAURANT DATA
+  // We pass "" if restaurantId is null to satisfy TS, but the hook won't fetch if id is empty/invalid usually
   const { data: restaurantResponse, isLoading: isLoadingRestaurant } = useRestaurantById(restaurantId || "");
   const restaurant = restaurantResponse?.data;
 

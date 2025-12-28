@@ -1,24 +1,24 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect } from "react";
-import { MenuItem } from "@/types/restuarants.type"; // Ensure this import matches your file structure
-import { toast } from "sonner"; // Or your preferred toast
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { MenuItem } from "@/types/restuarants.type"; 
+import { toast } from "sonner"; 
 
-// Define Cart Item
+// Define Cart Item Interface locally if not imported
 export interface CartItem {
   menuItem: MenuItem;
   quantity: number;
   specialInstructions?: string;
 }
 
-// Define Context Shape
 interface CartContextType {
   items: CartItem[];
-  restaurantId: string | null // 👈 NEW: Explicitly track this
-  addToCart: (item: MenuItem, quantity: number, instructions?: string) => void;
-  removeFromCart: (itemId: string) => void;
-  updateQuantity: (itemId: string, delta: number) => void;
+  restaurantId: string | null; 
+  addItem: (menuItem: MenuItem, quantity?: number, specialInstructions?: string) => void;
+  removeItem: (menuItemId: string) => void;
+  updateQuantity: (menuItemId: string, quantity: number) => void;
   clearCart: () => void;
+  getTotalItems: () => number;
   getTotalPrice: () => number;
 }
 
@@ -26,89 +26,118 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
-  const [restaurantId, setRestaurantId] = useState<string | null>(null); // 👈 State for it
+  const [restaurantId, setRestaurantId] = useState<string | null>(null);
 
-  // Load from LocalStorage on mount
+  // 1. Load from LocalStorage on mount (SAFE VERSION)
   useEffect(() => {
-    const savedCart = localStorage.getItem("cart");
-    const savedRestaurantId = localStorage.getItem("cart_restaurant_id");
-    if (savedCart) setItems(JSON.parse(savedCart));
-    if (savedRestaurantId) setRestaurantId(savedRestaurantId);
+    if (typeof window !== "undefined") {
+      const savedCart = localStorage.getItem("cart-items");
+      const savedRestaurantId = localStorage.getItem("cart-restaurant-id");
+      
+      if (savedCart) {
+        try {
+          const parsedCart = JSON.parse(savedCart);
+          if (Array.isArray(parsedCart)) {
+            setItems(parsedCart);
+          } else {
+            console.error("Cart data is not an array, resetting.");
+            localStorage.removeItem("cart-items");
+          }
+        } catch (error) {
+          console.error("Failed to parse cart from storage, resetting:", error);
+          localStorage.removeItem("cart-items");
+          setItems([]);
+        }
+      }
+      
+      if (savedRestaurantId) {
+        setRestaurantId(savedRestaurantId);
+      }
+    }
   }, []);
 
-  // Persist to LocalStorage
+  // 2. Save to LocalStorage on change
   useEffect(() => {
-    localStorage.setItem("cart", JSON.stringify(items));
-    if (restaurantId) {
-      localStorage.setItem("cart_restaurant_id", restaurantId);
-    } else {
-      localStorage.removeItem("cart_restaurant_id");
+    if (typeof window !== "undefined") {
+      localStorage.setItem("cart-items", JSON.stringify(items));
+      
+      if (restaurantId) {
+        localStorage.setItem("cart-restaurant-id", restaurantId);
+      } else {
+        localStorage.removeItem("cart-restaurant-id");
+      }
     }
   }, [items, restaurantId]);
 
-  const addToCart = (menuItem: MenuItem, quantity: number, specialInstructions?: string) => {
-    // 1. CHECK RESTAURANT CONFLICT
+  // 3. Add Item (With Conflict Check)
+  const addItem = (menuItem: MenuItem, quantity = 1, specialInstructions?: string) => {
+    // A. Check for Restaurant Conflict
     if (restaurantId && restaurantId !== menuItem.restaurantId) {
-      // Logic: Ask user to clear cart or just reject
-      // For simplicity, we'll just reject/alert here, but you can trigger a modal
-      if (confirm("Start a new order? You have items from another restaurant.")) {
-        clearCart(); // Clear old items
+      const confirmSwitch = window.confirm(
+        "You have items from another restaurant. Start a new order?"
+      );
+
+      if (confirmSwitch) {
+        setItems([]); // Clear old items
         setRestaurantId(menuItem.restaurantId); // Set new restaurant
-        // Continue adding...
+        // Fall through to add the new item...
       } else {
-        return; // Cancel
+        return; // User cancelled
       }
     }
 
-    // 2. SET RESTAURANT IF EMPTY
+    // B. Set Restaurant ID if cart was empty
     if (items.length === 0) {
       setRestaurantId(menuItem.restaurantId);
     }
 
-    setItems((prev) => {
-      const existing = prev.find((i) => i.menuItem.id === menuItem.id);
-      if (existing) {
-        return prev.map((i) =>
-          i.menuItem.id === menuItem.id
-            ? { ...i, quantity: i.quantity + quantity }
-            : i
-        );
+    // C. Add or Update Item
+    setItems((currentItems) => {
+      const existingItemIndex = currentItems.findIndex(
+        (item) => item.menuItem.id === menuItem.id && item.specialInstructions === specialInstructions
+      );
+
+      if (existingItemIndex >= 0) {
+        const updatedItems = [...currentItems];
+        updatedItems[existingItemIndex].quantity += quantity;
+        return updatedItems;
+      } else {
+        return [...currentItems, { menuItem, quantity, specialInstructions }];
       }
-      return [...prev, { menuItem, quantity, specialInstructions }];
     });
     
     toast.success("Added to cart");
   };
 
-  const removeFromCart = (itemId: string) => {
-    setItems((prev) => {
-      const newItems = prev.filter((i) => i.menuItem.id !== itemId);
-      // If cart becomes empty, clear restaurantId
-      if (newItems.length === 0) setRestaurantId(null); 
+  const removeItem = (menuItemId: string) => {
+    setItems((currentItems) => {
+      const newItems = currentItems.filter((item) => item.menuItem.id !== menuItemId);
+      
+      // If cart becomes empty, reset restaurantId
+      if (newItems.length === 0) setRestaurantId(null);
+      
       return newItems;
     });
   };
 
-  const clearCart = () => {
-    setItems([]);
-    setRestaurantId(null); // 👈 Clear it here
+  const updateQuantity = (menuItemId: string, quantity: number) => {
+    if (quantity <= 0) {
+      removeItem(menuItemId);
+      return;
+    }
+
+    setItems((currentItems) =>
+      currentItems.map((item) => (item.menuItem.id === menuItemId ? { ...item, quantity } : item))
+    );
   };
 
-  const updateQuantity = (itemId: string, delta: number) => {
-    setItems((prev) => {
-      return prev.map((item) => {
-        if (item.menuItem.id === itemId) {
-          const newQty = Math.max(0, item.quantity + delta);
-          return { ...item, quantity: newQty };
-        }
-        return item;
-      }).filter(i => i.quantity > 0); // Remove if 0
-    });
-    
-    // Safety check if cart becomes empty after update
-    if (items.length === 1 && items[0].quantity + delta <= 0) {
-        setRestaurantId(null);
-    }
+  const clearCart = () => {
+    setItems([]);
+    setRestaurantId(null); 
+  };
+
+  const getTotalItems = () => {
+    return items.reduce((total, item) => total + item.quantity, 0);
   };
 
   const getTotalPrice = () => {
@@ -120,10 +149,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       value={{
         items,
         restaurantId,
-        addToCart,
-        removeFromCart,
+        addItem,
+        removeItem,
         updateQuantity,
         clearCart,
+        getTotalItems,
         getTotalPrice,
       }}
     >
@@ -132,8 +162,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export const useCart = () => {
+export function useCart() {
   const context = useContext(CartContext);
-  if (context === undefined) throw new Error("useCart must be used within a CartProvider");
+  if (context === undefined) {
+    throw new Error("useCart must be used within a CartProvider");
+  }
   return context;
-};
+}
