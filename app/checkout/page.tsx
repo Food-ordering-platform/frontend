@@ -13,30 +13,31 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner"; // ✅ Using Sonner directly
 import { ArrowLeft, MapPin, ShoppingBag, Loader2, CreditCard, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { CreateOrderDto, OrderQuote } from "@/types/order.type";
 import { motion } from "framer-motion";
-import { v4 as uuidv4 } from "uuid"; 
+import { v4 as uuidv4 } from "uuid";
+// 🚀 GOOGLE MAPS IMPORT
+import ReactGoogleAutocomplete from "react-google-autocomplete";
 
 const PLATFORM_FEE = 350;
 
-type AddressResult = {
-  place_id: number;
-  lat: string;
-  lon: string;
-  display_name: string;
+// 🌍 SAME BOUNDS AS PROFILE (Delta State Box)
+const DELTA_STATE_BOUNDS = {
+  north: 6.50, // Top Latitude
+  south: 5.00, // Bottom Latitude
+  east: 6.75,  // Right Longitude
+  west: 5.00,  // Left Longitude
 };
 
 export default function CheckoutPage() {
   const { user } = useAuth();
   const { items, getTotalPrice, clearCart } = useCart();
   const router = useRouter();
-  const { toast } = useToast();
   
-  // ✅ Hook Usage
   const { mutateAsync: placeOrder } = useCreateOrder();
   const { mutateAsync: calculateQuote, isPending: isQuoting } = useGetOrderQuote();
 
@@ -51,27 +52,31 @@ export default function CheckoutPage() {
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [coords, setCoords] = useState<{lat: number, lng: number} | null>(null);
 
-  const [suggestions, setSuggestions] = useState<AddressResult[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [isSearching, setIsSearching] = useState(false);
-
   // 🛡️ IDEMPOTENCY
   const idempotencyKey = useMemo(() => uuidv4(), []);
 
   // 💰 QUOTE STATE
   const [quote, setQuote] = useState<OrderQuote | null>(null);
 
+  // 🚀 OPTIMIZATION: Pre-fill from Profile to save Google API Costs
+  useEffect(() => {
+    if (user?.address && user?.latitude && user?.longitude && !deliveryAddress) {
+        setDeliveryAddress(user.address);
+        setCoords({ lat: user.latitude, lng: user.longitude });
+        // This sets state -> triggers the Quote Effect below -> Calculates fee via Backend
+        // Result: $0.00 spent on Google Maps for this session!
+    }
+  }, [user]);
+
   // 🧮 FETCH QUOTE EFFECT
   useEffect(() => {
     const fetchQuote = async () => {
-        // If we don't have all data, reset quote
         if (!restaurantId || !coords || items.length === 0) {
             setQuote(null);
             return;
         }
 
         try {
-            // ✅ Use the Mutation Hook
             const quoteData = await calculateQuote({
                 restaurantId,
                 deliveryLatitude: coords.lat,
@@ -82,7 +87,6 @@ export default function CheckoutPage() {
         } catch (error) {
             console.error("Failed to get quote", error);
             setQuote(null);
-            // Don't toast here to avoid spamming user while typing/selecting
         }
     };
 
@@ -94,65 +98,18 @@ export default function CheckoutPage() {
     return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", minimumFractionDigits: 0 }).format(amount);
   };
 
-  // 🔎 STRICT DELTA SEARCH
-  useEffect(() => {
-    if (!showSuggestions || deliveryAddress.length < 3) return;
-    
-    const timer = setTimeout(async () => {
-      setIsSearching(true);
-      try {
-        const searchQuery = `${deliveryAddress}, Delta State`;
-        const res = await fetch(
-            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5&addressdetails=1&countrycodes=ng`,
-            { headers: { "Accept-Language": "en-US,en;q=0.9" } }
-        );
-        const data = await res.json();
-        setSuggestions(data);
-      } catch (err) {
-        console.error("Address fetch error:", err);
-        setSuggestions([]); 
-      } finally {
-        setIsSearching(false);
-      }
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [deliveryAddress, showSuggestions]);
-
-  const handleSelectAddress = (item: AddressResult) => {
-    const fullAddress = item.display_name.toLowerCase();
-    
-    if (!fullAddress.includes("delta") && !fullAddress.includes("warri")) {
-        toast({
-            title: "Out of Service Area",
-            description: "Please enter an address in Warri or Delta State.",
-            variant: "destructive"
-        });
-        setDeliveryAddress("");
-        setCoords(null);
-        setShowSuggestions(false);
-        return;
-    }
-
-    setDeliveryAddress(item.display_name);
-    setCoords({ lat: parseFloat(item.lat), lng: parseFloat(item.lon) });
-    setShowSuggestions(false);
-  };
-
   const handlePlaceOrder = async () => {
     if (!user || items.length === 0) return;
 
     if (!deliveryAddress.trim() || !coords || !quote) {
-        toast({ 
-            title: "Address Required", 
-            description: "Please select a valid address from the list to calculate fees.", 
-            variant: "destructive" 
+        toast.error("Address Required", {
+            description: "Please select a valid address from the list to calculate fees."
         });
         return;
     }
 
     if (!phoneNumber.trim()) {
-      toast({ title: "Phone Required", description: "We need a number for updates.", variant: "destructive" });
+      toast.error("Phone Required", { description: "We need a number for updates." });
       return;
     }
 
@@ -178,12 +135,12 @@ export default function CheckoutPage() {
       const response = await placeOrder(orderData);
       const { checkoutUrl } = response;
 
-      toast({ title: "Order initiated!", description: `Redirecting to payment...` });
+      toast.success("Order initiated!", { description: "Redirecting to payment..." });
       clearCart();
       window.location.href = checkoutUrl;
       
     } catch (error: any) {
-      toast({ title: "Order failed", description: error?.message || "Please try again.", variant: "destructive" });
+      toast.error("Order failed", { description: error?.message || "Please try again." });
     } finally {
       setIsPlacingOrder(false);
     }
@@ -224,42 +181,54 @@ export default function CheckoutPage() {
                         <CardContent className="p-6 space-y-6">
                             <div className="grid gap-6">
                                 <div className="space-y-2 relative z-50"> 
-                                    <Label className="text-sm font-semibold text-gray-700">Delivery Address (Delta State Only)</Label>
+                                    <Label className="text-sm font-semibold text-gray-700">Delivery Address</Label>
                                     <div className="relative">
-                                        <Input
+                                        <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400 z-10" />
+                                        
+                                        {/* 🚀 GOOGLE MAPS INPUT */}
+                                        <ReactGoogleAutocomplete
+                                            apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
+                                            onPlaceSelected={(place) => {
+                                                if (place.geometry && place.geometry.location) {
+                                                    const lat = place.geometry.location.lat();
+                                                    const lng = place.geometry.location.lng();
+                                                    const address = place.formatted_address || "";
+                                                    
+                                                    // 🛡️ STRICT BOUNDS CHECK (Client Side Backup)
+                                                    if (!address.toLowerCase().includes("delta")) {
+                                                        toast.error("Invalid Location", {
+                                                            description: "Please select an address within Delta State."
+                                                        });
+                                                        setDeliveryAddress("");
+                                                        setCoords(null);
+                                                        setQuote(null);
+                                                        return;
+                                                    }
+
+                                                    setDeliveryAddress(address);
+                                                    setCoords({ lat, lng });
+                                                }
+                                            }}
+                                            options={{
+                                                types: ["address"],
+                                                componentRestrictions: { country: "ng" }, 
+                                                strictBounds: true,
+                                                bounds: DELTA_STATE_BOUNDS,
+                                            }}
+                                            defaultValue={deliveryAddress}
                                             placeholder="Search & Select Address (e.g. Airport Road)"
-                                            value={deliveryAddress}
-                                            onChange={(e) => {
+                                            className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 pl-9 ${coords ? 'border-green-500 focus-visible:ring-green-500' : ''}`}
+                                            onChange={(e: any) => {
                                                 setDeliveryAddress(e.target.value);
-                                                setShowSuggestions(true);
-                                                if(coords) {
-                                                    setCoords(null); 
+                                                // 🛑 Strict Mode: Typing clears coords, forcing selection
+                                                if (coords) {
+                                                    setCoords(null);
                                                     setQuote(null);
                                                 }
                                             }}
-                                            className={`pl-4 border-gray-200 bg-gray-50/50 ${coords ? 'border-green-500 focus-visible:ring-green-500' : ''}`}
+                                            value={deliveryAddress}
                                         />
-                                        {isSearching && (
-                                            <div className="absolute right-3 top-2.5">
-                                                <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-                                            </div>
-                                        )}
                                     </div>
-
-                                    {showSuggestions && suggestions.length > 0 && (
-                                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto">
-                                            {suggestions.map((item) => (
-                                                <button
-                                                    key={item.place_id}
-                                                    onClick={() => handleSelectAddress(item)}
-                                                    className="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 border-b border-gray-100 last:border-0 transition-colors flex items-start gap-2"
-                                                >
-                                                    <MapPin className="h-4 w-4 text-gray-400 mt-0.5 shrink-0" />
-                                                    <span className="truncate">{item.display_name}</span>
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
 
                                     {coords && (
                                         <p className="text-xs text-green-600 flex items-center gap-1 font-medium">
@@ -293,7 +262,7 @@ export default function CheckoutPage() {
                     </Card>
                 </motion.div>
 
-                {/* ITEMS CARD (Simplified) */}
+                {/* ITEMS CARD */}
                 <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }} className="relative z-10">
                     <Card className="border-0 shadow-sm ring-1 ring-gray-200 rounded-2xl overflow-hidden bg-white">
                          <CardHeader className="bg-gray-50/50 border-b border-gray-100 pb-4">
@@ -336,12 +305,10 @@ export default function CheckoutPage() {
                         </CardHeader>
                         <CardContent className="p-6 space-y-6">
                             <div className="space-y-4">
-                                {/* SUBTOTAL */}
                                 <div className="flex justify-between items-center text-gray-600">
                                     <span className="text-sm font-medium">Subtotal</span>
                                     <span className="font-semibold text-gray-900">{quote ? formatMoney(quote.subtotal) : formatMoney(getTotalPrice())}</span>
                                 </div>
-                                {/* DELIVERY FEE */}
                                 <div className="flex justify-between items-center text-gray-600">
                                     <span className="text-sm font-medium">Delivery Fee</span>
                                     {isQuoting ? (
@@ -352,14 +319,12 @@ export default function CheckoutPage() {
                                         </span>
                                     )}
                                 </div>
-                                {/* PLATFORM FEE */}
                                 <div className="flex justify-between items-center text-gray-600">
                                     <span className="text-sm font-medium">Platform Fee</span>
                                     <span className="font-semibold text-gray-900">{formatMoney(PLATFORM_FEE)}</span>
                                 </div>
                             </div>
                             <Separator className="bg-gray-100" />
-                            {/* TOTAL */}
                             <div className="flex justify-between items-end">
                                 <span className="font-bold text-lg text-gray-900">Total to Pay</span>
                                 <span className="font-extrabold text-3xl text-[#7b1e3a] tracking-tight">

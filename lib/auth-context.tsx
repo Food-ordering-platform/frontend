@@ -3,20 +3,21 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation"; // ✅ Added usePathname
 import { useQueryClient } from "@tanstack/react-query";
-import { LoginData, RegisterData, User } from "@/types/auth.type"; // 👈 Import User
+import { LoginData, RegisterData, User } from "@/types/auth.type"; 
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/error-utils";
 import { useCurrentUser, useLogin, useRegister } from "@/services/auth/auth.queries";
 
 interface AuthContextType {
-  user: User | null; // 👈 Uses the strict User type with address/phone/coords
+  user: User | null; 
   isLoading: boolean;
   login: (data: LoginData) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => void;
   checkAuth: () => Promise<void>;
+  setUser: (user: User | null) => void; // ✅ Added setUser to interface so Profile page can update it
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -26,6 +27,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [hasToken, setHasToken] = useState<boolean>(false);
   
   const router = useRouter();
+  const pathname = usePathname(); // ✅ Track current URL
   const queryClient = useQueryClient();
 
   const loginMutation = useLogin();
@@ -37,11 +39,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refetch 
   } = useCurrentUser(hasToken);
 
+  // Initial Token Check
   useEffect(() => {
     const token = localStorage.getItem("token");
     setHasToken(!!token);
     setIsCheckingToken(false); 
   }, []);
+
+  // 🚀 SMART CHECK: Prompt user to setup address if missing
+  useEffect(() => {
+    // Only check if we have a user and we are done loading
+    if (user && !isUserLoading) {
+      
+      // Check if Address or Coordinates are missing
+      const isAddressMissing = !user.address || !user.latitude || !user.longitude;
+      
+      // Don't annoy them if they are already on the profile page
+      if (isAddressMissing && pathname !== '/profile') {
+        // Delayed slightly so it doesn't clash instantly with "Welcome back"
+        const timer = setTimeout(() => {
+            toast.message("Action Required", {
+                description: "Please setup your delivery address in your profile to checkout faster.",
+                action: {
+                    label: "Setup Now",
+                    onClick: () => router.push("/profile")
+                },
+                duration: 8000,
+            });
+        }, 1000);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [user, isUserLoading, pathname, router]);
+
+  const setUser = (newUser: User | null) => {
+      queryClient.setQueryData(["currentUser"], newUser);
+  };
 
   const login = async (data: LoginData) => {
     try {
@@ -61,7 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           queryClient.setQueryData(["currentUser"], res.user);
         }
         await refetch();
-        toast.success("Welcome back!");
+        toast.success("Welcome back!"); // ✅ Shows immediately on login
         router.push("/restaurants");
       }
     } catch (error: any) {
@@ -104,7 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isLoading = isCheckingToken || (isUserLoading && hasToken) || (hasToken && !user);
 
   return (
-    <AuthContext.Provider value={{ user: user || null, isLoading, login, register, logout, checkAuth }}>
+    <AuthContext.Provider value={{ user: user || null, isLoading, login, register, logout, checkAuth, setUser }}>
       {children}
     </AuthContext.Provider>
   );
