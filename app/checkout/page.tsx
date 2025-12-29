@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useCart } from "@/lib/cart-context";
@@ -24,10 +24,6 @@ import ReactGoogleAutocomplete from "react-google-autocomplete";
 
 const PLATFORM_FEE = 350;
 
-const DELTA_STATE_BOUNDS = {
-  north: 6.50, south: 5.00, east: 6.75, west: 5.00,
-};
-
 export default function CheckoutPage() {
   const { user } = useAuth();
   const { items, getTotalPrice, clearCart } = useCart();
@@ -42,26 +38,21 @@ export default function CheckoutPage() {
   const [orderNotes, setOrderNotes] = useState("");
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
 
-  // Address State
+  // Address State (Backend Only - Not bound to input)
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [coords, setCoords] = useState<{lat: number, lng: number} | null>(null);
-  
-  // 🚀 REF FOR UNCONTROLLED INPUT (Fixes Hanging)
-  const addressInputRef = useRef<HTMLInputElement>(null);
+
+  // ✅ PREFILL VARIABLE (Calculated once)
+  const inputAutocompleteValue = user?.address || "";
 
   const idempotencyKey = useMemo(() => uuidv4(), []);
   const [quote, setQuote] = useState<OrderQuote | null>(null);
 
-  // 🚀 OPTIMIZATION: Pre-fill from Profile manually via Ref
+  // 🚀 OPTIMIZATION: Pre-fill State from Profile (Logic only, no input manipulation)
   useEffect(() => {
     if (user?.address && user?.latitude && user?.longitude && !deliveryAddress) {
         setDeliveryAddress(user.address);
         setCoords({ lat: user.latitude, lng: user.longitude });
-        
-        // Manual update so we don't need 'value' prop
-        if (addressInputRef.current) {
-            addressInputRef.current.value = user.address;
-        }
     }
   }, [user]);
 
@@ -180,25 +171,18 @@ export default function CheckoutPage() {
                                     <div className="relative">
                                         <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400 z-10" />
                                         
-                                        {/* 🚀 FIXED: UNCONTROLLED COMPONENT */}
+                                        {/* ✅ FIXED: UNCONTROLLED COMPONENT (No Ref, No onChange)
+                                            - uses defaultValue for initial load
+                                            - updates internal state only on selection
+                                        */}
                                         <ReactGoogleAutocomplete
                                             apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
-                                            ref={addressInputRef} // 👈 Using Ref instead of Value
                                             onPlaceSelected={(place) => {
                                                 if (place.geometry && place.geometry.location) {
                                                     const lat = place.geometry.location.lat();
                                                     const lng = place.geometry.location.lng();
                                                     const address = place.formatted_address || "";
                                                     
-                                                    if (!address.toLowerCase().includes("delta")) {
-                                                        toast.error("Invalid Location", { description: "Please select an address within Delta State." });
-                                                        setDeliveryAddress("");
-                                                        setCoords(null);
-                                                        setQuote(null);
-                                                        if(addressInputRef.current) addressInputRef.current.value = "";
-                                                        return;
-                                                    }
-
                                                     setDeliveryAddress(address);
                                                     setCoords({ lat, lng });
                                                 }
@@ -206,19 +190,14 @@ export default function CheckoutPage() {
                                             options={{
                                                 types: ["address"],
                                                 componentRestrictions: { country: "ng" }, 
-                                                strictBounds: false, // Keep relaxed for now
+                                                strictBounds: false, // ✅ Relaxed bounds
                                             }}
-                                            defaultValue={deliveryAddress} // Initial value only
+                                            defaultValue={inputAutocompleteValue} // ✅ Prefill using variable
                                             placeholder="Search & Select Address (e.g. Airport Road)"
                                             className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 pl-9 ${coords ? 'border-green-500 focus-visible:ring-green-500' : ''}`}
-                                            // 🛑 IMPORTANT: onChange updates state, but does NOT force 'value' back to input
-                                            onChange={(e: any) => {
-                                                setDeliveryAddress(e.target.value);
-                                                if (coords) {
-                                                    setCoords(null);
-                                                    setQuote(null);
-                                                }
-                                            }}
+                                            // ❌ NO onChange
+                                            // ❌ NO value
+                                            // ❌ NO ref
                                         />
                                     </div>
 
@@ -253,9 +232,8 @@ export default function CheckoutPage() {
                         </CardContent>
                     </Card>
                 </motion.div>
-
+                
                 {/* ITEMS CARD & PAYMENT CARD (Same as before) ... */}
-                {/* (I'm skipping pasting the rest of the identical JSX to save space, but you keep it!) */}
                 <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }} className="relative z-10">
                     <Card className="border-0 shadow-sm ring-1 ring-gray-200 rounded-2xl overflow-hidden bg-white">
                          <CardHeader className="bg-gray-50/50 border-b border-gray-100 pb-4">
