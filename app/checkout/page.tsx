@@ -1,3 +1,4 @@
+// food-ordering-platform/frontend/frontend-wip-staging/app/checkout/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -5,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useCart } from "@/lib/cart-context";
 import { useCreateOrder } from "../../services/order/order.queries";
-import { useRestaurantById } from "@/services/restaurants/restaurants.queries"; // Need this to get restaurant coords
+import { useRestaurantById } from "@/services/restaurants/restaurants.queries";
 import { Header } from "@/components/layout/header";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { Button } from "@/components/ui/button";
@@ -14,12 +15,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, MapPin, ShoppingBag, Loader2, Locate, CreditCard, ShieldCheck } from "lucide-react";
+import { ArrowLeft, MapPin, ShoppingBag, Loader2, CreditCard, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { CreateOrderDto } from "@/types/order.type";
 import { motion } from "framer-motion";
-import { calculateDistance, calculateDeliveryFee } from "@/lib/utils"; // Import math utils
+import { calculateDistance, calculateDeliveryFee } from "@/lib/utils"; 
 
 const PLATFORM_FEE = 350;
 
@@ -37,7 +38,6 @@ export default function CheckoutPage() {
   const { toast } = useToast();
   const { mutateAsync: placeOrder } = useCreateOrder();
 
-  // 1. Get Restaurant ID from cart items to fetch coordinates
   const restaurantId = items.length > 0 ? items[0].menuItem.restaurantId : "";
   const { data: restaurant } = useRestaurantById(restaurantId);
 
@@ -45,19 +45,17 @@ export default function CheckoutPage() {
   const [orderNotes, setOrderNotes] = useState("");
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
 
-  const [deliveryAddress, setDeliveryAddress] = useState(user?.address || "");
-  const [coords, setCoords] = useState<{lat: number, lng: number} | null>(
-    user?.latitude && user?.longitude 
-      ? { lat: user.latitude, lng: user.longitude } 
-      : null
-  );
+  // Address State
+  const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [coords, setCoords] = useState<{lat: number, lng: number} | null>(null);
 
   const [suggestions, setSuggestions] = useState<AddressResult[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
 
   // 💰 DYNAMIC DELIVERY FEE STATE
-  const [deliveryFee, setDeliveryFee] = useState(500); // Default fallback
+  // Initialized to NULL so we don't show a fee until we have a location
+  const [deliveryFee, setDeliveryFee] = useState<number | null>(null); 
 
   // 🧮 CALCULATE FEE EFFECT
   useEffect(() => {
@@ -70,27 +68,33 @@ export default function CheckoutPage() {
       );
       const fee = calculateDeliveryFee(dist);
       setDeliveryFee(fee);
+    } else {
+      setDeliveryFee(null);
     }
   }, [restaurant, coords]);
 
-  // 💰 DISPLAY CALCULATION (Visual Only)
+  // 💰 DISPLAY CALCULATION
   const subtotal = getTotalPrice();
-  const total = subtotal + deliveryFee + PLATFORM_FEE;
+  // If no delivery fee calculated yet, assume 0 for total display but block checkout
+  const total = subtotal + (deliveryFee || 0) + PLATFORM_FEE;
 
   const formatMoney = (amount: number) => {
     return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", minimumFractionDigits: 0 }).format(amount);
   };
 
-  // 🔎 1. RESTRICTED SEARCH (Delta State)
+  // 🔎 STRICT DELTA SEARCH
   useEffect(() => {
     if (!showSuggestions || deliveryAddress.length < 3) return;
     
+    // Reduced debounce from 800ms to 500ms for responsiveness
     const timer = setTimeout(async () => {
       setIsSearching(true);
       try {
-        const searchQuery = `${deliveryAddress}, Delta State, Nigeria`;
+        // Appending "Delta State" to query AND using structured query if possible
+        const searchQuery = `${deliveryAddress}, Delta State`;
+        // Added &state=Delta to strictly bias results
         const res = await fetch(
-            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5&addressdetails=1&countrycodes=ng`
+            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5&addressdetails=1&countrycodes=ng&state=Delta`
         );
         const data = await res.json();
         setSuggestions(data);
@@ -99,39 +103,29 @@ export default function CheckoutPage() {
       } finally {
         setIsSearching(false);
       }
-    }, 800);
+    }, 500);
 
     return () => clearTimeout(timer);
   }, [deliveryAddress, showSuggestions]);
 
   const handleSelectAddress = (item: AddressResult) => {
+    // 🛑 STRICT VALIDATION FOR DELTA / WARRI
+    const fullAddress = item.display_name.toLowerCase();
+    if (!fullAddress.includes("delta") && !fullAddress.includes("warri")) {
+        toast({
+            title: "Out of Service Area",
+            description: "Please enter an address in Warri or Delta State. We do not deliver outside this region.",
+            variant: "destructive"
+        });
+        setDeliveryAddress("");
+        setCoords(null);
+        setShowSuggestions(false);
+        return;
+    }
+
     setDeliveryAddress(item.display_name);
     setCoords({ lat: parseFloat(item.lat), lng: parseFloat(item.lon) });
     setShowSuggestions(false);
-  };
-
-  const handleUseGPS = () => {
-    if (!navigator.geolocation) {
-      toast({ title: "Error", description: "Geolocation not supported", variant: "destructive" });
-      return;
-    }
-    toast({ title: "Locating...", description: "Fetching your current position." });
-    
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords;
-        setCoords({ lat: latitude, lng: longitude });
-        
-        try {
-          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
-          const data = await res.json();
-          if (data.display_name) setDeliveryAddress(data.display_name);
-        } catch (error) {
-          setDeliveryAddress(`${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
-        }
-      },
-      () => toast({ title: "Error", description: "Could not retrieve location.", variant: "destructive" })
-    );
   };
 
   const handlePlaceOrder = async () => {
@@ -143,10 +137,10 @@ export default function CheckoutPage() {
     }
 
     // ⚠️ CRITICAL: Ensure we have coordinates for accurate billing
-    if (!coords) {
+    if (!coords || deliveryFee === null) {
         toast({ 
-            title: "Location Pin Required", 
-            description: "Please select an address from the dropdown or use GPS so we can calculate the delivery fee.", 
+            title: "Location Required", 
+            description: "Please select a valid address from the search suggestions so we can calculate the delivery fee.", 
             variant: "destructive" 
         });
         return;
@@ -220,15 +214,13 @@ export default function CheckoutPage() {
                                 <div className="flex items-center gap-2">
                                   <MapPin className="h-5 w-5 text-[#7b1e3a]" /> Delivery Details
                                 </div>
-                                <Button variant="ghost" size="sm" onClick={handleUseGPS} className="text-[#7b1e3a] hover:bg-orange-50">
-                                  <Locate className="h-4 w-4 mr-1" /> Use GPS
-                                </Button>
+                                {/* Removed GPS Button as requested */}
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="p-6 space-y-6">
                             <div className="grid gap-6">
                                 <div className="space-y-2 relative z-50"> 
-                                    <Label className="text-sm font-semibold text-gray-700">Delivery Address</Label>
+                                    <Label className="text-sm font-semibold text-gray-700">Delivery Address (Delta State Only)</Label>
                                     <div className="relative">
                                         <Input
                                             placeholder="Enter street name (e.g. Airport Road, Warri)"
@@ -237,6 +229,7 @@ export default function CheckoutPage() {
                                                 setDeliveryAddress(e.target.value);
                                                 setShowSuggestions(true);
                                                 if(coords) setCoords(null); 
+                                                setDeliveryFee(null); // Reset fee on edit
                                             }}
                                             className="pl-4 border-gray-200 bg-gray-50/50"
                                         />
@@ -264,7 +257,7 @@ export default function CheckoutPage() {
 
                                     {coords && (
                                         <p className="text-xs text-green-600 flex items-center gap-1 font-medium">
-                                            <MapPin className="h-3 w-3" /> Exact location pinned for rider!
+                                            <MapPin className="h-3 w-3" /> Address confirmed for delivery!
                                         </p>
                                     )}
                                 </div>
@@ -326,7 +319,7 @@ export default function CheckoutPage() {
                 </motion.div>
               </div>
 
-              {/* Right Column - Payment (RESTORED DESIGN) */}
+              {/* Right Column - Payment */}
               <div className="lg:col-span-5 relative">
                 <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }} className="sticky top-24">
                     <Card className="border-0 shadow-xl shadow-gray-200/50 ring-1 ring-gray-200 rounded-3xl overflow-hidden bg-white">
@@ -343,7 +336,9 @@ export default function CheckoutPage() {
                                 </div>
                                 <div className="flex justify-between items-center text-gray-600">
                                     <span className="text-sm font-medium">Delivery Fee</span>
-                                    <span className="font-semibold text-gray-900">{formatMoney(deliveryFee)}</span>
+                                    <span className={`font-semibold ${deliveryFee === null ? 'text-gray-400 italic' : 'text-gray-900'}`}>
+                                        {deliveryFee === null ? "Enter Address..." : formatMoney(deliveryFee)}
+                                    </span>
                                 </div>
                                 <div className="flex justify-between items-center text-gray-600">
                                     <span className="text-sm font-medium">Platform Fee</span>
@@ -358,15 +353,15 @@ export default function CheckoutPage() {
                             
                             <Button 
                                 onClick={handlePlaceOrder} 
-                                disabled={isPlacingOrder} 
-                                className="w-full h-14 bg-[#7b1e3a] hover:bg-[#60132a] text-white text-lg font-bold rounded-xl shadow-lg shadow-[#7b1e3a]/20 transition-all active:scale-[0.98]"
+                                disabled={isPlacingOrder || deliveryFee === null} 
+                                className="w-full h-14 bg-[#7b1e3a] hover:bg-[#60132a] text-white text-lg font-bold rounded-xl shadow-lg shadow-[#7b1e3a]/20 transition-all active:scale-[0.98] disabled:bg-gray-300 disabled:shadow-none"
                             >
                                 {isPlacingOrder ? (
                                   <>
                                     <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Processing...
                                   </>
                                 ) : (
-                                  `Secure Checkout ${formatMoney(total)}`
+                                  deliveryFee === null ? "Enter Address to Continue" : `Secure Checkout ${formatMoney(total)}`
                                 )}
                             </Button>
                             
