@@ -20,7 +20,7 @@ import Image from "next/image";
 import { CreateOrderDto } from "@/types/order.type";
 import { motion } from "framer-motion";
 import { calculateDistance, calculateDeliveryFee } from "@/lib/utils"; 
-import { v4 as uuidv4 } from "uuid"; // ✅ Restored UUID
+import { v4 as uuidv4 } from "uuid"; 
 
 const PLATFORM_FEE = 350;
 
@@ -53,7 +53,7 @@ export default function CheckoutPage() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
 
-  // 🛡️ IDEMPOTENCY: Generate a unique key when the component mounts using 'uuid'
+  // 🛡️ IDEMPOTENCY: Generate a unique key when the component mounts
   const idempotencyKey = useMemo(() => uuidv4(), []);
 
   // 💰 DYNAMIC DELIVERY FEE STATE
@@ -89,16 +89,24 @@ export default function CheckoutPage() {
     const timer = setTimeout(async () => {
       setIsSearching(true);
       try {
+        // ✅ Corrected Logic: 
+        // We append "Delta State" to the query string 'q'.
+        // We REMOVED '&state=Delta' because Nominatim forbids combining 'q' with structured params.
         const searchQuery = `${deliveryAddress}, Delta State`;
-        // Added User-Agent header which is sometimes required by OSM
+        
         const res = await fetch(
-            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5&addressdetails=1&countrycodes=ng&state=Delta`,
+            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5&addressdetails=1&countrycodes=ng`,
             { headers: { "Accept-Language": "en-US,en;q=0.9" } }
         );
+
+        if (!res.ok) throw new Error("Failed to fetch addresses");
+
         const data = await res.json();
         setSuggestions(data);
       } catch (err) {
         console.error("Address fetch error:", err);
+        // Optional: clear suggestions on error so old ones don't stick
+        setSuggestions([]); 
       } finally {
         setIsSearching(false);
       }
@@ -111,6 +119,7 @@ export default function CheckoutPage() {
     const fullAddress = item.display_name.toLowerCase();
     
     // 🛑 STRICT REGION CHECK
+    // Even if the search is biased, we double-check the result here.
     if (!fullAddress.includes("delta") && !fullAddress.includes("warri")) {
         toast({
             title: "Out of Service Area",
@@ -137,7 +146,6 @@ export default function CheckoutPage() {
     }
 
     // 🛑 ENFORCE DROPDOWN SELECTION
-    // If coords are null (because user typed manually), we block the order
     if (!coords || deliveryFee === null) {
         toast({ 
             title: "Select Address from List", 
@@ -209,8 +217,9 @@ export default function CheckoutPage() {
               {/* Left Column */}
               <div className="lg:col-span-7 space-y-8">
                 
-                {/* 👇 FIX: Added 'relative z-20' here. 
-                   This forces the Delivery Card (and its dropdown) to sit ON TOP of the Items Card below it.
+                {/* ✅ FIX: Z-Index Stacking
+                   Added 'relative z-20' to ensure this card (and its dropdown) 
+                   floats ABOVE the items card below it.
                 */}
                 <motion.div 
                     initial={{ opacity: 0, x: -20 }} 
@@ -299,7 +308,12 @@ export default function CheckoutPage() {
                 </motion.div>
 
                 {/* ITEMS CARD */}
-                <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }} className="relative z-10">
+                <motion.div 
+                    initial={{ opacity: 0, x: -20 }} 
+                    animate={{ opacity: 1, x: 0 }} 
+                    transition={{ delay: 0.2 }}
+                    className="relative z-10" // Lower z-index so it stays behind delivery dropdown
+                >
                     <Card className="border-0 shadow-sm ring-1 ring-gray-200 rounded-2xl overflow-hidden bg-white">
                         <CardHeader className="bg-gray-50/50 border-b border-gray-100 pb-4">
                             <CardTitle className="flex items-center gap-2 text-lg font-bold text-gray-800">
@@ -377,7 +391,7 @@ export default function CheckoutPage() {
                             </Button>
                             
                             <div className="flex items-center justify-center gap-2 text-xs text-gray-400 font-medium pt-2">
-                                <ShieldCheck className="h-3 w-3" /> Secure Payment by Paystack
+                                <ShieldCheck className="h-3 w-3" /> Secure Payment by Korapay
                             </div>
                         </CardContent>
                     </Card>
