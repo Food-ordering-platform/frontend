@@ -19,6 +19,14 @@ import { Separator } from "@/components/ui/separator";
 import { ShoppingBag, Heart, MapPin, LogOut, Loader2, Locate, Clock, CheckCircle } from "lucide-react";
 import ReactGoogleAutocomplete from "react-google-autocomplete";
 
+// 🌍 DELTA STATE BOUNDARIES (Approximate)
+const DELTA_STATE_BOUNDS = {
+  north: 6.50, // Top Lat
+  south: 5.00, // Bottom Lat
+  east: 6.75,  // Right Lng
+  west: 5.00,  // Left Lng
+};
+
 export default function ProfilePage() {
   const { user, logout, setUser } = useAuth(); 
   const { clearCart } = useCart();
@@ -63,10 +71,7 @@ export default function ProfilePage() {
           const data = await res.json();
           if (data.display_name) {
              setAddress(data.display_name);
-             // NOTE: Since we are uncontrolled, we can't easily force the input text to update visually
-             // when using GPS without a ref. But adhering to your strict rules (No Ref), 
-             // we rely on the user seeing the "Location Pinned" indicator below.
-             toast({ title: "GPS Locked", description: "Address pinned from location." });
+             toast({ title: "GPS Locked", description: "Address pinned from location. Click Save to confirm." });
           }
         } catch (error) {
           setAddress(`${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
@@ -193,6 +198,17 @@ export default function ProfilePage() {
                                             const lng = place.geometry.location.lng();
                                             const formattedAddress = place.formatted_address || "";
                                             
+                                            // 🛡️ Safety Check
+                                            if (!formattedAddress.toLowerCase().includes("delta")) {
+                                                toast({
+                                                    title: "Invalid Location",
+                                                    description: "Please select an address within Delta State, Nigeria.",
+                                                    variant: "destructive"
+                                                });
+                                                setAddress(""); 
+                                                return;
+                                            }
+
                                             setAddress(formattedAddress);
                                             setCoords({ lat, lng });
                                         }
@@ -200,7 +216,8 @@ export default function ProfilePage() {
                                     options={{
                                         types: ["address"],
                                         componentRestrictions: { country: "ng" }, 
-                                        strictBounds: false,
+                                        strictBounds: true, // ✅ RESTRICTION ON
+                                        bounds: DELTA_STATE_BOUNDS, // ✅ BOUNDS APPLIED
                                     }}
                                     defaultValue={inputAutocompleteValue}
                                     placeholder="Enter street name (e.g. Airport Road, Warri)"

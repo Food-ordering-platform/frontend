@@ -24,6 +24,14 @@ import ReactGoogleAutocomplete from "react-google-autocomplete";
 
 const PLATFORM_FEE = 350;
 
+// 🌍 DELTA STATE BOUNDARIES (Approximate)
+const DELTA_STATE_BOUNDS = {
+  north: 6.50, // Top Lat
+  south: 5.00, // Bottom Lat
+  east: 6.75,  // Right Lng
+  west: 5.00,  // Left Lng
+};
+
 export default function CheckoutPage() {
   const { user } = useAuth();
   const { items, getTotalPrice, clearCart } = useCart();
@@ -38,7 +46,7 @@ export default function CheckoutPage() {
   const [orderNotes, setOrderNotes] = useState("");
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
 
-  // Address State (Backend Only - Not bound to input)
+  // Address State (Internal Logic Only)
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [coords, setCoords] = useState<{lat: number, lng: number} | null>(null);
 
@@ -171,10 +179,7 @@ export default function CheckoutPage() {
                                     <div className="relative">
                                         <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400 z-10" />
                                         
-                                        {/* ✅ FIXED: UNCONTROLLED COMPONENT (No Ref, No onChange)
-                                            - uses defaultValue for initial load
-                                            - updates internal state only on selection
-                                        */}
+                                        {/* 🚀 FIXED: UNCONTROLLED COMPONENT with STRICT BOUNDS */}
                                         <ReactGoogleAutocomplete
                                             apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
                                             onPlaceSelected={(place) => {
@@ -183,6 +188,15 @@ export default function CheckoutPage() {
                                                     const lng = place.geometry.location.lng();
                                                     const address = place.formatted_address || "";
                                                     
+                                                    // 🛡️ Strict Client-Side Check
+                                                    if (!address.toLowerCase().includes("delta")) {
+                                                        toast.error("Invalid Location", { description: "Please select an address within Delta State." });
+                                                        setDeliveryAddress("");
+                                                        setCoords(null);
+                                                        setQuote(null);
+                                                        return;
+                                                    }
+
                                                     setDeliveryAddress(address);
                                                     setCoords({ lat, lng });
                                                 }
@@ -190,10 +204,11 @@ export default function CheckoutPage() {
                                             options={{
                                                 types: ["address"],
                                                 componentRestrictions: { country: "ng" }, 
-                                                strictBounds: false, // ✅ Relaxed bounds
+                                                strictBounds: true, // ✅ RESTRICTION ON
+                                                bounds: DELTA_STATE_BOUNDS, // ✅ BOUNDS APPLIED
                                             }}
-                                            defaultValue={inputAutocompleteValue} // ✅ Prefill using variable
-                                            placeholder="Search & Select Address (e.g. Airport Road)"
+                                            defaultValue={inputAutocompleteValue}
+                                            placeholder="Search & Select Address (e.g. Airport Road, Warri)"
                                             className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 pl-9 ${coords ? 'border-green-500 focus-visible:ring-green-500' : ''}`}
                                             // ❌ NO onChange
                                             // ❌ NO value
@@ -232,8 +247,8 @@ export default function CheckoutPage() {
                         </CardContent>
                     </Card>
                 </motion.div>
-                
-                {/* ITEMS CARD & PAYMENT CARD (Same as before) ... */}
+
+                {/* ITEMS CARD */}
                 <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }} className="relative z-10">
                     <Card className="border-0 shadow-sm ring-1 ring-gray-200 rounded-2xl overflow-hidden bg-white">
                          <CardHeader className="bg-gray-50/50 border-b border-gray-100 pb-4">
