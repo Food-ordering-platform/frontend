@@ -1,4 +1,4 @@
-import { CreateOrderDto, CreateOrderResponse, Order } from "@/types/order.type"
+import { CreateOrderDto, CreateOrderResponse, Order, OrderQuote } from "@/types/order.type"
 import api from "../axios"
 
 // Create an order
@@ -37,5 +37,23 @@ export const getOrderByReference = async (reference: string): Promise<Order> => 
   } catch (error: any) {
     console.error("Get order by reference error", error.response?.data || error.message)
     throw new Error(error.response?.data?.message || "Failed to fetch order")
+  }
+}
+
+export const getQuote = async (data: { 
+    restaurantId: string; 
+    deliveryLatitude: number; 
+    deliveryLongitude: number; 
+    items: { price: number; quantity: number }[] 
+}): Promise<OrderQuote> => {
+  try {
+    const response = await api.post<{ success: boolean; data: OrderQuote }>(
+        "/orders/quote", 
+        data
+    );
+    return response.data.data;
+  } catch (error: any) {
+    console.error("Get quote error", error.response?.data || error.message);
+    throw new Error(error.response?.data?.message || "Failed to calculate fees");
   }
 }

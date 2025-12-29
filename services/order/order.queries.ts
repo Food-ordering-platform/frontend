@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query"
-import { getOrders, placeOrder, getOrderByReference } from "../../services/order/order"
+import { getOrders, placeOrder, getOrderByReference, getQuote } from "../../services/order/order"
 import { CreateOrderDto, CreateOrderResponse, Order } from "@/types/order.type"
 
 // ✅ Create a new order
@@ -27,3 +27,14 @@ export const useGetOrderByReference = (reference: string, options?: { enabled?: 
     enabled: options?.enabled ?? !!reference, 
   })
 }
+
+export const useGetOrderQuote = () => {
+  return useMutation({
+    mutationFn: (data: { 
+      restaurantId: string; 
+      deliveryLatitude: number; 
+      deliveryLongitude: number; 
+      items: { price: number; quantity: number }[] 
+    }) => getQuote(data),
+  });
+};

@@ -4,7 +4,8 @@ import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useCart } from "@/lib/cart-context";
-import { useCreateOrder } from "../../services/order/order.queries";
+// ✅ Updated Imports
+import { useCreateOrder, useGetOrderQuote } from "../../services/order/order.queries";
 import { useRestaurantById } from "@/services/restaurants/restaurants.queries";
 import { Header } from "@/components/layout/header";
 import { ProtectedRoute } from "@/components/auth/protected-route";
@@ -17,9 +18,8 @@ import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, MapPin, ShoppingBag, Loader2, CreditCard, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import { CreateOrderDto } from "@/types/order.type";
+import { CreateOrderDto, OrderQuote } from "@/types/order.type";
 import { motion } from "framer-motion";
-import { calculateDistance, calculateDeliveryFee } from "@/lib/utils"; 
 import { v4 as uuidv4 } from "uuid"; 
 
 const PLATFORM_FEE = 350;
@@ -36,7 +36,10 @@ export default function CheckoutPage() {
   const { items, getTotalPrice, clearCart } = useCart();
   const router = useRouter();
   const { toast } = useToast();
+  
+  // ✅ Hook Usage
   const { mutateAsync: placeOrder } = useCreateOrder();
+  const { mutateAsync: calculateQuote, isPending: isQuoting } = useGetOrderQuote();
 
   const restaurantId = items.length > 0 ? items[0].menuItem.restaurantId : "";
   const { data: restaurant } = useRestaurantById(restaurantId);
@@ -53,30 +56,40 @@ export default function CheckoutPage() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
 
-  // 🛡️ IDEMPOTENCY: Generate a unique key when the component mounts
+  // 🛡️ IDEMPOTENCY
   const idempotencyKey = useMemo(() => uuidv4(), []);
 
-  // 💰 DYNAMIC DELIVERY FEE STATE
-  const [deliveryFee, setDeliveryFee] = useState<number | null>(null); 
+  // 💰 QUOTE STATE
+  const [quote, setQuote] = useState<OrderQuote | null>(null);
 
-  // 🧮 CALCULATE FEE EFFECT
+  // 🧮 FETCH QUOTE EFFECT
   useEffect(() => {
-    if (restaurant && coords && restaurant.data?.latitude && restaurant.data?.longitude) {
-      const dist = calculateDistance(
-        restaurant.data.latitude,
-        restaurant.data?.longitude,
-        coords.lat,
-        coords.lng
-      );
-      const fee = calculateDeliveryFee(dist);
-      setDeliveryFee(fee);
-    } else {
-      setDeliveryFee(null);
-    }
-  }, [restaurant, coords]);
+    const fetchQuote = async () => {
+        // If we don't have all data, reset quote
+        if (!restaurantId || !coords || items.length === 0) {
+            setQuote(null);
+            return;
+        }
 
-  const subtotal = getTotalPrice();
-  const total = subtotal + (deliveryFee || 0) + PLATFORM_FEE;
+        try {
+            // ✅ Use the Mutation Hook
+            const quoteData = await calculateQuote({
+                restaurantId,
+                deliveryLatitude: coords.lat,
+                deliveryLongitude: coords.lng,
+                items: items.map(i => ({ price: i.menuItem.price, quantity: i.quantity }))
+            });
+            setQuote(quoteData);
+        } catch (error) {
+            console.error("Failed to get quote", error);
+            setQuote(null);
+            // Don't toast here to avoid spamming user while typing/selecting
+        }
+    };
+
+    fetchQuote();
+  }, [restaurantId, coords, items, calculateQuote]);
+
 
   const formatMoney = (amount: number) => {
     return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", minimumFractionDigits: 0 }).format(amount);
@@ -89,23 +102,15 @@ export default function CheckoutPage() {
     const timer = setTimeout(async () => {
       setIsSearching(true);
       try {
-        // ✅ Corrected Logic: 
-        // We append "Delta State" to the query string 'q'.
-        // We REMOVED '&state=Delta' because Nominatim forbids combining 'q' with structured params.
         const searchQuery = `${deliveryAddress}, Delta State`;
-        
         const res = await fetch(
             `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5&addressdetails=1&countrycodes=ng`,
             { headers: { "Accept-Language": "en-US,en;q=0.9" } }
         );
-
-        if (!res.ok) throw new Error("Failed to fetch addresses");
-
         const data = await res.json();
         setSuggestions(data);
       } catch (err) {
         console.error("Address fetch error:", err);
-        // Optional: clear suggestions on error so old ones don't stick
         setSuggestions([]); 
       } finally {
         setIsSearching(false);
@@ -118,12 +123,10 @@ export default function CheckoutPage() {
   const handleSelectAddress = (item: AddressResult) => {
     const fullAddress = item.display_name.toLowerCase();
     
-    // 🛑 STRICT REGION CHECK
-    // Even if the search is biased, we double-check the result here.
     if (!fullAddress.includes("delta") && !fullAddress.includes("warri")) {
         toast({
             title: "Out of Service Area",
-            description: "Please enter an address in Warri or Delta State. We do not deliver outside this region.",
+            description: "Please enter an address in Warri or Delta State.",
             variant: "destructive"
         });
         setDeliveryAddress("");
@@ -140,16 +143,10 @@ export default function CheckoutPage() {
   const handlePlaceOrder = async () => {
     if (!user || items.length === 0) return;
 
-    if (!deliveryAddress.trim()) {
-      toast({ title: "Address Required", description: "Please enter your delivery address.", variant: "destructive" });
-      return;
-    }
-
-    // 🛑 ENFORCE DROPDOWN SELECTION
-    if (!coords || deliveryFee === null) {
+    if (!deliveryAddress.trim() || !coords || !quote) {
         toast({ 
-            title: "Select Address from List", 
-            description: "You must click one of the address suggestions to confirm your location.", 
+            title: "Address Required", 
+            description: "Please select a valid address from the list to calculate fees.", 
             variant: "destructive" 
         });
         return;
@@ -163,7 +160,6 @@ export default function CheckoutPage() {
     setIsPlacingOrder(true);
 
     try {
-      // 🛡️ Pass idempotencyKey here. 
       const orderData: CreateOrderDto & { idempotencyKey: string } = {
         customerId: user.id,
         restaurantId: items[0].menuItem.restaurantId,
@@ -173,8 +169,8 @@ export default function CheckoutPage() {
         })),
         deliveryAddress: deliveryAddress.trim(),
         deliveryNotes: orderNotes.trim(),
-        deliveryLatitude: coords?.lat,
-        deliveryLongitude: coords?.lng,
+        deliveryLatitude: coords.lat,
+        deliveryLongitude: coords.lng,
         name: user.name,
         email: user.email,
         idempotencyKey: idempotencyKey 
@@ -217,16 +213,7 @@ export default function CheckoutPage() {
               {/* Left Column */}
               <div className="lg:col-span-7 space-y-8">
                 
-                {/* ✅ FIX: Z-Index Stacking
-                   Added 'relative z-20' to ensure this card (and its dropdown) 
-                   floats ABOVE the items card below it.
-                */}
-                <motion.div 
-                    initial={{ opacity: 0, x: -20 }} 
-                    animate={{ opacity: 1, x: 0 }} 
-                    transition={{ delay: 0.1 }}
-                    className="relative z-20"
-                >
+                <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }} className="relative z-20">
                     <Card className="border-0 shadow-sm ring-1 ring-gray-200 rounded-2xl overflow-visible bg-white">
                         <CardHeader className="bg-gray-50/50 border-b border-gray-100 pb-4">
                             <CardTitle className="flex items-center justify-between text-lg font-bold text-gray-800">
@@ -246,10 +233,10 @@ export default function CheckoutPage() {
                                             onChange={(e) => {
                                                 setDeliveryAddress(e.target.value);
                                                 setShowSuggestions(true);
-                                                
-                                                // 🛑 KEY LOGIC: If they type manually, wipe coordinates.
-                                                if(coords) setCoords(null); 
-                                                setDeliveryFee(null); 
+                                                if(coords) {
+                                                    setCoords(null); 
+                                                    setQuote(null);
+                                                }
                                             }}
                                             className={`pl-4 border-gray-200 bg-gray-50/50 ${coords ? 'border-green-500 focus-visible:ring-green-500' : ''}`}
                                         />
@@ -307,21 +294,16 @@ export default function CheckoutPage() {
                     </Card>
                 </motion.div>
 
-                {/* ITEMS CARD */}
-                <motion.div 
-                    initial={{ opacity: 0, x: -20 }} 
-                    animate={{ opacity: 1, x: 0 }} 
-                    transition={{ delay: 0.2 }}
-                    className="relative z-10" // Lower z-index so it stays behind delivery dropdown
-                >
+                {/* ITEMS CARD (Simplified) */}
+                <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }} className="relative z-10">
                     <Card className="border-0 shadow-sm ring-1 ring-gray-200 rounded-2xl overflow-hidden bg-white">
-                        <CardHeader className="bg-gray-50/50 border-b border-gray-100 pb-4">
+                         <CardHeader className="bg-gray-50/50 border-b border-gray-100 pb-4">
                             <CardTitle className="flex items-center gap-2 text-lg font-bold text-gray-800">
                                 <ShoppingBag className="h-5 w-5 text-[#7b1e3a]" /> Your Items
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="p-0">
-                            <div className="divide-y divide-gray-100">
+                             <div className="divide-y divide-gray-100">
                                 {items.map((item, index) => (
                                     <div key={`${item.menuItem.id}-${index}`} className="flex gap-4 p-5 hover:bg-gray-50/50 transition-colors">
                                         <div className="relative h-20 w-20 flex-shrink-0 bg-gray-100 rounded-xl overflow-hidden border border-gray-200">
@@ -355,30 +337,40 @@ export default function CheckoutPage() {
                         </CardHeader>
                         <CardContent className="p-6 space-y-6">
                             <div className="space-y-4">
+                                {/* SUBTOTAL */}
                                 <div className="flex justify-between items-center text-gray-600">
                                     <span className="text-sm font-medium">Subtotal</span>
-                                    <span className="font-semibold text-gray-900">{formatMoney(subtotal)}</span>
+                                    <span className="font-semibold text-gray-900">{quote ? formatMoney(quote.subtotal) : formatMoney(getTotalPrice())}</span>
                                 </div>
+                                {/* DELIVERY FEE */}
                                 <div className="flex justify-between items-center text-gray-600">
                                     <span className="text-sm font-medium">Delivery Fee</span>
-                                    <span className={`font-semibold ${deliveryFee === null ? 'text-gray-400 italic' : 'text-gray-900'}`}>
-                                        {deliveryFee === null ? "Enter Address..." : formatMoney(deliveryFee)}
-                                    </span>
+                                    {isQuoting ? (
+                                        <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                                    ) : (
+                                        <span className={`font-semibold ${quote ? 'text-gray-900' : 'text-gray-400 italic'}`}>
+                                            {quote ? formatMoney(quote.deliveryFee) : "Enter Address..."}
+                                        </span>
+                                    )}
                                 </div>
+                                {/* PLATFORM FEE */}
                                 <div className="flex justify-between items-center text-gray-600">
                                     <span className="text-sm font-medium">Platform Fee</span>
                                     <span className="font-semibold text-gray-900">{formatMoney(PLATFORM_FEE)}</span>
                                 </div>
                             </div>
                             <Separator className="bg-gray-100" />
+                            {/* TOTAL */}
                             <div className="flex justify-between items-end">
                                 <span className="font-bold text-lg text-gray-900">Total to Pay</span>
-                                <span className="font-extrabold text-3xl text-[#7b1e3a] tracking-tight">{formatMoney(total)}</span>
+                                <span className="font-extrabold text-3xl text-[#7b1e3a] tracking-tight">
+                                    {quote ? formatMoney(quote.totalAmount) : "---"}
+                                </span>
                             </div>
                             
                             <Button 
                                 onClick={handlePlaceOrder} 
-                                disabled={isPlacingOrder || deliveryFee === null} 
+                                disabled={isPlacingOrder || !quote} 
                                 className="w-full h-14 bg-[#7b1e3a] hover:bg-[#60132a] text-white text-lg font-bold rounded-xl shadow-lg shadow-[#7b1e3a]/20 transition-all active:scale-[0.98] disabled:bg-gray-300 disabled:shadow-none"
                             >
                                 {isPlacingOrder ? (
@@ -386,12 +378,12 @@ export default function CheckoutPage() {
                                     <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Processing...
                                   </>
                                 ) : (
-                                  deliveryFee === null ? "Select Address from List" : `Secure Checkout ${formatMoney(total)}`
+                                  !quote ? "Select Address from List" : `Secure Checkout ${formatMoney(quote.totalAmount)}`
                                 )}
                             </Button>
                             
                             <div className="flex items-center justify-center gap-2 text-xs text-gray-400 font-medium pt-2">
-                                <ShieldCheck className="h-3 w-3" /> Secure Payment by Korapay
+                                <ShieldCheck className="h-3 w-3" /> Secure Payment by Paystack
                             </div>
                         </CardContent>
                     </Card>

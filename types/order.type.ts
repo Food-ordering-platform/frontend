@@ -18,6 +18,16 @@ export interface CreateOrderDto {
   items: OrderItemDto[]; 
   name: string;
   email: string;
+  idempotencyKey?:string
+}
+
+//Payment calculation data sent to the backend
+export interface OrderQuote {
+    subtotal: number;
+    deliveryFee: number;
+    platformFee: number;
+    totalAmount: number;
+    distanceKm: number;
 }
 
 // --- OUTPUT TYPES (Receiving Data) ---
@@ -42,6 +52,7 @@ export interface Order {
   deliveryLatitude?: number | undefined
   deliveryLongitude?: number | undefined
   items: OrderItem[]; 
+  checkoutUrl:string,
   createdAt: string;
   restaurant?: {
     name: string;
