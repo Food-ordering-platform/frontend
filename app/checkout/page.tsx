@@ -24,12 +24,13 @@ import ReactGoogleAutocomplete from "react-google-autocomplete";
 
 const PLATFORM_FEE = 350;
 
-// 🌍 DELTA STATE BOUNDARIES (Approximate)
+// 🌍 RESTRICTED BOUNDS (Warri, Effurun, Abraka Axis)
+// Excludes Asaba (6.7E) and Benin (6.3N)
 const DELTA_STATE_BOUNDS = {
-  north: 6.50, // Top Lat
-  south: 5.00, // Bottom Lat
-  east: 6.75,  // Right Lng
-  west: 5.00,  // Left Lng
+  north: 6.00, // Just above Abraka
+  south: 5.40, // Just below Warri
+  east: 6.30,  // Just East of Abraka
+  west: 5.60,  // Just West of Warri/Effurun
 };
 
 export default function CheckoutPage() {
@@ -179,7 +180,7 @@ export default function CheckoutPage() {
                                     <div className="relative">
                                         <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400 z-10" />
                                         
-                                        {/* 🚀 FIXED: UNCONTROLLED COMPONENT with STRICT BOUNDS */}
+                                        {/* 🚀 FIXED: UNCONTROLLED COMPONENT with WARRI/ABRAKA BOUNDS */}
                                         <ReactGoogleAutocomplete
                                             apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
                                             onPlaceSelected={(place) => {
@@ -188,9 +189,9 @@ export default function CheckoutPage() {
                                                     const lng = place.geometry.location.lng();
                                                     const address = place.formatted_address || "";
                                                     
-                                                    // 🛡️ Strict Client-Side Check
+                                                    // 🛡️ Strict Client-Side Check for Delta State
                                                     if (!address.toLowerCase().includes("delta")) {
-                                                        toast.error("Invalid Location", { description: "Please select an address within Delta State." });
+                                                        toast.error("Invalid Location", { description: "We currently only serve Warri, Effurun, and Abraka." });
                                                         setDeliveryAddress("");
                                                         setCoords(null);
                                                         setQuote(null);
@@ -202,13 +203,13 @@ export default function CheckoutPage() {
                                                 }
                                             }}
                                             options={{
-                                                types: ["address"],
+                                                types: [], // Empty to allow businesses/landmarks
                                                 componentRestrictions: { country: "ng" }, 
-                                                strictBounds: true, // ✅ RESTRICTION ON
-                                                bounds: DELTA_STATE_BOUNDS, // ✅ BOUNDS APPLIED
+                                                strictBounds: true, // ✅ FORCE BOUNDS
+                                                bounds: DELTA_STATE_BOUNDS, // ✅ WARRI/ABRAKA ONLY
                                             }}
                                             defaultValue={inputAutocompleteValue}
-                                            placeholder="Search & Select Address (e.g. Airport Road, Warri)"
+                                            placeholder="Search & Select Address (e.g. PTI Junction)"
                                             className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 pl-9 ${coords ? 'border-green-500 focus-visible:ring-green-500' : ''}`}
                                             // ❌ NO onChange
                                             // ❌ NO value

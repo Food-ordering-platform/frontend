@@ -19,12 +19,12 @@ import { Separator } from "@/components/ui/separator";
 import { ShoppingBag, Heart, MapPin, LogOut, Loader2, Locate, Clock, CheckCircle } from "lucide-react";
 import ReactGoogleAutocomplete from "react-google-autocomplete";
 
-// 🌍 DELTA STATE BOUNDARIES (Approximate)
+// 🌍 RESTRICTED BOUNDS (Warri, Effurun, Abraka Axis)
 const DELTA_STATE_BOUNDS = {
-  north: 6.50, // Top Lat
-  south: 5.00, // Bottom Lat
-  east: 6.75,  // Right Lng
-  west: 5.00,  // Left Lng
+  north: 6.00, 
+  south: 5.40, 
+  east: 6.30,  
+  west: 5.60,  
 };
 
 export default function ProfilePage() {
@@ -189,7 +189,7 @@ export default function ProfilePage() {
                             <div className="relative">
                                 <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400 z-10" />
                                 
-                                {/* 🚀 UNCONTROLLED COMPONENT (Strict No Ref/OnChange) */}
+                                {/* 🚀 UNCONTROLLED COMPONENT with RESTRICTED BOUNDS */}
                                 <ReactGoogleAutocomplete
                                     apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
                                     onPlaceSelected={(place) => {
@@ -202,7 +202,7 @@ export default function ProfilePage() {
                                             if (!formattedAddress.toLowerCase().includes("delta")) {
                                                 toast({
                                                     title: "Invalid Location",
-                                                    description: "Please select an address within Delta State, Nigeria.",
+                                                    description: "We currently only serve Warri, Effurun, and Abraka.",
                                                     variant: "destructive"
                                                 });
                                                 setAddress(""); 
@@ -214,10 +214,10 @@ export default function ProfilePage() {
                                         }
                                     }}
                                     options={{
-                                        types: ["address"],
+                                        types: [], // Allow businesses & landmarks
                                         componentRestrictions: { country: "ng" }, 
-                                        strictBounds: true, // ✅ RESTRICTION ON
-                                        bounds: DELTA_STATE_BOUNDS, // ✅ BOUNDS APPLIED
+                                        strictBounds: true, // ✅ FORCE BOUNDS
+                                        bounds: DELTA_STATE_BOUNDS, // ✅ WARRI/ABRAKA ONLY
                                     }}
                                     defaultValue={inputAutocompleteValue}
                                     placeholder="Enter street name (e.g. Airport Road, Warri)"
