@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useCart } from "@/lib/cart-context";
@@ -13,24 +13,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { toast } from "sonner"; // ✅ Using Sonner directly
+import { toast } from "sonner";
 import { ArrowLeft, MapPin, ShoppingBag, Loader2, CreditCard, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { CreateOrderDto, OrderQuote } from "@/types/order.type";
 import { motion } from "framer-motion";
 import { v4 as uuidv4 } from "uuid";
-// 🚀 GOOGLE MAPS IMPORT
 import ReactGoogleAutocomplete from "react-google-autocomplete";
 
 const PLATFORM_FEE = 350;
 
-// 🌍 SAME BOUNDS AS PROFILE (Delta State Box)
 const DELTA_STATE_BOUNDS = {
-  north: 6.50, // Top Latitude
-  south: 5.00, // Bottom Latitude
-  east: 6.75,  // Right Longitude
-  west: 5.00,  // Left Longitude
+  north: 6.50, south: 5.00, east: 6.75, west: 5.00,
 };
 
 export default function CheckoutPage() {
@@ -42,7 +37,6 @@ export default function CheckoutPage() {
   const { mutateAsync: calculateQuote, isPending: isQuoting } = useGetOrderQuote();
 
   const restaurantId = items.length > 0 ? items[0].menuItem.restaurantId : "";
-  const { data: restaurant } = useRestaurantById(restaurantId);
 
   const [phoneNumber, setPhoneNumber] = useState(user?.phone || "");
   const [orderNotes, setOrderNotes] = useState("");
@@ -51,20 +45,23 @@ export default function CheckoutPage() {
   // Address State
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [coords, setCoords] = useState<{lat: number, lng: number} | null>(null);
+  
+  // 🚀 REF FOR UNCONTROLLED INPUT (Fixes Hanging)
+  const addressInputRef = useRef<HTMLInputElement>(null);
 
-  // 🛡️ IDEMPOTENCY
   const idempotencyKey = useMemo(() => uuidv4(), []);
-
-  // 💰 QUOTE STATE
   const [quote, setQuote] = useState<OrderQuote | null>(null);
 
-  // 🚀 OPTIMIZATION: Pre-fill from Profile to save Google API Costs
+  // 🚀 OPTIMIZATION: Pre-fill from Profile manually via Ref
   useEffect(() => {
     if (user?.address && user?.latitude && user?.longitude && !deliveryAddress) {
         setDeliveryAddress(user.address);
         setCoords({ lat: user.latitude, lng: user.longitude });
-        // This sets state -> triggers the Quote Effect below -> Calculates fee via Backend
-        // Result: $0.00 spent on Google Maps for this session!
+        
+        // Manual update so we don't need 'value' prop
+        if (addressInputRef.current) {
+            addressInputRef.current.value = user.address;
+        }
     }
   }, [user]);
 
@@ -102,9 +99,7 @@ export default function CheckoutPage() {
     if (!user || items.length === 0) return;
 
     if (!deliveryAddress.trim() || !coords || !quote) {
-        toast.error("Address Required", {
-            description: "Please select a valid address from the list to calculate fees."
-        });
+        toast.error("Address Required", { description: "Please select a valid address from the list." });
         return;
     }
 
@@ -185,23 +180,22 @@ export default function CheckoutPage() {
                                     <div className="relative">
                                         <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400 z-10" />
                                         
-                                        {/* 🚀 GOOGLE MAPS INPUT */}
+                                        {/* 🚀 FIXED: UNCONTROLLED COMPONENT */}
                                         <ReactGoogleAutocomplete
                                             apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
+                                            ref={addressInputRef} // 👈 Using Ref instead of Value
                                             onPlaceSelected={(place) => {
                                                 if (place.geometry && place.geometry.location) {
                                                     const lat = place.geometry.location.lat();
                                                     const lng = place.geometry.location.lng();
                                                     const address = place.formatted_address || "";
                                                     
-                                                    // 🛡️ STRICT BOUNDS CHECK (Client Side Backup)
                                                     if (!address.toLowerCase().includes("delta")) {
-                                                        toast.error("Invalid Location", {
-                                                            description: "Please select an address within Delta State."
-                                                        });
+                                                        toast.error("Invalid Location", { description: "Please select an address within Delta State." });
                                                         setDeliveryAddress("");
                                                         setCoords(null);
                                                         setQuote(null);
+                                                        if(addressInputRef.current) addressInputRef.current.value = "";
                                                         return;
                                                     }
 
@@ -212,21 +206,19 @@ export default function CheckoutPage() {
                                             options={{
                                                 types: ["address"],
                                                 componentRestrictions: { country: "ng" }, 
-                                                strictBounds: false,
-                                                // bounds: DELTA_STATE_BOUNDS,
+                                                strictBounds: false, // Keep relaxed for now
                                             }}
-                                            defaultValue={deliveryAddress}
+                                            defaultValue={deliveryAddress} // Initial value only
                                             placeholder="Search & Select Address (e.g. Airport Road)"
                                             className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 pl-9 ${coords ? 'border-green-500 focus-visible:ring-green-500' : ''}`}
+                                            // 🛑 IMPORTANT: onChange updates state, but does NOT force 'value' back to input
                                             onChange={(e: any) => {
                                                 setDeliveryAddress(e.target.value);
-                                                // 🛑 Strict Mode: Typing clears coords, forcing selection
                                                 if (coords) {
                                                     setCoords(null);
                                                     setQuote(null);
                                                 }
                                             }}
-                                            value={deliveryAddress}
                                         />
                                     </div>
 
@@ -262,7 +254,8 @@ export default function CheckoutPage() {
                     </Card>
                 </motion.div>
 
-                {/* ITEMS CARD */}
+                {/* ITEMS CARD & PAYMENT CARD (Same as before) ... */}
+                {/* (I'm skipping pasting the rest of the identical JSX to save space, but you keep it!) */}
                 <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }} className="relative z-10">
                     <Card className="border-0 shadow-sm ring-1 ring-gray-200 rounded-2xl overflow-hidden bg-white">
                          <CardHeader className="bg-gray-50/50 border-b border-gray-100 pb-4">
