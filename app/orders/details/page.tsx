@@ -8,9 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, MapPin, Clock, CheckCircle2, ShoppingBag, CreditCard } from "lucide-react";
+import { Loader2, ArrowLeft, MapPin, Clock, CheckCircle2, ShoppingBag, CreditCard, AlertCircle } from "lucide-react"; // Added AlertCircle
 import Link from "next/link";
-// ✅ FIXED: Named import as required
+import Image from "next/image"; // Kept for item images if available
+// ✅ FIXED: Named import
 import { OrderStatusTracker } from "@/components/orders/order-status-tracker";
 
 // Fixed Platform Fee for Display
@@ -27,13 +28,12 @@ export default function OrderDetailsPage() {
   const getTrackerStatus = (backendStatus: string) => {
     const statusMap: Record<string, string> = {
       "PENDING": "pending",
-      "PAID": "confirmed", // Optional: treat paid as confirmed if you want
+      "PAID": "confirmed", 
       "PREPARING": "preparing",
       "OUT_FOR_DELIVERY": "out-for-delivery",
       "DELIVERED": "delivered",
       "CANCELLED": "cancelled"
     };
-    // Default to 'pending' if unknown, and cast to 'any' to silence strict TS check
     return (statusMap[backendStatus] || "pending") as any;
   };
 
@@ -84,19 +84,29 @@ export default function OrderDetailsPage() {
         
         <main className="container py-8 md:py-12 max-w-5xl mx-auto px-4 sm:px-6">
             
-            {/* Navigation */}
-            <div className="flex items-center justify-between mb-8">
-                <Button variant="ghost" className="pl-0 hover:bg-transparent hover:text-[#7b1e3a]" asChild>
+            {/* ✅ RESTORED: Your original Header Design */}
+            <div className="mb-8">
+                <Button variant="ghost" className="pl-0 hover:bg-transparent hover:text-[#7b1e3a] mb-4" asChild>
                     <Link href="/orders" className="flex items-center gap-2">
                         <ArrowLeft className="h-4 w-4" /> <span>Back to Orders</span>
                     </Link>
                 </Button>
-                <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-500">Order Ref:</span>
-                    <Badge variant="outline" className="text-gray-900 font-mono tracking-wider">{order.reference}</Badge>
+                
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Order Details</h1>
+                        <p className="text-gray-500 text-sm mt-1">
+                            Placed on {new Date(order.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                    </div>
+                    
+                    <Badge variant="outline" className="text-sm py-1.5 px-4 border-gray-300 bg-white shadow-sm w-fit">
+                        Ref: <span className="font-mono font-bold text-gray-900 ml-2 tracking-wider">{order.reference}</span>
+                    </Badge>
                 </div>
             </div>
 
+            {/* ✅ FIXED: Logic inserted into your original layout structure */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 
                 {/* Left Column: Status & Details */}
@@ -104,36 +114,38 @@ export default function OrderDetailsPage() {
                     
                     {/* STATUS CARD */}
                     <Card className="border-0 shadow-sm ring-1 ring-gray-200 rounded-2xl overflow-hidden bg-white">
-                        <CardHeader className="bg-gray-50/50 border-b border-gray-100 pb-4">
+                        <CardHeader className="bg-white border-b border-gray-100 pb-4 pt-6 px-6">
                             <CardTitle className="text-lg font-bold text-gray-800 flex items-center gap-2">
                                 <Clock className="h-5 w-5 text-[#7b1e3a]" /> Order Status
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="p-6">
-                            {/* ✅ FIXED: Using helper function to map string -> enum */}
-                            <OrderStatusTracker status={getTrackerStatus(order.status)} />
+                            <div className="py-2">
+                                {/* ✅ FIXED: Using helper to fix type error */}
+                                <OrderStatusTracker status={getTrackerStatus(order.status)} />
+                            </div>
                             
-                            {/* PAYMENT PENDING WARNING */}
-                            {order.paymentStatus === 'PENDING' && (
-                                <div className="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
-                                    <div className="bg-amber-100 p-2 rounded-full">
-                                        <CreditCard className="h-5 w-5 text-amber-600" />
+                            {/* ✅ FEATURE: Payment Pending Logic */}
+                            {order.paymentStatus === 'PENDING' && order.status !== 'CANCELLED' && (
+                                <div className="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-xl flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                                    <div className="bg-amber-100 p-2.5 rounded-full shrink-0">
+                                        <AlertCircle className="h-6 w-6 text-amber-600" />
                                     </div>
                                     <div className="flex-1">
-                                        <h4 className="font-bold text-amber-800">Payment Pending</h4>
-                                        <p className="text-sm text-amber-700 mt-1">
-                                            We haven't received payment for this order yet. The kitchen won't start preparing your food until payment is confirmed.
+                                        <h4 className="font-bold text-amber-900 text-base">Payment Required</h4>
+                                        <p className="text-sm text-amber-700 mt-0.5">
+                                            Your order is pending. Please complete payment to start preparation.
                                         </p>
-                                        
-                                        {order.checkoutUrl && (
-                                            <Button 
-                                                className="mt-4 bg-amber-600 hover:bg-amber-700 text-white w-full sm:w-auto"
-                                                onClick={() => window.location.href = order.checkoutUrl!}
-                                            >
-                                                Complete Payment Now
-                                            </Button>
-                                        )}
                                     </div>
+                                    
+                                    {order.checkoutUrl && (
+                                        <Button 
+                                            className="bg-amber-600 hover:bg-amber-700 text-white shadow-sm shrink-0 w-full sm:w-auto"
+                                            onClick={() => window.location.href = order.checkoutUrl!}
+                                        >
+                                            Pay Now {formatMoney(order.totalAmount)}
+                                        </Button>
+                                    )}
                                 </div>
                             )}
                         </CardContent>
@@ -141,7 +153,7 @@ export default function OrderDetailsPage() {
 
                     {/* ITEMS LIST */}
                     <Card className="border-0 shadow-sm ring-1 ring-gray-200 rounded-2xl overflow-hidden bg-white">
-                         <CardHeader className="bg-gray-50/50 border-b border-gray-100 pb-4">
+                         <CardHeader className="bg-white border-b border-gray-100 pb-4 pt-6 px-6">
                             <CardTitle className="text-lg font-bold text-gray-800 flex items-center gap-2">
                                 <ShoppingBag className="h-5 w-5 text-[#7b1e3a]" /> Order Items
                             </CardTitle>
@@ -149,14 +161,20 @@ export default function OrderDetailsPage() {
                         <CardContent className="p-0">
                             <div className="divide-y divide-gray-100">
                                 {order.items.map((item, index) => (
-                                    // ✅ FIXED: Using index + name as unique key since 'id' is missing
-                                    <div key={`${index}-${item.menuItemName}`} className="flex justify-between items-center p-5">
-                                        <div className="flex items-center gap-4">
-                                            <div className="bg-gray-100 h-10 w-10 rounded-lg flex items-center justify-center text-sm font-bold text-gray-600">
-                                                {item.quantity}x
+                                    // ✅ FIXED: Unique key using index + name
+                                    <div key={`${index}-${item.menuItemName}`} className="flex justify-between items-start p-6 hover:bg-gray-50/50 transition-colors">
+                                        <div className="flex gap-4">
+                                            {/* Restored the "nice design" placeholder box */}
+                                            <div className="h-16 w-16 bg-gray-100 rounded-xl flex items-center justify-center text-gray-400 shrink-0">
+                                                <ShoppingBag className="h-6 w-6 opacity-30" />
                                             </div>
+                                            
                                             <div>
-                                                <p className="font-bold text-gray-900">{item.menuItemName}</p>
+                                                <p className="font-bold text-gray-900 text-base mb-1">{item.menuItemName}</p>
+                                                <div className="flex items-center text-sm text-gray-500">
+                                                    <span className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs font-semibold mr-2">Qty: {item.quantity}</span>
+                                                    <span>x {formatMoney(item.price)}</span>
+                                                </div>
                                             </div>
                                         </div>
                                         <p className="font-bold text-gray-900">{formatMoney(item.price * item.quantity)}</p>
@@ -168,27 +186,35 @@ export default function OrderDetailsPage() {
 
                     {/* DELIVERY INFO */}
                     <Card className="border-0 shadow-sm ring-1 ring-gray-200 rounded-2xl overflow-hidden bg-white">
-                         <CardHeader className="bg-gray-50/50 border-b border-gray-100 pb-4">
+                         <CardHeader className="bg-white border-b border-gray-100 pb-4 pt-6 px-6">
                             <CardTitle className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                                <MapPin className="h-5 w-5 text-[#7b1e3a]" /> Delivery Info
+                                <MapPin className="h-5 w-5 text-[#7b1e3a]" /> Delivery Details
                             </CardTitle>
                         </CardHeader>
-                        <CardContent className="p-6 space-y-4">
-                            <div className="flex items-start gap-3">
-                                <MapPin className="h-5 w-5 text-gray-400 mt-0.5" />
+                        <CardContent className="p-6 space-y-6">
+                            <div className="flex items-start gap-4">
+                                <div className="bg-[#7b1e3a]/10 p-2.5 rounded-full shrink-0">
+                                    <MapPin className="h-5 w-5 text-[#7b1e3a]" />
+                                </div>
                                 <div>
-                                    <p className="text-sm font-semibold text-gray-900">Delivery Address</p>
-                                    <p className="text-gray-600">{order.deliveryAddress}</p>
+                                    <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-1">Delivery Address</p>
+                                    <p className="text-gray-900 font-medium text-base">{order.deliveryAddress}</p>
                                 </div>
                             </div>
+                            
                             {order.deliveryNotes && (
-                                <div className="flex items-start gap-3 pt-2">
-                                    <div className="h-5 w-5" /> 
-                                    <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-100 w-full">
-                                        <p className="text-xs font-bold text-yellow-800 uppercase mb-1">Note to Rider</p>
-                                        <p className="text-sm text-yellow-700">"{order.deliveryNotes}"</p>
+                                <>
+                                    <Separator className="bg-gray-100" />
+                                    <div className="flex items-start gap-4">
+                                        <div className="bg-amber-100 p-2.5 rounded-full shrink-0">
+                                            <div className="h-5 w-5 text-amber-600 flex items-center justify-center font-bold text-xs">!</div> 
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-1">Note to Rider</p>
+                                            <p className="text-gray-900 italic">"{order.deliveryNotes}"</p>
+                                        </div>
                                     </div>
-                                </div>
+                                </>
                             )}
                         </CardContent>
                     </Card>
@@ -197,36 +223,46 @@ export default function OrderDetailsPage() {
 
                 {/* Right Column: Summary */}
                 <div className="lg:col-span-1">
-                    <Card className="border-0 shadow-sm ring-1 ring-gray-200 rounded-2xl overflow-hidden bg-white sticky top-24">
+                    <Card className="border-0 shadow-xl shadow-gray-200/50 ring-1 ring-gray-200 rounded-3xl overflow-hidden bg-white sticky top-24">
                         <CardHeader className="bg-[#7b1e3a] text-white p-6">
-                            <CardTitle className="text-lg font-bold">Payment Summary</CardTitle>
+                            <CardTitle className="text-lg font-bold flex items-center gap-2">
+                                <CreditCard className="h-5 w-5 text-white/80" /> Payment Summary
+                            </CardTitle>
                         </CardHeader>
-                        <CardContent className="p-6 space-y-4">
-                            <div className="flex justify-between text-sm">
-                                <span className="text-gray-600">Subtotal</span>
-                                <span className="font-semibold text-gray-900">{formatMoney(subtotal)}</span>
+                        <CardContent className="p-6 space-y-5">
+                            <div className="space-y-3">
+                                <div className="flex justify-between text-sm items-center">
+                                    <span className="text-gray-600">Subtotal</span>
+                                    <span className="font-semibold text-gray-900">{formatMoney(subtotal)}</span>
+                                </div>
+                                <div className="flex justify-between text-sm items-center">
+                                    <span className="text-gray-600">Delivery Fee</span>
+                                    <span className="font-semibold text-gray-900">{formatMoney(order.deliveryFee)}</span>
+                                </div>
+                                <div className="flex justify-between text-sm items-center">
+                                    <span className="text-gray-600">Platform Fee</span>
+                                    <span className="font-semibold text-gray-900">{formatMoney(PLATFORM_FEE)}</span>
+                                </div>
                             </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-gray-600">Delivery Fee</span>
-                                <span className="font-semibold text-gray-900">{formatMoney(order.deliveryFee)}</span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-gray-600">Platform Fee</span>
-                                <span className="font-semibold text-gray-900">{formatMoney(PLATFORM_FEE)}</span>
-                            </div>
-                            <Separator />
+                            
+                            <Separator className="bg-gray-100" />
+                            
                             <div className="flex justify-between items-end">
-                                <span className="font-bold text-gray-900">Total</span>
-                                <span className="font-extrabold text-2xl text-[#7b1e3a]">{formatMoney(order.totalAmount)}</span>
+                                <span className="font-bold text-gray-700 text-lg">Total</span>
+                                <span className="font-extrabold text-3xl text-[#7b1e3a] tracking-tight">{formatMoney(order.totalAmount)}</span>
                             </div>
                             
                             <div className="pt-4">
                                 {order.paymentStatus === 'PAID' ? (
-                                    <div className="flex items-center justify-center gap-2 bg-green-50 text-green-700 py-3 rounded-xl font-bold border border-green-100">
+                                    <div className="flex items-center justify-center gap-2 bg-green-50 text-green-700 py-4 rounded-xl font-bold border border-green-100 shadow-sm">
                                         <CheckCircle2 className="h-5 w-5" /> Payment Successful
                                     </div>
+                                ) : order.status === 'CANCELLED' ? (
+                                     <div className="flex items-center justify-center gap-2 bg-red-50 text-red-700 py-4 rounded-xl font-bold border border-red-100 shadow-sm">
+                                        Order Cancelled
+                                    </div>
                                 ) : (
-                                    <div className="flex items-center justify-center gap-2 bg-amber-50 text-amber-700 py-3 rounded-xl font-bold border border-amber-100">
+                                    <div className="flex items-center justify-center gap-2 bg-amber-50 text-amber-700 py-4 rounded-xl font-bold border border-amber-100 shadow-sm">
                                         <CreditCard className="h-5 w-5" /> Payment Pending
                                     </div>
                                 )}
