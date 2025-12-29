@@ -20,7 +20,7 @@ import Image from "next/image";
 import { CreateOrderDto } from "@/types/order.type";
 import { motion } from "framer-motion";
 import { calculateDistance, calculateDeliveryFee } from "@/lib/utils"; 
-import { v4 as uuidv4 } from "uuid"; // 🛡️ Import UUID
+import { v4 as uuidv4 } from "uuid"; // ✅ Restored UUID
 
 const PLATFORM_FEE = 350;
 
@@ -53,9 +53,7 @@ export default function CheckoutPage() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
 
-  // 🛡️ IDEMPOTENCY: Generate a unique key when the component mounts.
-  // This key persists as long as the user is on this page.
-  // If they click "Pay" and it fails, clicking again sends the SAME key.
+  // 🛡️ IDEMPOTENCY: Generate a unique key when the component mounts using 'uuid'
   const idempotencyKey = useMemo(() => uuidv4(), []);
 
   // 💰 DYNAMIC DELIVERY FEE STATE
@@ -109,6 +107,8 @@ export default function CheckoutPage() {
 
   const handleSelectAddress = (item: AddressResult) => {
     const fullAddress = item.display_name.toLowerCase();
+    
+    // 🛑 STRICT REGION CHECK
     if (!fullAddress.includes("delta") && !fullAddress.includes("warri")) {
         toast({
             title: "Out of Service Area",
@@ -134,10 +134,12 @@ export default function CheckoutPage() {
       return;
     }
 
+    // 🛑 ENFORCE DROPDOWN SELECTION
+    // If coords are null (because user typed manually), we block the order
     if (!coords || deliveryFee === null) {
         toast({ 
-            title: "Location Required", 
-            description: "Please select a valid address from the search suggestions so we can calculate the delivery fee.", 
+            title: "Select Address from List", 
+            description: "You must click one of the address suggestions to confirm your location.", 
             variant: "destructive" 
         });
         return;
@@ -152,8 +154,6 @@ export default function CheckoutPage() {
 
     try {
       // 🛡️ Pass idempotencyKey here. 
-      // Ensure CreateOrderDto type on frontend has this field or backend reads it from headers.
-      // We'll pass it in the body for simplicity as backend supports bodyKey.
       const orderData: CreateOrderDto & { idempotencyKey: string } = {
         customerId: user.id,
         restaurantId: items[0].menuItem.restaurantId,
@@ -167,7 +167,7 @@ export default function CheckoutPage() {
         deliveryLongitude: coords?.lng,
         name: user.name,
         email: user.email,
-        idempotencyKey: idempotencyKey // 👈 Uniqueness Guarantee
+        idempotencyKey: idempotencyKey 
       };
 
       const response = await placeOrder(orderData);
@@ -179,8 +179,6 @@ export default function CheckoutPage() {
       
     } catch (error: any) {
       toast({ title: "Order failed", description: error?.message || "Please try again.", variant: "destructive" });
-      // Note: We do NOT regenerate idempotencyKey here. 
-      // If user clicks Try Again, we send the SAME key so backend returns the same order if it was actually created.
     } finally {
       setIsPlacingOrder(false);
     }
@@ -225,15 +223,18 @@ export default function CheckoutPage() {
                                     <Label className="text-sm font-semibold text-gray-700">Delivery Address (Delta State Only)</Label>
                                     <div className="relative">
                                         <Input
-                                            placeholder="Enter street name (e.g. Airport Road, Warri)"
+                                            placeholder="Search & Select Address (e.g. Airport Road)"
                                             value={deliveryAddress}
                                             onChange={(e) => {
                                                 setDeliveryAddress(e.target.value);
                                                 setShowSuggestions(true);
+                                                
+                                                // 🛑 KEY LOGIC: If they type manually, wipe coordinates.
+                                                // This forces them to pick from the list again.
                                                 if(coords) setCoords(null); 
                                                 setDeliveryFee(null); 
                                             }}
-                                            className="pl-4 border-gray-200 bg-gray-50/50"
+                                            className={`pl-4 border-gray-200 bg-gray-50/50 ${coords ? 'border-green-500 focus-visible:ring-green-500' : ''}`}
                                         />
                                         {isSearching && (
                                             <div className="absolute right-3 top-2.5">
@@ -275,9 +276,9 @@ export default function CheckoutPage() {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label className="text-sm font-semibold text-gray-700">Instructions (Optional)</Label>
+                                        <Label className="text-sm font-semibold text-gray-700">Detailed Instructions (Optional)</Label>
                                         <Input
-                                            placeholder="Gate code, knock hard..."
+                                            placeholder="Flat number, Gate code, knock hard..."
                                             value={orderNotes}
                                             onChange={(e) => setOrderNotes(e.target.value)}
                                             className="border-gray-200 bg-gray-50/50"
@@ -363,7 +364,7 @@ export default function CheckoutPage() {
                                     <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Processing...
                                   </>
                                 ) : (
-                                  deliveryFee === null ? "Enter Address to Continue" : `Secure Checkout ${formatMoney(total)}`
+                                  deliveryFee === null ? "Select Address from List" : `Secure Checkout ${formatMoney(total)}`
                                 )}
                             </Button>
                             
