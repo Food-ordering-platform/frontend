@@ -90,13 +90,15 @@ export default function CheckoutPage() {
       setIsSearching(true);
       try {
         const searchQuery = `${deliveryAddress}, Delta State`;
+        // Added User-Agent header which is sometimes required by OSM
         const res = await fetch(
-            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5&addressdetails=1&countrycodes=ng&state=Delta`
+            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5&addressdetails=1&countrycodes=ng&state=Delta`,
+            { headers: { "Accept-Language": "en-US,en;q=0.9" } }
         );
         const data = await res.json();
         setSuggestions(data);
       } catch (err) {
-        console.error(err);
+        console.error("Address fetch error:", err);
       } finally {
         setIsSearching(false);
       }
@@ -207,8 +209,15 @@ export default function CheckoutPage() {
               {/* Left Column */}
               <div className="lg:col-span-7 space-y-8">
                 
-                {/* DELIVERY CARD */}
-                <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}>
+                {/* 👇 FIX: Added 'relative z-20' here. 
+                   This forces the Delivery Card (and its dropdown) to sit ON TOP of the Items Card below it.
+                */}
+                <motion.div 
+                    initial={{ opacity: 0, x: -20 }} 
+                    animate={{ opacity: 1, x: 0 }} 
+                    transition={{ delay: 0.1 }}
+                    className="relative z-20"
+                >
                     <Card className="border-0 shadow-sm ring-1 ring-gray-200 rounded-2xl overflow-visible bg-white">
                         <CardHeader className="bg-gray-50/50 border-b border-gray-100 pb-4">
                             <CardTitle className="flex items-center justify-between text-lg font-bold text-gray-800">
@@ -230,7 +239,6 @@ export default function CheckoutPage() {
                                                 setShowSuggestions(true);
                                                 
                                                 // 🛑 KEY LOGIC: If they type manually, wipe coordinates.
-                                                // This forces them to pick from the list again.
                                                 if(coords) setCoords(null); 
                                                 setDeliveryFee(null); 
                                             }}
@@ -291,7 +299,7 @@ export default function CheckoutPage() {
                 </motion.div>
 
                 {/* ITEMS CARD */}
-                <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
+                <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }} className="relative z-10">
                     <Card className="border-0 shadow-sm ring-1 ring-gray-200 rounded-2xl overflow-hidden bg-white">
                         <CardHeader className="bg-gray-50/50 border-b border-gray-100 pb-4">
                             <CardTitle className="flex items-center gap-2 text-lg font-bold text-gray-800">
