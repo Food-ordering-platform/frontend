@@ -92,7 +92,7 @@
   --sidebar-ring: oklch(0.65 0.22 25 / 0.5);
 }
 .pac-container {
-  z-index: 10000 !important;
+  z-index: 99999 !important;
 }
 
 @theme inline {
