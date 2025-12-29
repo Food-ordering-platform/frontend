@@ -1,277 +1,332 @@
 "use client";
 
-import { useSearchParams, useRouter } from "next/navigation";
-import { useGetOrderByReference } from "../../../services/order/order.queries";
+import { useSearchParams } from "next/navigation";
+import { useGetOrderByReference } from "../../../services/order/order.queries"; // Correct import path
 import { Header } from "@/components/layout/header";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, MapPin, Clock, CheckCircle2, ShoppingBag, CreditCard, AlertCircle } from "lucide-react"; // Added AlertCircle
+import { useToast } from "@/hooks/use-toast";
+import { 
+  ArrowLeft, MapPin, Clock, Truck, ChefHat, 
+  Package, CheckCircle2, Copy, AlertCircle, CreditCard, 
+  ShoppingBag
+} from "lucide-react";
 import Link from "next/link";
-import Image from "next/image"; // Kept for item images if available
-// ✅ FIXED: Named import
-import { OrderStatusTracker } from "@/components/orders/order-status-tracker";
+import Image from "next/image";
+import { Suspense } from "react";
+import { motion } from "framer-motion";
 
 // Fixed Platform Fee for Display
 const PLATFORM_FEE = 350; 
 
-export default function OrderDetailsPage() {
+function OrderDetailsContent() {
   const searchParams = useSearchParams();
-  const reference = searchParams.get("reference");
-  const router = useRouter();
+  const reference = searchParams.get("reference") || "";
+  const { toast } = useToast();
 
-  const { data: order, isLoading, error } = useGetOrderByReference(reference || "");
+  const { data: order, isLoading, isError } = useGetOrderByReference(reference);
 
-  // ✅ HELPER: Convert Backend Status (UPPERCASE) to UI Component Status (lowercase)
-  const getTrackerStatus = (backendStatus: string) => {
-    const statusMap: Record<string, string> = {
-      "PENDING": "pending",
-      "PAID": "confirmed", 
-      "PREPARING": "preparing",
-      "OUT_FOR_DELIVERY": "out-for-delivery",
-      "DELIVERED": "delivered",
-      "CANCELLED": "cancelled"
-    };
-    return (statusMap[backendStatus] || "pending") as any;
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(reference);
+    toast({ description: "Order Reference Copied!" });
   };
 
-  if (!reference) {
-    return (
-      <ProtectedRoute>
-        <div className="min-h-screen bg-[#faf9f8] flex items-center justify-center">
-            <p className="text-gray-500">No order reference provided.</p>
-        </div>
-      </ProtectedRoute>
-    );
-  }
+  // ✅ Visual Configuration (From your preferred design)
+  const steps = [
+    { id: "pending", label: "Placed", icon: Clock },
+    { id: "preparing", label: "Preparing", icon: ChefHat },
+    { id: "out_for_delivery", label: "En Route", icon: Truck },
+    { id: "delivered", label: "Delivered", icon: CheckCircle2 },
+  ];
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-[#faf9f8] flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-[#7b1e3a]" />
-      </div>
-    );
-  }
-
-  if (error || !order) {
-    return (
-      <ProtectedRoute>
-        <div className="min-h-screen bg-[#faf9f8]">
-            <Header />
-            <div className="container py-20 text-center">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Order Not Found</h2>
-                <p className="text-gray-500 mb-6">We couldn't locate the order with reference: {reference}</p>
-                <Button asChild><Link href="/orders">Back to My Orders</Link></Button>
-            </div>
-        </div>
-      </ProtectedRoute>
-    );
-  }
+  // Helper to map backend status to step index
+  const getCurrentStep = (status: string) => {
+      const map: Record<string, number> = { 
+          PENDING: 0, 
+          PAID: 0, 
+          PREPARING: 1, 
+          OUT_FOR_DELIVERY: 2, 
+          DELIVERED: 3, 
+          CANCELLED: -1 
+      };
+      // Handle both uppercase (backend) and lowercase cases robustly
+      return map[status?.toUpperCase()] ?? 0;
+  };
 
   const formatMoney = (amount: number) => {
     return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", minimumFractionDigits: 0 }).format(amount);
   };
 
-  // 🧮 Calculate Subtotal from items
+  if (isLoading) {
+    return (
+        <div className="flex items-center justify-center h-[60vh]">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#7b1e3a]"></div>
+        </div>
+    );
+  }
+
+  if (isError || !order) {
+    return (
+        <div className="flex flex-col items-center justify-center h-[60vh] text-center px-4">
+          <div className="h-20 w-20 bg-red-50 rounded-full flex items-center justify-center mb-6">
+            <Package className="h-10 w-10 text-red-400" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900">Order Not Found</h2>
+          <p className="text-gray-500 mt-2 mb-8 max-w-sm">We couldn't locate this order. It might be an invalid reference.</p>
+          <Button asChild className="bg-[#7b1e3a] hover:bg-[#66172e] rounded-full px-8">
+            <Link href="/orders">Back to Orders</Link>
+          </Button>
+        </div>
+    );
+  }
+
+  const currentStep = getCurrentStep(order.status);
+  
+  // Logic needed for summary calculation
   const subtotal = order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
   return (
-    <ProtectedRoute>
-      <div className="min-h-screen bg-[#faf9f8] font-sans">
-        <Header />
-        
-        <main className="container py-8 md:py-12 max-w-5xl mx-auto px-4 sm:px-6">
+      <div className="max-w-6xl mx-auto pb-12">
+        {/* Navigation Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+          <Button variant="ghost" size="sm" asChild className="w-fit pl-0 hover:bg-transparent hover:text-[#7b1e3a] -ml-2">
+            <Link href="/orders" className="flex items-center gap-2 font-medium">
+              <ArrowLeft className="h-4 w-4" />
+              Back to History
+            </Link>
+          </Button>
+          <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-gray-100 shadow-sm w-fit">
+            <span className="text-xs text-gray-500 uppercase font-bold tracking-wider">Ref:</span>
+            <span className="font-mono font-medium text-gray-900">{reference}</span>
+            <button onClick={copyToClipboard} className="text-gray-400 hover:text-[#7b1e3a] transition-colors ml-1">
+                <Copy className="h-3 w-3" />
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          
+          {/* Main Content (Left) */}
+          <div className="lg:col-span-8 space-y-6">
             
-            {/* ✅ RESTORED: Your original Header Design */}
-            <div className="mb-8">
-                <Button variant="ghost" className="pl-0 hover:bg-transparent hover:text-[#7b1e3a] mb-4" asChild>
-                    <Link href="/orders" className="flex items-center gap-2">
-                        <ArrowLeft className="h-4 w-4" /> <span>Back to Orders</span>
-                    </Link>
-                </Button>
-                
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                        <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Order Details</h1>
-                        <p className="text-gray-500 text-sm mt-1">
-                            Placed on {new Date(order.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                        </p>
+            {/* Status Card (Your Preferred Design) */}
+            <Card className="border-0 shadow-lg shadow-gray-200/50 rounded-2xl overflow-hidden bg-white">
+                <div className="bg-[#7b1e3a] p-8 text-white relative overflow-hidden">
+                    {/* Background Pattern */}
+                    <div className="absolute top-0 right-0 p-8 opacity-10">
+                        <Package className="h-40 w-40" />
                     </div>
                     
-                    <Badge variant="outline" className="text-sm py-1.5 px-4 border-gray-300 bg-white shadow-sm w-fit">
-                        Ref: <span className="font-mono font-bold text-gray-900 ml-2 tracking-wider">{order.reference}</span>
-                    </Badge>
+                    <div className="relative z-10">
+                        <div className="flex items-center gap-3 mb-2">
+                            <Badge className="bg-white/20 hover:bg-white/20 text-white border-0 uppercase tracking-widest text-[10px]">
+                                {order.status.replace(/_/g, " ")}
+                            </Badge>
+                        </div>
+                        <h1 className="text-3xl font-extrabold mb-2">
+                            {order.status === 'DELIVERED' ? 'Order Delivered' : 'Order in Progress'}
+                        </h1>
+                        <p className="text-white/80">
+                            {order.status === 'DELIVERED' ? 'Enjoy your meal!' : 'Estimated delivery: 30-45 mins'}
+                        </p>
+                    </div>
                 </div>
-            </div>
 
-            {/* ✅ FIXED: Logic inserted into your original layout structure */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                
-                {/* Left Column: Status & Details */}
-                <div className="lg:col-span-2 space-y-8">
-                    
-                    {/* STATUS CARD */}
-                    <Card className="border-0 shadow-sm ring-1 ring-gray-200 rounded-2xl overflow-hidden bg-white">
-                        <CardHeader className="bg-white border-b border-gray-100 pb-4 pt-6 px-6">
-                            <CardTitle className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                                <Clock className="h-5 w-5 text-[#7b1e3a]" /> Order Status
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-6">
-                            <div className="py-2">
-                                {/* ✅ FIXED: Using helper to fix type error */}
-                                <OrderStatusTracker status={getTrackerStatus(order.status)} />
+                <CardContent className="p-8">
+                    {/* Stepper Logic */}
+                    <div className="relative flex justify-between items-center w-full">
+                        {/* Connecting Line Background */}
+                        <div className="absolute top-1/2 left-0 w-full h-1 bg-gray-100 -translate-y-1/2 -z-10 rounded-full" />
+                        
+                        {/* Connecting Line Active */}
+                        <motion.div 
+                            initial={{ width: 0 }}
+                            animate={{ width: `${Math.max(0, (currentStep / (steps.length - 1)) * 100)}%` }}
+                            transition={{ duration: 1, ease: "easeInOut" }}
+                            className="absolute top-1/2 left-0 h-1 bg-[#7b1e3a] -translate-y-1/2 -z-10 rounded-full" 
+                        />
+
+                        {steps.map((step, index) => {
+                            const isActive = index <= currentStep;
+                            const isCompleted = index < currentStep;
+                            const StepIcon = step.icon;
+
+                            return (
+                                <div key={step.id} className="flex flex-col items-center gap-3 bg-white px-2">
+                                    <motion.div 
+                                        initial={{ scale: 0.8, opacity: 0 }}
+                                        animate={{ scale: 1, opacity: 1 }}
+                                        transition={{ delay: index * 0.1 }}
+                                        className={`
+                                            h-10 w-10 md:h-12 md:w-12 rounded-full flex items-center justify-center border-2 transition-colors duration-300
+                                            ${isActive ? 'border-[#7b1e3a] text-[#7b1e3a] bg-white' : 'border-gray-100 text-gray-300 bg-white'}
+                                            ${isCompleted ? 'bg-[#7b1e3a] text-white !border-[#7b1e3a]' : ''}
+                                        `}
+                                    >
+                                        <StepIcon className="h-5 w-5 md:h-6 md:w-6" />
+                                    </motion.div>
+                                    <span className={`text-[10px] md:text-xs font-bold uppercase tracking-wide ${isActive ? 'text-[#7b1e3a]' : 'text-gray-300'}`}>
+                                        {step.label}
+                                    </span>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* ✅ CRITICAL FEATURE: Payment Pending Alert */}
+                    {order.paymentStatus === 'PENDING' && order.status !== 'CANCELLED' && (
+                        <div className="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-xl flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                            <div className="bg-amber-100 p-2.5 rounded-full shrink-0">
+                                <AlertCircle className="h-6 w-6 text-amber-600" />
+                            </div>
+                            <div className="flex-1">
+                                <h4 className="font-bold text-amber-900 text-base">Payment Required</h4>
+                                <p className="text-sm text-amber-700 mt-0.5">
+                                    Your order is pending. Please complete payment to start preparation.
+                                </p>
                             </div>
                             
-                            {/* ✅ FEATURE: Payment Pending Logic */}
-                            {order.paymentStatus === 'PENDING' && order.status !== 'CANCELLED' && (
-                                <div className="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-xl flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                                    <div className="bg-amber-100 p-2.5 rounded-full shrink-0">
-                                        <AlertCircle className="h-6 w-6 text-amber-600" />
-                                    </div>
-                                    <div className="flex-1">
-                                        <h4 className="font-bold text-amber-900 text-base">Payment Required</h4>
-                                        <p className="text-sm text-amber-700 mt-0.5">
-                                            Your order is pending. Please complete payment to start preparation.
-                                        </p>
-                                    </div>
-                                    
-                                    {order.checkoutUrl && (
-                                        <Button 
-                                            className="bg-amber-600 hover:bg-amber-700 text-white shadow-sm shrink-0 w-full sm:w-auto"
-                                            onClick={() => window.location.href = order.checkoutUrl!}
-                                        >
-                                            Pay Now {formatMoney(order.totalAmount)}
-                                        </Button>
-                                    )}
-                                </div>
+                            {order.checkoutUrl && (
+                                <Button 
+                                    className="bg-amber-600 hover:bg-amber-700 text-white shadow-sm shrink-0 w-full sm:w-auto"
+                                    onClick={() => window.location.href = order.checkoutUrl!}
+                                >
+                                    Pay Now {formatMoney(order.totalAmount)}
+                                </Button>
                             )}
-                        </CardContent>
-                    </Card>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
 
-                    {/* ITEMS LIST */}
-                    <Card className="border-0 shadow-sm ring-1 ring-gray-200 rounded-2xl overflow-hidden bg-white">
-                         <CardHeader className="bg-white border-b border-gray-100 pb-4 pt-6 px-6">
-                            <CardTitle className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                                <ShoppingBag className="h-5 w-5 text-[#7b1e3a]" /> Order Items
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-0">
-                            <div className="divide-y divide-gray-100">
-                                {order.items.map((item, index) => (
-                                    // ✅ FIXED: Unique key using index + name
-                                    <div key={`${index}-${item.menuItemName}`} className="flex justify-between items-start p-6 hover:bg-gray-50/50 transition-colors">
-                                        <div className="flex gap-4">
-                                            {/* Restored the "nice design" placeholder box */}
-                                            <div className="h-16 w-16 bg-gray-100 rounded-xl flex items-center justify-center text-gray-400 shrink-0">
-                                                <ShoppingBag className="h-6 w-6 opacity-30" />
-                                            </div>
-                                            
-                                            <div>
-                                                <p className="font-bold text-gray-900 text-base mb-1">{item.menuItemName}</p>
-                                                <div className="flex items-center text-sm text-gray-500">
-                                                    <span className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs font-semibold mr-2">Qty: {item.quantity}</span>
-                                                    <span>x {formatMoney(item.price)}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <p className="font-bold text-gray-900">{formatMoney(item.price * item.quantity)}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* DELIVERY INFO */}
-                    <Card className="border-0 shadow-sm ring-1 ring-gray-200 rounded-2xl overflow-hidden bg-white">
-                         <CardHeader className="bg-white border-b border-gray-100 pb-4 pt-6 px-6">
-                            <CardTitle className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                                <MapPin className="h-5 w-5 text-[#7b1e3a]" /> Delivery Details
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-6 space-y-6">
-                            <div className="flex items-start gap-4">
-                                <div className="bg-[#7b1e3a]/10 p-2.5 rounded-full shrink-0">
-                                    <MapPin className="h-5 w-5 text-[#7b1e3a]" />
-                                </div>
-                                <div>
-                                    <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-1">Delivery Address</p>
-                                    <p className="text-gray-900 font-medium text-base">{order.deliveryAddress}</p>
-                                </div>
-                            </div>
-                            
-                            {order.deliveryNotes && (
-                                <>
-                                    <Separator className="bg-gray-100" />
-                                    <div className="flex items-start gap-4">
-                                        <div className="bg-amber-100 p-2.5 rounded-full shrink-0">
-                                            <div className="h-5 w-5 text-amber-600 flex items-center justify-center font-bold text-xs">!</div> 
-                                        </div>
-                                        <div>
-                                            <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-1">Note to Rider</p>
-                                            <p className="text-gray-900 italic">"{order.deliveryNotes}"</p>
-                                        </div>
-                                    </div>
-                                </>
-                            )}
-                        </CardContent>
-                    </Card>
-
+            {/* Items List */}
+            <Card className="border border-gray-100 shadow-sm rounded-2xl overflow-hidden">
+              <CardHeader className="bg-gray-50/50 border-b border-gray-100 py-4">
+                <CardTitle className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                    <Package className="h-5 w-5 text-[#7b1e3a]" />
+                    Items in your order
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="divide-y divide-gray-100">
+                    {order.items?.map((orderItem, i) => (
+                      <div key={`${i}-${orderItem.menuItemName}`} className="flex gap-4 p-5 hover:bg-gray-50/50 transition-colors">
+                        <div className="relative h-20 w-20 flex-shrink-0 bg-gray-100 rounded-xl overflow-hidden border border-gray-100 flex items-center justify-center">
+                          {/* Placeholder since images aren't on order items directly in backend currently */}
+                          <ShoppingBag className="h-8 w-8 text-gray-300" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between items-start mb-1">
+                            <h4 className="font-bold text-gray-900 truncate pr-4">{orderItem.menuItemName}</h4>
+                            <span className="font-bold text-gray-900 whitespace-nowrap">
+                                {formatMoney(orderItem.price * orderItem.quantity)}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-500 font-medium mb-1">
+                            {formatMoney(orderItem.price)} × {orderItem.quantity}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
                 </div>
+              </CardContent>
+            </Card>
+          </div>
 
-                {/* Right Column: Summary */}
-                <div className="lg:col-span-1">
-                    <Card className="border-0 shadow-xl shadow-gray-200/50 ring-1 ring-gray-200 rounded-3xl overflow-hidden bg-white sticky top-24">
-                        <CardHeader className="bg-[#7b1e3a] text-white p-6">
-                            <CardTitle className="text-lg font-bold flex items-center gap-2">
-                                <CreditCard className="h-5 w-5 text-white/80" /> Payment Summary
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-6 space-y-5">
-                            <div className="space-y-3">
-                                <div className="flex justify-between text-sm items-center">
-                                    <span className="text-gray-600">Subtotal</span>
-                                    <span className="font-semibold text-gray-900">{formatMoney(subtotal)}</span>
-                                </div>
-                                <div className="flex justify-between text-sm items-center">
-                                    <span className="text-gray-600">Delivery Fee</span>
-                                    <span className="font-semibold text-gray-900">{formatMoney(order.deliveryFee)}</span>
-                                </div>
-                                <div className="flex justify-between text-sm items-center">
-                                    <span className="text-gray-600">Platform Fee</span>
-                                    <span className="font-semibold text-gray-900">{formatMoney(PLATFORM_FEE)}</span>
-                                </div>
-                            </div>
-                            
-                            <Separator className="bg-gray-100" />
-                            
-                            <div className="flex justify-between items-end">
-                                <span className="font-bold text-gray-700 text-lg">Total</span>
-                                <span className="font-extrabold text-3xl text-[#7b1e3a] tracking-tight">{formatMoney(order.totalAmount)}</span>
-                            </div>
-                            
-                            <div className="pt-4">
-                                {order.paymentStatus === 'PAID' ? (
-                                    <div className="flex items-center justify-center gap-2 bg-green-50 text-green-700 py-4 rounded-xl font-bold border border-green-100 shadow-sm">
-                                        <CheckCircle2 className="h-5 w-5" /> Payment Successful
-                                    </div>
-                                ) : order.status === 'CANCELLED' ? (
-                                     <div className="flex items-center justify-center gap-2 bg-red-50 text-red-700 py-4 rounded-xl font-bold border border-red-100 shadow-sm">
-                                        Order Cancelled
-                                    </div>
-                                ) : (
-                                    <div className="flex items-center justify-center gap-2 bg-amber-50 text-amber-700 py-4 rounded-xl font-bold border border-amber-100 shadow-sm">
-                                        <CreditCard className="h-5 w-5" /> Payment Pending
-                                    </div>
-                                )}
-                            </div>
-                        </CardContent>
-                    </Card>
+          {/* Sidebar (Right) */}
+          <div className="lg:col-span-4 space-y-6">
+            {/* Order Summary */}
+            <Card className="border border-gray-100 shadow-sm rounded-2xl overflow-hidden">
+              <CardHeader className="bg-gray-50/50 border-b border-gray-100 py-4">
+                <CardTitle className="text-lg font-bold text-gray-800">Order Summary</CardTitle>
+              </CardHeader>
+              <CardContent className="p-6 space-y-4">
+                <div className="space-y-3 text-sm text-gray-600">
+                  <div className="flex justify-between">
+                    <span>Subtotal</span>
+                    <span className="font-medium text-gray-900">{formatMoney(subtotal)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Delivery Fee</span>
+                    <span className="font-medium text-gray-900">{formatMoney(order.deliveryFee)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Platform Fee</span>
+                    <span className="font-medium text-gray-900">{formatMoney(PLATFORM_FEE)}</span>
+                  </div>
                 </div>
-            </div>
+                <Separator className="bg-gray-100" />
+                <div className="flex justify-between items-end">
+                  <span className="font-bold text-lg text-gray-900">Total</span>
+                  <span className="font-extrabold text-2xl text-[#7b1e3a]">
+                    {formatMoney(order.totalAmount)}
+                  </span>
+                </div>
+              </CardContent>
+              <div className={`p-4 border-t border-[#7b1e3a]/10 ${order.paymentStatus === 'PAID' ? 'bg-[#7b1e3a]/5' : 'bg-amber-50'}`}>
+                  <div className={`flex items-center gap-2 justify-center text-xs font-bold uppercase tracking-wide ${order.paymentStatus === 'PAID' ? 'text-[#7b1e3a]' : 'text-amber-700'}`}>
+                      {order.paymentStatus === 'PAID' ? (
+                          <><CheckCircle2 className="h-4 w-4" /> Payment Successful</>
+                      ) : (
+                          <><CreditCard className="h-4 w-4" /> Payment Pending</>
+                      )}
+                  </div>
+              </div>
+            </Card>
 
+            {/* Delivery Address */}
+            <Card className="border border-gray-100 shadow-sm rounded-2xl">
+              <CardContent className="p-6">
+                <div className="flex items-start gap-4">
+                    <div className="h-10 w-10 bg-blue-50 rounded-full flex items-center justify-center shrink-0">
+                        <MapPin className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                        <h4 className="font-bold text-gray-900 mb-1">Delivering to</h4>
+                        <p className="text-sm text-gray-600 leading-relaxed">
+                            {order.deliveryAddress}
+                        </p>
+                    </div>
+                </div>
+                {order.deliveryNotes && (
+                    <div className="mt-4 pt-4 border-t border-gray-100 flex items-start gap-4">
+                        <div className="h-10 w-10 bg-yellow-50 rounded-full flex items-center justify-center shrink-0">
+                            <div className="h-5 w-5 text-yellow-600 font-bold flex items-center justify-center">!</div>
+                        </div>
+                        <div>
+                            <h4 className="font-bold text-gray-900 mb-1">Instruction</h4>
+                            <p className="text-sm text-gray-600 italic">"{order.deliveryNotes}"</p>
+                        </div>
+                    </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+  );
+}
+
+// Main Page Component with Suspense Boundary
+export default function OrderDetailsPage() {
+  return (
+    <ProtectedRoute>
+      <div className="min-h-screen bg-[#faf9f8]">
+        <Header />
+        <main className="container py-8 px-4">
+          <Suspense fallback={
+             <div className="flex items-center justify-center h-[80vh]">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#7b1e3a]"></div>
+                    <p className="text-gray-400 font-medium animate-pulse">Retrieving your ticket...</p>
+                </div>
+             </div>
+          }>
+            <OrderDetailsContent />
+          </Suspense>
         </main>
       </div>
     </ProtectedRoute>
