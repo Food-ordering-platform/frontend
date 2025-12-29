@@ -212,8 +212,8 @@ export default function CheckoutPage() {
                                             options={{
                                                 types: ["address"],
                                                 componentRestrictions: { country: "ng" }, 
-                                                strictBounds: true,
-                                                bounds: DELTA_STATE_BOUNDS,
+                                                strictBounds: false,
+                                                // bounds: DELTA_STATE_BOUNDS,
                                             }}
                                             defaultValue={deliveryAddress}
                                             placeholder="Search & Select Address (e.g. Airport Road)"

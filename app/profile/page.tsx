@@ -287,8 +287,8 @@ export default function ProfilePage() {
                       options={{
                         types: ["address"],
                         componentRestrictions: { country: "ng" },
-                        strictBounds: true, // 🔒 Force results to be inside bounds
-                        bounds: DELTA_STATE_BOUNDS, // 🔒 The Box defined above
+                        strictBounds: false, // 🔒 Force results to be inside bounds
+                        // bounds: DELTA_STATE_BOUNDS, // 🔒 The Box defined above
                       }}
                       defaultValue={address}
                       value={address}

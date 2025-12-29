@@ -91,6 +91,9 @@
   --sidebar-border: oklch(0.2 0 0);
   --sidebar-ring: oklch(0.65 0.22 25 / 0.5);
 }
+.pac-container {
+  z-index: 10000 !important;
+}
 
 @theme inline {
   --font-sans: "DM Sans", var(--font-geist-sans);
