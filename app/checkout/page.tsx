@@ -1,7 +1,6 @@
-// food-ordering-platform/frontend/frontend-wip-staging/app/checkout/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useCart } from "@/lib/cart-context";
@@ -21,6 +20,7 @@ import Image from "next/image";
 import { CreateOrderDto } from "@/types/order.type";
 import { motion } from "framer-motion";
 import { calculateDistance, calculateDeliveryFee } from "@/lib/utils"; 
+import { v4 as uuidv4 } from "uuid"; // 🛡️ Import UUID
 
 const PLATFORM_FEE = 350;
 
@@ -53,8 +53,12 @@ export default function CheckoutPage() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
 
+  // 🛡️ IDEMPOTENCY: Generate a unique key when the component mounts.
+  // This key persists as long as the user is on this page.
+  // If they click "Pay" and it fails, clicking again sends the SAME key.
+  const idempotencyKey = useMemo(() => uuidv4(), []);
+
   // 💰 DYNAMIC DELIVERY FEE STATE
-  // Initialized to NULL so we don't show a fee until we have a location
   const [deliveryFee, setDeliveryFee] = useState<number | null>(null); 
 
   // 🧮 CALCULATE FEE EFFECT
@@ -73,9 +77,7 @@ export default function CheckoutPage() {
     }
   }, [restaurant, coords]);
 
-  // 💰 DISPLAY CALCULATION
   const subtotal = getTotalPrice();
-  // If no delivery fee calculated yet, assume 0 for total display but block checkout
   const total = subtotal + (deliveryFee || 0) + PLATFORM_FEE;
 
   const formatMoney = (amount: number) => {
@@ -86,13 +88,10 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (!showSuggestions || deliveryAddress.length < 3) return;
     
-    // Reduced debounce from 800ms to 500ms for responsiveness
     const timer = setTimeout(async () => {
       setIsSearching(true);
       try {
-        // Appending "Delta State" to query AND using structured query if possible
         const searchQuery = `${deliveryAddress}, Delta State`;
-        // Added &state=Delta to strictly bias results
         const res = await fetch(
             `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5&addressdetails=1&countrycodes=ng&state=Delta`
         );
@@ -109,7 +108,6 @@ export default function CheckoutPage() {
   }, [deliveryAddress, showSuggestions]);
 
   const handleSelectAddress = (item: AddressResult) => {
-    // 🛑 STRICT VALIDATION FOR DELTA / WARRI
     const fullAddress = item.display_name.toLowerCase();
     if (!fullAddress.includes("delta") && !fullAddress.includes("warri")) {
         toast({
@@ -136,7 +134,6 @@ export default function CheckoutPage() {
       return;
     }
 
-    // ⚠️ CRITICAL: Ensure we have coordinates for accurate billing
     if (!coords || deliveryFee === null) {
         toast({ 
             title: "Location Required", 
@@ -154,7 +151,10 @@ export default function CheckoutPage() {
     setIsPlacingOrder(true);
 
     try {
-      const orderData: CreateOrderDto = {
+      // 🛡️ Pass idempotencyKey here. 
+      // Ensure CreateOrderDto type on frontend has this field or backend reads it from headers.
+      // We'll pass it in the body for simplicity as backend supports bodyKey.
+      const orderData: CreateOrderDto & { idempotencyKey: string } = {
         customerId: user.id,
         restaurantId: items[0].menuItem.restaurantId,
         items: items.map((item) => ({
@@ -167,6 +167,7 @@ export default function CheckoutPage() {
         deliveryLongitude: coords?.lng,
         name: user.name,
         email: user.email,
+        idempotencyKey: idempotencyKey // 👈 Uniqueness Guarantee
       };
 
       const response = await placeOrder(orderData);
@@ -178,6 +179,8 @@ export default function CheckoutPage() {
       
     } catch (error: any) {
       toast({ title: "Order failed", description: error?.message || "Please try again.", variant: "destructive" });
+      // Note: We do NOT regenerate idempotencyKey here. 
+      // If user clicks Try Again, we send the SAME key so backend returns the same order if it was actually created.
     } finally {
       setIsPlacingOrder(false);
     }
@@ -214,7 +217,6 @@ export default function CheckoutPage() {
                                 <div className="flex items-center gap-2">
                                   <MapPin className="h-5 w-5 text-[#7b1e3a]" /> Delivery Details
                                 </div>
-                                {/* Removed GPS Button as requested */}
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="p-6 space-y-6">
@@ -229,7 +231,7 @@ export default function CheckoutPage() {
                                                 setDeliveryAddress(e.target.value);
                                                 setShowSuggestions(true);
                                                 if(coords) setCoords(null); 
-                                                setDeliveryFee(null); // Reset fee on edit
+                                                setDeliveryFee(null); 
                                             }}
                                             className="pl-4 border-gray-200 bg-gray-50/50"
                                         />
