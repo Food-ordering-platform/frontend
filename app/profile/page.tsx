@@ -28,26 +28,29 @@ const DELTA_STATE_BOUNDS = {
 };
 
 export default function ProfilePage() {
-  const { user, logout, setUser } = useAuth(); 
+  const { user, logout, setUser, isLoading } = useAuth(); // ✅ Get isLoading
   const { clearCart } = useCart();
   const router = useRouter();
   const { toast } = useToast();
   
   const { mutateAsync: updateProfile, isPending: isSaving } = useUpdateProfile();
 
-  const [name, setName] = useState(user?.name || "");
-  const [phone, setPhone] = useState(user?.phone || "");
-  
-  // Backend State (Updates only on selection)
-  const [address, setAddress] = useState(user?.address || "");
-  const [coords, setCoords] = useState<{lat: number, lng: number} | null>(
-    user?.latitude && user?.longitude 
-      ? { lat: user.latitude, lng: user.longitude } 
-      : null
-  );
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [coords, setCoords] = useState<{lat: number, lng: number} | null>(null);
 
-  // ✅ PREFILL VARIABLE
-  const inputAutocompleteValue = user?.address || "";
+  // ✅ PREFILL STATE: Updates when user data arrives
+  useEffect(() => {
+    if (user) {
+        setName(user.name || "");
+        setPhone(user.phone || "");
+        setAddress(user.address || "");
+        if (user.latitude && user.longitude) {
+            setCoords({ lat: user.latitude, lng: user.longitude });
+        }
+    }
+  }, [user]);
   
   const { data: orders = [] } = useGetOrders(user?.id || "");
   const totalOrders = orders.length;
@@ -93,19 +96,40 @@ export default function ProfilePage() {
       const updatedUser = await updateProfile({
         name,
         phone,
-        address, // Sends the state value, not the input value
+        address, 
         latitude: coords?.lat,
         longitude: coords?.lng
       });
       
-      if (user) setUser({ ...user, ...updatedUser.user });
+      // ✅ IMMEDIATE UPDATE: Manually update Context so Checkout sees it
+      if (user) {
+          setUser({ 
+              ...user, 
+              ...updatedUser.user,
+              // Fallback to local state if backend return differs slightly
+              address,
+              latitude: coords?.lat ?? user.latitude,
+              longitude: coords?.lng ?? user.longitude
+          });
+      }
       
       toast({ title: "Success", description: "Profile updated successfully!" });
     } catch (error: any) {
       console.error(error);
+      toast({ title: "Error", description: "Failed to update profile", variant: "destructive" });
     }
   };
 
+  // 🛡️ LOADING CHECK: Prevent redirecting while checking auth
+  if (isLoading) {
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+            <Loader2 className="h-8 w-8 animate-spin text-[#7b1e3a]" />
+        </div>
+    );
+  }
+
+  // 🛡️ AUTH CHECK: Only redirect if finished loading and no user
   if (!user) {
     router.push("/login");
     return null;
@@ -116,7 +140,6 @@ export default function ProfilePage() {
       <Header />
       <main className="container py-8 md:py-12 flex-1 max-w-5xl mx-auto space-y-8 px-4">
         
-        {/* Profile Header (Identical) */}
         <div className="flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
            <div className="flex items-center gap-4">
                 <Avatar className="h-20 w-20 md:h-24 md:w-24 border-4 border-white shadow-xl">
@@ -139,7 +162,7 @@ export default function ProfilePage() {
            </Button>
         </div>
 
-        {/* Stats Grid (Identical) */}
+        {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card className="border-none shadow-md bg-gradient-to-br from-[#7b1e3a] to-[#5a162b] text-white">
                 <CardContent className="p-6 flex items-center justify-between">
@@ -189,7 +212,6 @@ export default function ProfilePage() {
                             <div className="relative">
                                 <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400 z-10" />
                                 
-                                {/* 🚀 UNCONTROLLED COMPONENT with RESTRICTED BOUNDS */}
                                 <ReactGoogleAutocomplete
                                     apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
                                     onPlaceSelected={(place) => {
@@ -198,7 +220,6 @@ export default function ProfilePage() {
                                             const lng = place.geometry.location.lng();
                                             const formattedAddress = place.formatted_address || "";
                                             
-                                            // 🛡️ Safety Check
                                             if (!formattedAddress.toLowerCase().includes("delta")) {
                                                 toast({
                                                     title: "Invalid Location",
@@ -214,17 +235,15 @@ export default function ProfilePage() {
                                         }
                                     }}
                                     options={{
-                                        types: [], // Allow businesses & landmarks
+                                        types: [], 
                                         componentRestrictions: { country: "ng" }, 
-                                        strictBounds: true, // ✅ FORCE BOUNDS
-                                        bounds: DELTA_STATE_BOUNDS, // ✅ WARRI/ABRAKA ONLY
+                                        strictBounds: true, 
+                                        bounds: DELTA_STATE_BOUNDS, 
                                     }}
-                                    defaultValue={inputAutocompleteValue}
+                                    defaultValue={user.address || ""} // ✅ Use user data for default
+                                    key={user.address} // ✅ Force re-render if backend data updates
                                     placeholder="Enter street name (e.g. Airport Road, Warri)"
                                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 pl-9"
-                                    // ❌ NO onChange
-                                    // ❌ NO value
-                                    // ❌ NO ref
                                 />
                             </div>
 

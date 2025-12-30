@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/auth-context"
 import { useCart } from "@/lib/cart-context"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,7 +18,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 
 export function Header() {
-  const { user, logout } = useAuth()
+  const { user, logout, isLoading } = useAuth()
   const { clearCart } = useCart()
   const router = useRouter()
 
@@ -56,7 +57,12 @@ export function Header() {
         </nav>
 
         <div className="flex items-center space-x-4">
-          {user ? (
+          {isLoading ? (
+            // ✅ SKELETON LOADING: Prevents "Sign In" flicker
+            <div className="flex items-center space-x-2">
+                <Skeleton className="h-10 w-10 rounded-full bg-gray-200" />
+            </div>
+          ) : user ? (
             <>
               <CartDrawer />
               <DropdownMenu>
@@ -86,7 +92,6 @@ export function Header() {
                   </div>
 
                   <div className="p-2">
-                    {/* FIXED: Added Link component here so it actually navigates */}
                     <DropdownMenuItem asChild className="py-3 cursor-pointer">
                       <Link href="/profile">
                         <User className="mr-3 h-4 w-4" />

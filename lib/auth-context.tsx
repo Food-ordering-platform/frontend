@@ -1,9 +1,7 @@
-// food-ordering-platform/frontend/frontend-wip-staging/lib/auth-context.tsx
-
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
-import { useRouter, usePathname } from "next/navigation"; // ✅ Added usePathname
+import { useRouter, usePathname } from "next/navigation"; 
 import { useQueryClient } from "@tanstack/react-query";
 import { LoginData, RegisterData, User } from "@/types/auth.type"; 
 import { toast } from "sonner";
@@ -17,17 +15,18 @@ interface AuthContextType {
   register: (data: RegisterData) => Promise<void>;
   logout: () => void;
   checkAuth: () => Promise<void>;
-  setUser: (user: User | null) => void; // ✅ Added setUser to interface so Profile page can update it
+  setUser: (user: User | null) => void; 
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  // Start true to prevent "Logged Out" flash on initial load
   const [isCheckingToken, setIsCheckingToken] = useState<boolean>(true);
   const [hasToken, setHasToken] = useState<boolean>(false);
   
   const router = useRouter();
-  const pathname = usePathname(); // ✅ Track current URL
+  const pathname = usePathname(); 
   const queryClient = useQueryClient();
 
   const loginMutation = useLogin();
@@ -46,17 +45,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsCheckingToken(false); 
   }, []);
 
-  // 🚀 SMART CHECK: Prompt user to setup address if missing
+  // Check if Address is missing (Prompt user)
   useEffect(() => {
-    // Only check if we have a user and we are done loading
     if (user && !isUserLoading) {
-      
-      // Check if Address or Coordinates are missing
       const isAddressMissing = !user.address || !user.latitude || !user.longitude;
-      
-      // Don't annoy them if they are already on the profile page
       if (isAddressMissing && pathname !== '/profile') {
-        // Delayed slightly so it doesn't clash instantly with "Welcome back"
         const timer = setTimeout(() => {
             toast.message("Action Required", {
                 description: "Please setup your delivery address in your profile to checkout faster.",
@@ -94,7 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           queryClient.setQueryData(["currentUser"], res.user);
         }
         await refetch();
-        toast.success("Welcome back!"); // ✅ Shows immediately on login
+        toast.success("Welcome back!"); 
         router.push("/restaurants");
       }
     } catch (error: any) {
@@ -134,6 +127,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // ✅ Combined Loading State:
+  // 1. Checking localStorage (isCheckingToken)
+  // 2. Fetching User from Backend (isUserLoading && hasToken)
+  // 3. Token exists but User data is not yet in (hasToken && !user)
   const isLoading = isCheckingToken || (isUserLoading && hasToken) || (hasToken && !user);
 
   return (

@@ -1,36 +1,34 @@
-"use client"
+"use client";
 
-import type React from "react"
+import { useAuth } from "@/lib/auth-context";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { Loader2 } from "lucide-react";
 
-import { useAuth } from "@/lib/auth-context"
-import { useRouter } from "next/navigation"
-import { useEffect } from "react"
-
-interface ProtectedRouteProps {
-  children: React.ReactNode
-}
-
-export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { user, isLoading } = useAuth()
-  const router = useRouter()
+export function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { user, isLoading } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
+    // Only redirect if we are DONE loading and there is NO user
     if (!isLoading && !user) {
-      router.push("/login")
+      router.push("/login");
     }
-  }, [user, isLoading, router])
+  }, [user, isLoading, router]);
 
+  // ✅ Show loader while checking auth (prevents flicker)
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="flex h-screen w-full items-center justify-center bg-gray-50">
+        <Loader2 className="h-8 w-8 animate-spin text-[#7b1e3a]" />
       </div>
-    )
+    );
   }
 
+  // If done loading and no user, return null (useEffect will redirect)
   if (!user) {
-    return null
+    return null;
   }
 
-  return <>{children}</>
+  return <>{children}</>;
 }
