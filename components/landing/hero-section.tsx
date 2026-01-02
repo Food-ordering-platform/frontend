@@ -1,19 +1,20 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Utensils, Zap } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { MapPin, ArrowRight, Star, Zap } from "lucide-react";
 import Link from "next/link";
-import { Typewriter } from "react-simple-typewriter";
+import Image from "next/image";
 import { motion, easeOut } from "framer-motion";
-import { Star } from "lucide-react";
+import { Typewriter } from "react-simple-typewriter";
 
 export function HeroSection() {
   const messages = [
-    "Banga & Starch 🥘",
-    "Correct Jollof 🍛",
-    "Wicked Suya 🍖",
-    "Sharp Shawarma 🌯",
-    "Pepper Soup 🥣",
+    "Banga & Starch",
+    "Correct Jollof",
+    "Wicked Suya",
+    "Sharp Shawarma",
+    "Pepper Soup",
   ];
 
   const leftVariants = {
@@ -27,38 +28,41 @@ export function HeroSection() {
   };
 
   return (
-    <section className="relative overflow-hidden min-h-[85vh] lg:min-h-[90vh] flex items-center bg-[#faf9f8]">
-      {/* Background Pattern */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] z-0"></div>
+    <section className="relative overflow-hidden min-h-[90vh] flex items-center">
       
-      {/* Gradient Blobs - Adjusted for Mobile */}
-      <div className="absolute top-[-10%] left-[-10%] w-[300px] lg:w-[500px] h-[300px] lg:h-[500px] rounded-full bg-[#7b1e3a]/5 blur-3xl" />
-      <div className="absolute bottom-[-10%] right-[-5%] w-[300px] lg:w-[600px] h-[300px] lg:h-[600px] rounded-full bg-orange-100/40 blur-3xl" />
+      {/* 1. Food Background Image with Heavy Overlay */}
+      <div className="absolute inset-0 z-0">
+        <Image 
+            src="/pizza-restaurant-storefront.jpg" // Using a real food image from your files
+            alt="Food Background"
+            fill
+            className="object-cover"
+            priority
+        />
+        {/* Heavy White Overlay to ensure text is readable */}
+        <div className="absolute inset-0 bg-white/90 backdrop-blur-[2px]" />
+      </div>
 
       <div className="container relative z-10 pt-24 pb-16 lg:pt-0 lg:pb-0">
         <div className="grid grid-cols-1 lg:grid-cols-2 items-center gap-12 lg:gap-20">
           
-          {/* Left Content */}
+          {/* 2. Left Content: Search & Typewriter */}
           <motion.div
             variants={leftVariants}
             initial="hidden"
             whileInView="show"
             viewport={{ once: true }}
-            className="text-center lg:text-left space-y-6 lg:space-y-2 px-4 lg:px-0"
+            className="text-center lg:text-left space-y-8 px-4 lg:px-0"
           >
-            <motion.div 
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="inline-flex items-center gap-2 rounded-full bg-white border border-[#7b1e3a]/10 px-3 py-1 lg:px-4 lg:py-1.5 text-xs lg:text-sm font-medium text-[#7b1e3a] shadow-sm"
-            >
-              <span className="flex h-2 w-2 rounded-full bg-[#7b1e3a] animate-pulse"></span>
-              The #1 Food Delivery platform in Warri
-            </motion.div>
+            {/* Pill Badge */}
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/80 border border-[#7b1e3a]/10 px-4 py-1.5 text-sm font-medium text-[#7b1e3a] shadow-sm mx-auto lg:mx-0 backdrop-blur-sm">
+              <span className="flex h-2.5 w-2.5 rounded-full bg-[#7b1e3a] animate-pulse"></span>
+              The #1 Food Delivery in Warri
+            </div>
 
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.1] text-gray-900">
+            <h1 className="text-5xl sm:text-6xl lg:text-5xl font-extrabold tracking-tight leading-[1.1] text-gray-900">
               Craving <br className="hidden lg:block"/>
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#7b1e3a] to-[#ff5722]">
+              <span className="text-[#7b1e3a]">
                 <Typewriter
                   words={messages}
                   loop={0}
@@ -68,50 +72,48 @@ export function HeroSection() {
                   deleteSpeed={50}
                   delaySpeed={2000}
                 />
-              </span>
+              </span>?
               <br />
               we deliver sharp sharp.
             </h1>
 
-            <p className="text-base sm:text-lg lg:text-xl text-gray-600 max-w-lg mx-auto lg:mx-0 leading-relaxed">
-              From Mama Put to 5-star restaurants, we bring the best of Warri straight to your doorstep. No long talk.
+            <p className="text-lg text-gray-600 max-w-lg mx-auto lg:mx-0 leading-relaxed font-medium">
+              Order from your favorite restaurants and get it delivered hot. No delay, no stories.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start items-center pt-2">
-              <Button
-                size="lg"
-                className="w-full sm:w-auto h-14 px-8 rounded-full bg-[#7b1e3a] hover:bg-[#66172e] text-white text-base font-semibold shadow-lg shadow-[#7b1e3a]/25 transition-transform hover:scale-105"
-                asChild
-              >
-                <Link href="/restaurants">
-                  Oya Order Now
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Link>
-              </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                className="w-full sm:w-auto h-14 px-8 rounded-full border-2 border-gray-200 hover:border-[#7b1e3a] hover:bg-[#7b1e3a]/5 text-gray-700 font-semibold"
-                asChild
-              >
-                <Link href="/restaurants">See Menu</Link>
-              </Button>
+            {/* High Conversion Search Bar */}
+            <div className="relative max-w-md w-full mx-auto lg:mx-0 mt-6">
+              <div className="flex items-center w-full bg-white rounded-full p-2 pl-6 shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-gray-100 focus-within:ring-2 focus-within:ring-[#7b1e3a]/20">
+                <MapPin className="text-[#7b1e3a] w-5 h-5 mr-3 flex-shrink-0" />
+                <Input 
+                  type="text" 
+                  placeholder="Enter your delivery address..." 
+                  className="border-none bg-transparent shadow-none focus-visible:ring-0 p-0 text-base placeholder:text-gray-400 h-auto w-full truncate"
+                />
+                <Button 
+                  size="lg" 
+                  className="rounded-full bg-[#7b1e3a] hover:bg-[#66172e] text-white px-8 h-12 ml-2 shadow-md shrink-0 font-bold"
+                  asChild
+                >
+                  <Link href="/restaurants">Order Now</Link>
+                </Button>
+              </div>
             </div>
 
             {/* Trust Badges */}
-            <div className="pt-6 flex flex-wrap justify-center lg:justify-start gap-x-8 gap-y-4 text-sm font-medium text-gray-500">
+            <div className="pt-4 flex flex-wrap justify-center lg:justify-start gap-8 text-sm font-semibold text-gray-500">
               <div className="flex items-center gap-2">
-                <Utensils className="h-5 w-5 text-[#7b1e3a]" />
-                <span>500+ Spots</span>
+                <div className="bg-orange-100 p-1.5 rounded-full"><Star className="h-4 w-4 text-[#f59e0b] fill-current" /></div>
+                <span>4.9/5 Rating</span>
               </div>
               <div className="flex items-center gap-2">
-                <Zap className="h-5 w-5 text-[#f59e0b]" />
-                <span>Fast Delivery</span>
+                 <div className="bg-green-100 p-1.5 rounded-full"><Zap className="h-4 w-4 text-green-600 fill-current" /></div>
+                <span>25 Min Delivery</span>
               </div>
             </div>
           </motion.div>
 
-          {/* Right Illustration - HIDDEN ON MOBILE (lg:flex) */}
+          {/* 3. Right Content: Original Illustration (Restored) */}
           <motion.div
             variants={rightVariants}
             initial="hidden"
@@ -119,10 +121,12 @@ export function HeroSection() {
             viewport={{ once: true }}
             className="hidden lg:flex relative lg:h-[600px] items-center justify-center"
           >
-            {/* Main Image Container with Abstract Blob */}
+            {/* Main Image Container */}
             <div className="relative w-full max-w-[500px] aspect-square">
-              <div className="absolute inset-0 bg-gradient-to-tr from-[#7b1e3a]/5 to-orange-100/50 rounded-full animate-pulse-slow blur-2xl" />
+              {/* Animated Blob Background */}
+              <div className="absolute inset-0 bg-gradient-to-tr from-[#7b1e3a]/10 to-orange-100/60 rounded-full animate-pulse-slow blur-3xl" />
               
+              {/* Glass Card Container */}
               <div className="relative h-full w-full bg-white/40 backdrop-blur-sm border border-white/50 rounded-[2.5rem] shadow-2xl p-8 flex items-center justify-center">
                  <img
                   src="/order-food.svg"
@@ -130,35 +134,37 @@ export function HeroSection() {
                   className="w-full h-full object-contain drop-shadow-2xl z-10 relative"
                 />
 
-                {/* Floating 3D Cards */}
+                {/* Floating 3D Card: Order Placed */}
                 <motion.div 
                   animate={{ y: [-10, 10, -10] }}
                   transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                  className="absolute -left-4 top-1/4 bg-white p-4 rounded-2xl shadow-xl border border-gray-100 flex items-center gap-3 z-20"
+                  className="absolute -left-8 top-1/4 bg-white p-4 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100 flex items-center gap-3 z-20"
                 >
-                  <div className="h-10 w-10 bg-green-100 rounded-full flex items-center justify-center text-2xl">🍲</div>
+                  <div className="h-12 w-12 bg-green-100 rounded-full flex items-center justify-center text-2xl">🍲</div>
                   <div>
-                    <p className="text-xs text-gray-500 font-semibold uppercase">Order Placed</p>
+                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Order Placed</p>
                     <p className="text-sm font-bold text-gray-900">Banga Soup</p>
                   </div>
                 </motion.div>
 
+                {/* Floating 3D Card: Rating */}
                 <motion.div 
                   animate={{ y: [10, -10, 10] }}
                   transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-                  className="absolute -right-8 bottom-1/4 bg-white p-4 rounded-2xl shadow-xl border border-gray-100 flex items-center gap-3 z-20"
+                  className="absolute -right-8 bottom-1/4 bg-white p-4 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100 flex items-center gap-3 z-20"
                 >
-                  <div className="h-10 w-10 bg-orange-100 rounded-full flex items-center justify-center">
-                    <Star className="h-5 w-5 text-orange-500 fill-current" />
+                  <div className="h-12 w-12 bg-orange-100 rounded-full flex items-center justify-center">
+                    <Star className="h-6 w-6 text-orange-500 fill-current" />
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500 font-semibold uppercase">Rating</p>
+                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Rating</p>
                     <p className="text-sm font-bold text-gray-900">4.9 / 5.0</p>
                   </div>
                 </motion.div>
               </div>
             </div>
           </motion.div>
+
         </div>
       </div>
     </section>

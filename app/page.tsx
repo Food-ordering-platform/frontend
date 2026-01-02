@@ -2,37 +2,34 @@ import { Header } from "@/components/layout/header"
 import { HeroSection } from "@/components/landing/hero-section"
 import { FeaturesSection } from "@/components/landing/features-section"
 import { Footer } from "@/components/layout/footer"
-import { HowItWorksSection } from "@/components/landing/how-it-works"
-import { RestaurantSection } from "@/components/landing/coverage-section"
-import { PaymentSection } from "@/components/landing/paymentSection"
-import { SchedulingSection } from "@/components/landing/scheduleSection"
-import Banner from "@/components/landing/download"
-
-
-
-
+import { TopPicksSection } from "@/components/landing/top-picks"
+import { PaymentFeatureSection } from "@/components/landing/payment-feature"
+import { FAQSection } from "../components/landing/faq-section"
+import { VendorSection } from "@/components/landing/vendor-section" // Import New Component
+import DownloadAppSection from "@/components/landing/download"
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-white">
       <Header />
-      <main>
+      <main className="flex flex-col gap-0">
+        
         <HeroSection />
 
         <FeaturesSection />
 
-        <RestaurantSection />
+        <TopPicksSection />
 
-        <PaymentSection />
+        <PaymentFeatureSection />
 
-        <SchedulingSection />
+        <FAQSection />
 
-        <Banner />
+        {/* New Vendor Section */}
+        <VendorSection />
 
-
+        <DownloadAppSection />
         
       </main>
-
       <Footer />
     </div>
   )
