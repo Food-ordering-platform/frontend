@@ -31,7 +31,7 @@ const RestaurantMenuItem = ({ item }: { item: any }) => {
 
     toast.success(`${quantity}x ${item.name} added`, {
       icon: <ShoppingBag className="w-4 h-4 text-green-600" />,
-      position: "bottom-center", // Better for mobile
+      position: "bottom-center",
     });
 
     setIsAdded(true);
@@ -51,9 +51,9 @@ const RestaurantMenuItem = ({ item }: { item: any }) => {
   };
 
   return (
-    <div className="bg-white p-3 sm:p-4 rounded-xl border border-gray-100 shadow-sm flex gap-3 sm:gap-4 hover:shadow-md transition-all duration-300 group">
-      {/* Image - Responsive Size */}
-      <div className="relative h-24 w-24 sm:h-28 sm:w-28 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100">
+    <div className="bg-white p-3 sm:p-4 rounded-xl border border-gray-100 shadow-sm flex gap-3 sm:gap-5 hover:shadow-md transition-all duration-300 group">
+      {/* Image - Optimized for Mobile Layout */}
+      <div className="relative h-20 w-20 sm:h-28 sm:w-28 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100 self-center sm:self-start">
         <Image
           src={item.image || "/placeholder.svg"}
           alt={item.name}
@@ -63,26 +63,27 @@ const RestaurantMenuItem = ({ item }: { item: any }) => {
       </div>
 
       {/* Content */}
-      <div className="flex-1 flex flex-col justify-between min-h-[6rem]">
+      <div className="flex-1 flex flex-col justify-between min-h-[5rem] sm:min-h-[7rem]">
         <div>
           <div className="flex justify-between items-start gap-2">
-            <h3 className="font-bold text-gray-900 line-clamp-1 text-base sm:text-lg leading-tight">
+            <h3 className="font-bold text-gray-900 line-clamp-2 text-sm sm:text-lg leading-tight">
               {item.name}
             </h3>
+            {/* Optional: Show base price on desktop if needed, currently hidden for cleaner mobile view */}
           </div>
-          <p className="text-xs sm:text-sm text-gray-500 line-clamp-2 mt-1 leading-relaxed">
+          <p className="text-xs text-gray-500 line-clamp-2 mt-1 leading-relaxed">
             {item.description}
           </p>
         </div>
 
         {/* ACTIONS ROW */}
-        <div className="flex items-center justify-between mt-3 sm:mt-4 gap-2">
+        <div className="flex items-end justify-between mt-3 gap-2">
           
-          {/* Quantity Selector - Compact on Mobile */}
-          <div className="flex items-center bg-gray-50 rounded-lg p-0.5 border border-gray-200 h-8 sm:h-9">
+          {/* Quantity Selector - Compact & Clean */}
+          <div className="flex items-center bg-gray-50 rounded-lg border border-gray-200 h-7 sm:h-9">
             <button 
               onClick={decrement}
-              className="h-full w-8 flex items-center justify-center rounded-md bg-white text-gray-600 shadow-sm hover:bg-gray-100 disabled:opacity-50"
+              className="h-full w-7 sm:w-8 flex items-center justify-center rounded-l-lg bg-white text-gray-600 hover:bg-gray-100 disabled:opacity-50 active:bg-gray-200 transition-colors"
               disabled={quantity <= 1}
             >
               <Minus className="w-3 h-3" />
@@ -90,18 +91,19 @@ const RestaurantMenuItem = ({ item }: { item: any }) => {
             <span className="w-6 sm:w-8 text-center text-xs sm:text-sm font-semibold text-gray-900">{quantity}</span>
             <button 
               onClick={increment}
-              className="h-full w-8 flex items-center justify-center rounded-md bg-white text-gray-600 shadow-sm hover:bg-gray-100"
+              className="h-full w-7 sm:w-8 flex items-center justify-center rounded-r-lg bg-white text-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-colors"
             >
               <Plus className="w-3 h-3" />
             </button>
           </div>
 
-          {/* Add Button - Responsive Text */}
+          {/* Add Button - Adjusted Width & Responsiveness */}
           <Button
             size="sm"
             onClick={handleAddToCart}
             className={cn(
-              "h-8 sm:h-9 px-3 sm:px-4 text-xs sm:text-sm font-medium transition-all duration-300 shadow-sm flex-1 sm:flex-none justify-center",
+              "h-8 sm:h-9 px-3 sm:px-5 text-xs sm:text-sm font-medium transition-all duration-300 shadow-sm min-w-[90px] sm:min-w-[110px]", 
+              // Removed flex-1 so it doesn't stretch too wide
               isAdded 
                 ? "bg-green-600 hover:bg-green-700 text-white border-transparent" 
                 : "bg-[#7b1e3a] text-white hover:bg-[#60182f]"
@@ -110,11 +112,11 @@ const RestaurantMenuItem = ({ item }: { item: any }) => {
             {isAdded ? (
               <span className="flex items-center gap-1.5 animate-in fade-in zoom-in">
                 <Check className="w-3.5 h-3.5" /> 
-                <span className="hidden sm:inline">Added</span>
+                <span>Added</span>
               </span>
             ) : (
               <span className="flex items-center gap-1">
-                 Add {formatNaira(totalPrice)}
+                 Add <span className="opacity-80 ml-1">|</span> {formatNaira(totalPrice)}
               </span>
             )}
           </Button>
@@ -188,7 +190,7 @@ export default function RestaurantPage() {
       <Header />
       
       {/* HERO SECTION */}
-      <div className="relative h-[35vh] sm:h-[40vh] min-h-[250px] w-full">
+      <div className="relative h-[30vh] sm:h-[40vh] min-h-[220px] w-full">
         <Image
           src={r.imageUrl || "/placeholder.svg"}
           alt={r.name}
@@ -199,7 +201,7 @@ export default function RestaurantPage() {
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
         
         <div className="absolute bottom-0 left-0 right-0 container px-4 sm:px-6 pb-6 sm:pb-10 pt-20">
-            <div className="max-w-4xl mx-auto space-y-3 sm:space-y-4">
+            <div className="max-w-4xl mx-auto space-y-2 sm:space-y-4">
                 <div className="flex items-center gap-2 mb-1">
                     <Badge className="bg-white text-black border-0 font-bold px-2 py-0.5 text-xs sm:text-sm">
                         <Star className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1 fill-yellow-400 text-yellow-400" /> 4.8
@@ -211,7 +213,7 @@ export default function RestaurantPage() {
                     )}
                 </div>
                 
-                <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight drop-shadow-lg leading-tight">
+                <h1 className="text-2xl sm:text-4xl md:text-5xl font-black text-white tracking-tight drop-shadow-lg leading-tight line-clamp-1">
                     {r.name}
                 </h1>
                 
@@ -271,7 +273,7 @@ export default function RestaurantPage() {
                     <span className="text-xs sm:text-sm font-medium text-gray-500 bg-gray-200/50 px-2 py-1 rounded-md">{filteredItems.length} items</span>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6">
                     {filteredItems.map((item) => (
                         <RestaurantMenuItem 
                             key={item.id} 
