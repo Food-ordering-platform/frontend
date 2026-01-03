@@ -1,8 +1,8 @@
 {
-  "name": "ChowEazy Logistics",
+  "name": "ChowEazy",
   "short_name": "ChowEazy",
-  "description": "Logistics Partner & Rider Dashboard",
-  "start_url": "/partner/login",
+  "description": "Food delivery made simple",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#c72c41",
@@ -11,12 +11,14 @@
     {
       "src": "/rice.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "/rice.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }

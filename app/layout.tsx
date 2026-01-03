@@ -1,6 +1,6 @@
 // src/app/layout.tsx
 import type React from "react";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next"; // 1. Import Viewport
 import { DM_Sans } from "next/font/google";
 import { GeistMono } from "geist/font/mono";
 import { Analytics } from "@vercel/analytics/next";
@@ -8,7 +8,7 @@ import { CartProvider } from "@/lib/cart-context";
 import { Toaster } from "@/components/ui/sonner";
 import { Suspense } from "react";
 import "./globals.css";
-import Providers from "@/lib/provider"; // QueryClientProvider + AuthProvider
+import Providers from "@/lib/provider";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -17,9 +17,18 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "FoodOrder - Elevate Your Dining Experience",
+  title: "ChowEazy",
   description: "Order from the finest restaurants delivered to your door",
-  generator: "v0.app",
+  manifest: "/manifest.json", // 2. LINK THE MANIFEST HERE
+};
+
+// 3. ADD VIEWPORT EXPORT
+export const viewport: Viewport = {
+  themeColor: "#c72c41",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false, // Prevents zooming like a native app
 };
 
 export default function RootLayout({
@@ -31,9 +40,9 @@ export default function RootLayout({
     <html lang="en">
       <body className={`font-sans ${dmSans.variable} ${GeistMono.variable} antialiased`}>
         <Suspense fallback={null}>
-          <Providers> {/* Includes QueryClientProvider + AuthProvider */}
+          <Providers>
             <CartProvider>
-              {children} {/* Header and pages */}
+              {children}
               <Toaster />
             </CartProvider>
           </Providers>
