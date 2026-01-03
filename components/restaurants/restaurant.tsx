@@ -83,7 +83,7 @@ export function Restaurants() {
   return (
     <div className="space-y-10">
       {/* Sticky Filter Bar */}
-      <div className="sticky top-20 z-30 bg-white/80 backdrop-blur-xl rounded-2xl shadow-sm border border-gray-200/60 p-4 transition-all supports-[backdrop-filter]:bg-white/60">
+      <div className="top-20 z-30 bg-white/80 backdrop-blur-xl rounded-2xl shadow-sm border border-gray-200/60 p-4 transition-all supports-[backdrop-filter]:bg-white/60">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="relative flex-1 group">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 group-focus-within:text-[#7b1e3a] transition-colors" />

@@ -9,7 +9,7 @@ import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { getErrorMessage } from "@/lib/error-utils"; // Import utility
+import { getErrorMessage } from "@/lib/error-utils";
 import {
   Form,
   FormControl,
@@ -18,10 +18,9 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Loader2, Eye, EyeOff } from "lucide-react";
+import { Loader2, Eye, EyeOff, User, Mail, Phone, Lock } from "lucide-react";
 import { GoogleLoginBtn } from "./google-button";
 
-// Improved Schema with better messages
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters" }),
   email: z.string().email({ message: "Please enter a valid email address" }),
@@ -31,7 +30,7 @@ const formSchema = z.object({
 
 export function SignupForm() {
   const router = useRouter();
-  const { register: registerUser } = useAuth(); // Renamed to avoid conflict with RHF
+  const { register: registerUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -53,14 +52,10 @@ export function SignupForm() {
         email: values.email,
         password: values.password,
         phone: values.phone,
-        role: "CUSTOMER", // Default role
+        role: "CUSTOMER",
       });
-      
-      // Success is handled in AuthContext (toast + redirect), but we can double check
-      // Typically context redirects to /verify-otp
-
+      // Success logic is handled via context/toast usually
     } catch (error: any) {
-      // THE NEW ERROR HANDLING
       const friendlyMessage = getErrorMessage(error);
       toast.error(friendlyMessage);
     } finally {
@@ -72,96 +67,138 @@ export function SignupForm() {
     <div className="grid gap-6">
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          
+          {/* NAME FIELD */}
           <FormField
             control={form.control}
             name="name"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Full Name</FormLabel>
+              <FormItem className="space-y-1">
+                <FormLabel className="text-gray-700 font-semibold">Full Name</FormLabel>
                 <FormControl>
-                  <Input placeholder="John Doe" {...field} />
+                  <div className="relative group">
+                    <User className="absolute left-3 top-3 h-5 w-5 text-gray-400 group-focus-within:text-[#7b1e3a] transition-colors" />
+                    <Input 
+                        placeholder="John Doe" 
+                        className="pl-10 h-11 bg-gray-50 border-gray-200 focus:bg-white focus:border-[#7b1e3a] focus:ring-[#7b1e3a]/20 transition-all rounded-xl"
+                        {...field} 
+                    />
+                  </div>
                 </FormControl>
-                <FormMessage />
+                <FormMessage className="text-red-500 font-medium text-xs" />
               </FormItem>
             )}
           />
+
+          {/* EMAIL FIELD */}
           <FormField
             control={form.control}
             name="email"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Email</FormLabel>
+              <FormItem className="space-y-1">
+                <FormLabel className="text-gray-700 font-semibold">Email</FormLabel>
                 <FormControl>
-                  <Input placeholder="name@example.com" type="email" {...field} />
+                  <div className="relative group">
+                    <Mail className="absolute left-3 top-3 h-5 w-5 text-gray-400 group-focus-within:text-[#7b1e3a] transition-colors" />
+                    <Input 
+                        placeholder="name@example.com" 
+                        type="email" 
+                        className="pl-10 h-11 bg-gray-50 border-gray-200 focus:bg-white focus:border-[#7b1e3a] focus:ring-[#7b1e3a]/20 transition-all rounded-xl"
+                        {...field} 
+                    />
+                  </div>
                 </FormControl>
-                <FormMessage />
+                <FormMessage className="text-red-500 font-medium text-xs" />
               </FormItem>
             )}
           />
+
+           {/* PHONE FIELD */}
            <FormField
             control={form.control}
             name="phone"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Phone Number</FormLabel>
+              <FormItem className="space-y-1">
+                <FormLabel className="text-gray-700 font-semibold">Phone Number</FormLabel>
                 <FormControl>
-                  <Input placeholder="08012345678" type="tel" {...field} />
+                  <div className="relative group">
+                    <Phone className="absolute left-3 top-3 h-5 w-5 text-gray-400 group-focus-within:text-[#7b1e3a] transition-colors" />
+                    <Input 
+                        placeholder="08012345678" 
+                        type="tel" 
+                        className="pl-10 h-11 bg-gray-50 border-gray-200 focus:bg-white focus:border-[#7b1e3a] focus:ring-[#7b1e3a]/20 transition-all rounded-xl"
+                        {...field} 
+                    />
+                  </div>
                 </FormControl>
-                <FormMessage />
+                <FormMessage className="text-red-500 font-medium text-xs" />
               </FormItem>
             )}
           />
+
+          {/* PASSWORD FIELD */}
           <FormField
             control={form.control}
             name="password"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Password</FormLabel>
+              <FormItem className="space-y-1">
+                <FormLabel className="text-gray-700 font-semibold">Password</FormLabel>
                 <FormControl>
-                  <div className="relative">
+                  <div className="relative group">
+                    <Lock className="absolute left-3 top-3 h-5 w-5 text-gray-400 group-focus-within:text-[#7b1e3a] transition-colors" />
                     <Input 
                       type={showPassword ? "text" : "password"} 
                       placeholder="Create a password" 
+                      className="pl-10 pr-10 h-11 bg-gray-50 border-gray-200 focus:bg-white focus:border-[#7b1e3a] focus:ring-[#7b1e3a]/20 transition-all rounded-xl"
                       {...field} 
                     />
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                      className="absolute right-1 top-1 h-9 w-9 p-0 hover:bg-transparent text-gray-400 hover:text-gray-600"
                       onClick={() => setShowPassword(!showPassword)}
                     >
                       {showPassword ? (
-                        <EyeOff className="h-4 w-4 text-muted-foreground" />
+                        <EyeOff className="h-4 w-4" />
                       ) : (
-                        <Eye className="h-4 w-4 text-muted-foreground" />
+                        <Eye className="h-4 w-4" />
                       )}
                     </Button>
                   </div>
                 </FormControl>
-                <FormMessage />
+                <FormMessage className="text-red-500 font-medium text-xs" />
               </FormItem>
             )}
           />
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+
+          <Button 
+            type="submit" 
+            className="w-full h-11 bg-[#7b1e3a] hover:bg-[#60152b] text-white font-bold text-base shadow-lg shadow-[#7b1e3a]/25 rounded-xl transition-all active:scale-[0.98] mt-2" 
+            disabled={isLoading}
+          >
+            {isLoading && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
             Create Account
           </Button>
         </form>
       </Form>
       
-      <div className="relative">
+      {/* DIVIDER */}
+      <div className="relative py-2">
         <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t" />
+          <span className="w-full border-t border-gray-200" />
         </div>
         <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-background px-2 text-muted-foreground">
+          <span className="bg-white px-2 text-gray-500 font-medium tracking-wider">
             Or continue with
           </span>
         </div>
       </div>
       
-      <GoogleLoginBtn />
+      {/* GOOGLE BUTTON WRAPPER */}
+      <div className="[&>button]:w-full [&>button]:h-11 [&>button]:rounded-xl [&>button]:font-medium [&>button]:border-gray-200 [&>button]:bg-white [&>button]:hover:bg-gray-50 [&>button]:text-gray-700">
+        <GoogleLoginBtn />
+      </div>
     </div>
   );
 }

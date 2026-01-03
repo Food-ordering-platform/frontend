@@ -9,6 +9,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { Suspense } from "react";
 import "./globals.css";
 import Providers from "@/lib/provider";
+import { InstallPrompt } from "../components/pwa/install-prompt"; // We will create this
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -19,8 +20,19 @@ const dmSans = DM_Sans({
 export const metadata: Metadata = {
   title: "ChowEazy",
   description: "Order from the finest restaurants delivered to your door",
-  manifest: "/manifest.json", // 2. LINK THE MANIFEST HERE
+  manifest: "/manifest.json",
+  // ADD THIS: Specific iOS configuration
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "ChowEazy",
+  },
+  // ADD THIS: Explicit icon linking for iOS (Apple devices ignore manifest icons often)
+  icons: {
+    apple: "/official_logo.png", // Ensure this path is correct
+  },
 };
+
 
 // 3. ADD VIEWPORT EXPORT
 export const viewport: Viewport = {
@@ -43,6 +55,8 @@ export default function RootLayout({
           <Providers>
             <CartProvider>
               {children}
+              {/* Add the Prompt Component here so it checks on every page load */}
+              <InstallPrompt /> 
               <Toaster />
             </CartProvider>
           </Providers>

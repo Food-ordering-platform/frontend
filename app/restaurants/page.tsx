@@ -11,7 +11,7 @@ export default function RestaurantsPage() {
           <div className="container">
             <div className="text-center space-y-4 mb-12">
               <h1 className="text-3xl md:text-4xl font-bold text-balance">
-                Discover Amazing <span className="text-gradient-red">Restaurants</span>
+                Discover Amazing <span className="text-[#7b1e3a]">Restaurants</span>
               </h1>
               <p className="text-lg text-muted-foreground text-pretty max-w-2xl mx-auto">
                 Browse through our curated selection of top-rated restaurants and find your next favorite meal.
