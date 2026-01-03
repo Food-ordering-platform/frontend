@@ -15,17 +15,23 @@ import {
 import { CartDrawer } from "@/components/cart/cart-drawer"
 import { User, LogOut, ShoppingBag, Heart } from "lucide-react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 
 export function Header() {
   const { user, logout, isLoading } = useAuth()
   const { clearCart } = useCart()
   const router = useRouter()
+  const pathname = usePathname()
 
   const handleLogout = () => {
     clearCart()
     logout()
     router.push("/")
+  }
+
+  // 🛑 STOP: If we are on a Rider or Partner page, DO NOT show this header.
+  if (pathname.includes("/ride") || pathname.includes("/partner")) {
+    return null;
   }
 
   return (

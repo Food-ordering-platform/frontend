@@ -19,12 +19,13 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: string;
+  // role: string;
   phone?: string;      // Added
   address?: string;    // Added
   latitude?: number;   // Added
   longitude?: number;  // Added
   isVerified?: boolean;
+  role: "CUSTOMER" | "ADMIN" | "VENDOR" | "RIDER" | "DISPATCHER"; // [Updated]
 }
 
 export interface AuthResponse {
