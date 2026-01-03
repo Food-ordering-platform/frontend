@@ -22,12 +22,12 @@ export default function HomePage() {
 
         <PaymentFeatureSection />
 
-        <FAQSection />
-
         {/* New Vendor Section */}
         <VendorSection />
 
         <DownloadAppSection />
+
+         <FAQSection />
         
       </main>
       <Footer />
