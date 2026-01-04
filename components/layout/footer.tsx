@@ -24,7 +24,7 @@ export function Footer() {
                  />
               </div>
               <span className="text-2xl font-extrabold tracking-tight text-white group-hover:text-[#7b1e3a] transition-colors">
-                Choweazy
+                Chow<span className="text-[#7b1e3a]">eazy</span>
               </span>
             </Link>
             <p className="text-gray-400 text-sm leading-relaxed">

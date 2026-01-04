@@ -26,7 +26,7 @@ export default function DownloadAppSectionFormatted() {
             </div>
 
             <h2 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-gray-900 tracking-tight leading-[1.1]">
-              Hunger dey wire? <br />
+              Aren't you hungry? <br />
               <span className="text-[#7b1e3a]">We move sharp.</span>
             </h2>
 

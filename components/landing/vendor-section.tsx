@@ -25,7 +25,7 @@ export function VendorSection() {
             
             <p className="text-gray-400 text-lg leading-relaxed">
               Partner with us to reach more customers in Warri. We handle the delivery, you handle the cooking. 
-              <span className="block mt-2 text-white font-medium">15% commission. 100% support.</span>
+              <span className="block mt-2 text-white font-medium">100% support.</span>
             </p>
             
             <div className="pt-2">

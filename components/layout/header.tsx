@@ -69,7 +69,7 @@ export function Header() {
               />
             </div>
             <span className="font-extrabold text-lg md:text-xl tracking-tight text-[#7b1e3a]">
-              ChowEazy
+              Choweazy
             </span>
           </Link>
 
