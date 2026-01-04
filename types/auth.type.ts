@@ -6,7 +6,7 @@ export interface RegisterData {
   password?: string;
   phone?: string;
   role?: "CUSTOMER" | "VENDOR" | "RIDER";
-  terms:Boolean
+  terms:boolean
 }
 
 export interface LoginData {

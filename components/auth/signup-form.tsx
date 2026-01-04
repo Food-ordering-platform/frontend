@@ -10,8 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/error-utils";
-import { Checkbox } from "@/components/ui/checkbox"; // Import Checkbox
-import Link from "next/link"; // Import Link
+import { Checkbox } from "@/components/ui/checkbox";
+import Link from "next/link";
 import {
   Form,
   FormControl,
@@ -23,20 +23,20 @@ import {
 import { Loader2, Eye, EyeOff, User, Mail, Phone, Lock } from "lucide-react";
 import { GoogleLoginBtn } from "./google-button";
 
+// Schema handles the logic validation
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters" }),
   email: z.string().email({ message: "Please enter a valid email address" }),
   password: z.string().min(6, { message: "Password must be at least 6 characters" }),
   phone: z.string().min(10, { message: "Please enter a valid phone number" }),
-  // Add Validation for Terms
-  terms: z.literal(true, {
-    errorMap: () => ({ message: "You must accept the terms to continue" }),
+  // Updated to fix the boolean type error from before
+  terms: z.boolean().refine((val) => val === true, {
+    message: "You must accept the terms to continue",
   }),
 });
 
 export function SignupForm() {
-  const router = useRouter();
-  const { register: registerUser } = useAuth(); // This calls your context's register function
+  const { register: registerUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -47,23 +47,22 @@ export function SignupForm() {
       email: "",
       password: "",
       phone: "",
-      terms: false, // Default unchecked
+      terms: false,
     },
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     try {
-      // Pass 'terms: true' to your existing register function
       await registerUser({
         name: values.name,
         email: values.email,
         password: values.password,
         phone: values.phone,
         role: "CUSTOMER",
-        terms: values.terms, // <--- Passing the value to context
+        terms: values.terms,
       });
-      // Context handles redirection/toast on success
+      // Redirect is handled by context/auth logic usually
     } catch (error: any) {
       const friendlyMessage = getErrorMessage(error);
       toast.error(friendlyMessage);
@@ -73,98 +72,100 @@ export function SignupForm() {
   }
 
   return (
-    <div className="grid gap-6">
+    <div className="w-full max-w-[450px] mx-auto px-1 sm:px-0">
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 sm:space-y-5">
           
-          {/* ... (Keep Name, Email, Phone, Password Fields EXACTLY as they are) ... */}
-
           {/* NAME FIELD */}
           <FormField
             control={form.control}
             name="name"
             render={({ field }) => (
-              <FormItem className="space-y-1">
-                <FormLabel className="text-gray-700 font-semibold">Full Name</FormLabel>
+              <FormItem className="space-y-1.5">
+                <FormLabel className="text-sm font-semibold text-gray-700">Full Name</FormLabel>
                 <FormControl>
                   <div className="relative group">
-                    <User className="absolute left-3 top-3 h-5 w-5 text-gray-400 group-focus-within:text-[#7b1e3a] transition-colors" />
+                    <User className="absolute left-3.5 top-3.5 h-5 w-5 text-gray-400 group-focus-within:text-[#7b1e3a] transition-colors" />
                     <Input 
                         placeholder="John Doe" 
-                        className="pl-10 h-11 bg-gray-50 border-gray-200 focus:bg-white focus:border-[#7b1e3a] focus:ring-[#7b1e3a]/20 transition-all rounded-xl"
+                        className="pl-11 h-12 bg-gray-50/50 border-gray-200 focus:bg-white focus:border-[#7b1e3a] focus:ring-[#7b1e3a]/20 rounded-xl text-base sm:text-sm shadow-sm transition-all"
                         {...field} 
                     />
                   </div>
                 </FormControl>
-                <FormMessage className="text-red-500 font-medium text-xs" />
+                <FormMessage className="text-xs font-medium text-red-500" />
               </FormItem>
             )}
           />
 
+          {/* EMAIL FIELD */}
           <FormField
             control={form.control}
             name="email"
             render={({ field }) => (
-              <FormItem className="space-y-1">
-                <FormLabel className="text-gray-700 font-semibold">Email</FormLabel>
+              <FormItem className="space-y-1.5">
+                <FormLabel className="text-sm font-semibold text-gray-700">Email Address</FormLabel>
                 <FormControl>
                   <div className="relative group">
-                    <Mail className="absolute left-3 top-3 h-5 w-5 text-gray-400 group-focus-within:text-[#7b1e3a] transition-colors" />
+                    <Mail className="absolute left-3.5 top-3.5 h-5 w-5 text-gray-400 group-focus-within:text-[#7b1e3a] transition-colors" />
                     <Input 
                         placeholder="name@example.com" 
                         type="email" 
-                        className="pl-10 h-11 bg-gray-50 border-gray-200 focus:bg-white focus:border-[#7b1e3a] focus:ring-[#7b1e3a]/20 transition-all rounded-xl"
+                        // text-base prevents iOS zoom on focus
+                        className="pl-11 h-12 bg-gray-50/50 border-gray-200 focus:bg-white focus:border-[#7b1e3a] focus:ring-[#7b1e3a]/20 rounded-xl text-base sm:text-sm shadow-sm transition-all"
                         {...field} 
                     />
                   </div>
                 </FormControl>
-                <FormMessage className="text-red-500 font-medium text-xs" />
+                <FormMessage className="text-xs font-medium text-red-500" />
               </FormItem>
             )}
           />
 
-           <FormField
+          {/* PHONE FIELD */}
+          <FormField
             control={form.control}
             name="phone"
             render={({ field }) => (
-              <FormItem className="space-y-1">
-                <FormLabel className="text-gray-700 font-semibold">Phone Number</FormLabel>
+              <FormItem className="space-y-1.5">
+                <FormLabel className="text-sm font-semibold text-gray-700">Phone Number</FormLabel>
                 <FormControl>
                   <div className="relative group">
-                    <Phone className="absolute left-3 top-3 h-5 w-5 text-gray-400 group-focus-within:text-[#7b1e3a] transition-colors" />
+                    <Phone className="absolute left-3.5 top-3.5 h-5 w-5 text-gray-400 group-focus-within:text-[#7b1e3a] transition-colors" />
                     <Input 
-                        placeholder="08012345678" 
+                        placeholder="080 1234 5678" 
                         type="tel" 
-                        className="pl-10 h-11 bg-gray-50 border-gray-200 focus:bg-white focus:border-[#7b1e3a] focus:ring-[#7b1e3a]/20 transition-all rounded-xl"
+                        className="pl-11 h-12 bg-gray-50/50 border-gray-200 focus:bg-white focus:border-[#7b1e3a] focus:ring-[#7b1e3a]/20 rounded-xl text-base sm:text-sm shadow-sm transition-all"
                         {...field} 
                     />
                   </div>
                 </FormControl>
-                <FormMessage className="text-red-500 font-medium text-xs" />
+                <FormMessage className="text-xs font-medium text-red-500" />
               </FormItem>
             )}
           />
 
+          {/* PASSWORD FIELD */}
           <FormField
             control={form.control}
             name="password"
             render={({ field }) => (
-              <FormItem className="space-y-1">
-                <FormLabel className="text-gray-700 font-semibold">Password</FormLabel>
+              <FormItem className="space-y-1.5">
+                <FormLabel className="text-sm font-semibold text-gray-700">Password</FormLabel>
                 <FormControl>
                   <div className="relative group">
-                    <Lock className="absolute left-3 top-3 h-5 w-5 text-gray-400 group-focus-within:text-[#7b1e3a] transition-colors" />
+                    <Lock className="absolute left-3.5 top-3.5 h-5 w-5 text-gray-400 group-focus-within:text-[#7b1e3a] transition-colors" />
                     <Input 
                       type={showPassword ? "text" : "password"} 
-                      placeholder="Create a password" 
-                      className="pl-10 pr-10 h-11 bg-gray-50 border-gray-200 focus:bg-white focus:border-[#7b1e3a] focus:ring-[#7b1e3a]/20 transition-all rounded-xl"
+                      placeholder="••••••••" 
+                      className="pl-11 pr-11 h-12 bg-gray-50/50 border-gray-200 focus:bg-white focus:border-[#7b1e3a] focus:ring-[#7b1e3a]/20 rounded-xl text-base sm:text-sm shadow-sm transition-all"
                       {...field} 
                     />
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="absolute right-1 top-1 h-9 w-9 p-0 hover:bg-transparent text-gray-400 hover:text-gray-600"
+                      className="absolute right-1 top-1 h-10 w-10 p-0 hover:bg-transparent text-gray-400 hover:text-gray-600"
                       onClick={() => setShowPassword(!showPassword)}
                     >
                       {showPassword ? (
@@ -172,47 +173,59 @@ export function SignupForm() {
                       ) : (
                         <Eye className="h-4 w-4" />
                       )}
+                      <span className="sr-only">Toggle password visibility</span>
                     </Button>
                   </div>
                 </FormControl>
-                <FormMessage className="text-red-500 font-medium text-xs" />
+                <FormMessage className="text-xs font-medium text-red-500" />
               </FormItem>
             )}
           />
 
-          {/* 👇 NEW TERMS CHECKBOX FIELD */}
+         {/* RESPONSIVE TERMS CHECKBOX */}
           <FormField
             control={form.control}
             name="terms"
             render={({ field }) => (
-              <FormItem className="flex flex-row items-start space-x-3 space-y-0 py-2">
+              <FormItem className="flex flex-row items-start space-x-3 space-y-0 py-3">
                 <FormControl>
                   <Checkbox
                     checked={field.value}
                     onCheckedChange={field.onChange}
-                    className="border-gray-300 data-[state=checked]:bg-[#7b1e3a] data-[state=checked]:border-[#7b1e3a]"
+                    // 1. shrink-0 prevents the box from squashing
+                    // 2. mt-1 aligns it with the first line of text
+                    className="shrink-0 mt-0.5 border-gray-300 data-[state=checked]:bg-[#7b1e3a] data-[state=checked]:border-[#7b1e3a] w-5 h-5 rounded-md"
                   />
                 </FormControl>
-                <div className="space-y-1 leading-none">
-                  <FormLabel className="text-sm font-medium text-gray-600">
+                
+                {/* 3. flex-1 forces the text to fill remaining space and WRAP */}
+                <div className="space-y-1 leading-normal flex-1">
+                  <FormLabel className="text-sm text-gray-600 font-normal block leading-tight">
                     I agree to the{" "}
-                    <Link href="/terms" className="text-[#7b1e3a] hover:underline font-bold" target="_blank">
+                    <Link 
+                      href="/terms" 
+                      className="text-[#7b1e3a] font-semibold hover:underline whitespace-nowrap" 
+                      target="_blank"
+                    >
                       Terms of Service
                     </Link>{" "}
                     and{" "}
-                    <Link href="/privacy" className="text-[#7b1e3a] hover:underline font-bold" target="_blank">
+                    <Link 
+                      href="/privacy" 
+                      className="text-[#7b1e3a] font-semibold hover:underline whitespace-nowrap" 
+                      target="_blank"
+                    >
                       Privacy Policy
                     </Link>
                   </FormLabel>
-                  <FormMessage className="text-xs text-red-500" />
+                  <FormMessage className="text-xs font-medium text-red-500 block mt-1" />
                 </div>
               </FormItem>
             )}
           />
-
           <Button 
             type="submit" 
-            className="w-full h-11 bg-[#7b1e3a] hover:bg-[#60152b] text-white font-bold text-base shadow-lg shadow-[#7b1e3a]/25 rounded-xl transition-all active:scale-[0.98] mt-2" 
+            className="w-full h-12 bg-[#7b1e3a] hover:bg-[#60152b] text-white font-bold text-base shadow-lg shadow-[#7b1e3a]/20 rounded-xl transition-all active:scale-[0.98]" 
             disabled={isLoading}
           >
             {isLoading && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
@@ -221,22 +234,22 @@ export function SignupForm() {
         </form>
       </Form>
       
-      {/* ... (Keep Divider and Google Button) ... */}
-       <div className="relative py-2">
+      {/* DIVIDER */}
+      <div className="relative py-6">
         <div className="absolute inset-0 flex items-center">
           <span className="w-full border-t border-gray-200" />
         </div>
         <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-white px-2 text-gray-500 font-medium tracking-wider">
+          <span className="bg-white px-3 text-gray-500 font-medium tracking-wider">
             Or continue with
           </span>
         </div>
       </div>
       
-      <div className="[&>button]:w-full [&>button]:h-11 [&>button]:rounded-xl [&>button]:font-medium [&>button]:border-gray-200 [&>button]:bg-white [&>button]:hover:bg-gray-50 [&>button]:text-gray-700">
+      {/* GOOGLE BUTTON WRAPPER */}
+      <div className="w-full [&_button]:w-full [&_button]:h-12 [&_button]:rounded-xl [&_button]:text-base [&_button]:bg-white [&_button]:border [&_button]:border-gray-200 [&_button]:shadow-sm [&_button]:hover:bg-gray-50">
         <GoogleLoginBtn />
       </div>
-
     </div>
   );
 }
