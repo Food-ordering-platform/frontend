@@ -1,7 +1,8 @@
 // src/app/layout.tsx
 import type React from "react";
-import type { Metadata, Viewport } from "next"; // 1. Import Viewport
-import { DM_Sans } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+// 1. IMPORT NEW FONTS
+import { DM_Sans, Inter, Playfair_Display } from "next/font/google"; 
 import { GeistMono } from "geist/font/mono";
 import { Analytics } from "@vercel/analytics/next";
 import { CartProvider } from "@/lib/cart-context";
@@ -9,7 +10,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { Suspense } from "react";
 import "./globals.css";
 import Providers from "@/lib/provider";
-import { InstallPrompt } from "../components/pwa/install-prompt"; // We will create this
+import { InstallPrompt } from "../components/pwa/install-prompt";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -17,30 +18,40 @@ const dmSans = DM_Sans({
   variable: "--font-dm-sans",
 });
 
+// 2. CONFIGURE INTER (For Body Text - High Readability)
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
+// 3. CONFIGURE PLAYFAIR DISPLAY (For Headings - Premium/Legal feel)
+const playfair = Playfair_Display({
+  subsets: ["latin"],
+  variable: "--font-playfair",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "ChowEazy",
   description: "Order from the finest restaurants delivered to your door",
   manifest: "/manifest.json",
-  // ADD THIS: Specific iOS configuration
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "ChowEazy",
   },
-  // ADD THIS: Explicit icon linking for iOS (Apple devices ignore manifest icons often)
   icons: {
-    apple: "/official_logo.png", // Ensure this path is correct
+    apple: "/official_logo.png",
   },
 };
 
-
-// 3. ADD VIEWPORT EXPORT
 export const viewport: Viewport = {
   themeColor: "#c72c41",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  userScalable: false, // Prevents zooming like a native app
+  userScalable: false,
 };
 
 export default function RootLayout({
@@ -50,12 +61,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`font-sans ${dmSans.variable} ${GeistMono.variable} antialiased`}>
+      {/* 4. ADD VARIABLES TO BODY */}
+      <body className={`font-sans ${dmSans.variable} ${inter.variable} ${playfair.variable} ${GeistMono.variable} antialiased`}>
         <Suspense fallback={null}>
           <Providers>
             <CartProvider>
               {children}
-              {/* Add the Prompt Component here so it checks on every page load */}
               <InstallPrompt /> 
               <Toaster />
             </CartProvider>
