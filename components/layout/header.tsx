@@ -107,7 +107,8 @@ export function Header() {
               <Skeleton className="h-10 w-10 rounded-full bg-gray-200" />
             ) : user ? (
               // --- LOGGED IN USER (Desktop & Mobile) ---
-              <DropdownMenu>
+              // FIX APPLIED: modal={false} prevents body scroll locking which causes the hang
+              <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
                   <div className="relative h-9 w-9 md:h-10 md:w-10 rounded-full cursor-pointer hover:bg-[#7b1e3a]/10 flex items-center justify-center transition-colors">
                     <Avatar className="h-8 w-8 md:h-9 md:w-9 border border-gray-200">

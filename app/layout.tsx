@@ -10,7 +10,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { Suspense } from "react";
 import "./globals.css";
 import Providers from "@/lib/provider";
-import { InstallPrompt } from "../components/pwa/install-prompt";
+// import { InstallPrompt } from "../components/pwa/install-prompt";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -67,7 +67,7 @@ export default function RootLayout({
           <Providers>
             <CartProvider>
               {children}
-              <InstallPrompt /> 
+              {/* <InstallPrompt />  */}
               <Toaster />
             </CartProvider>
           </Providers>
