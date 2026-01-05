@@ -17,7 +17,7 @@ export function Footer() {
               {/* Logo Image */}
               <div className="relative h-10 w-10 overflow-hidden rounded-lg bg-white/5 p-1">
                  <Image 
-                    src="/official_logo.png" 
+                    src="/official_logo.svg" 
                     alt="ChowEazy Logo"
                     fill
                     className="object-cover"

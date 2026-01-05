@@ -62,7 +62,7 @@ export function Header() {
           <Link href="/" className="flex items-center gap-2 group z-50">
             <div className="relative h-9 w-9 md:h-10 md:w-10 overflow-hidden rounded-lg">
               <Image 
-                  src="/official_logo.png" 
+                  src="/official_logo.svg" 
                   alt="ChowEazy Logo" 
                   fill
                   className="object-cover"
