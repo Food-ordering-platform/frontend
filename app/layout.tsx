@@ -42,7 +42,7 @@ export const metadata: Metadata = {
     title: "ChowEazy",
   },
   icons: {
-    apple: "/official_logo.png",
+    apple: "/official_logo.svg",
   },
 };
 
