@@ -6,13 +6,13 @@ import { useQueryClient } from "@tanstack/react-query";
 import { LoginData, RegisterData, User } from "@/types/auth.type"; 
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/error-utils";
-import { useCurrentUser, useLogin, useRegister, useGoogleLogin } from "@/services/auth/auth.queries"; // Import useGoogleLogin
+import { useCurrentUser, useLogin, useRegister, useGoogleLogin } from "@/services/auth/auth.queries"; 
 
 interface AuthContextType {
   user: User | null; 
   isLoading: boolean;
   login: (data: LoginData) => Promise<void>;
-  googleLogin: (token: string) => Promise<boolean>; // Add googleLogin to interface
+  googleLogin: (token: string) => Promise<boolean>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => void;
   checkAuth: () => Promise<void>;
@@ -22,7 +22,6 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  // ... existing state and hooks
   const [isCheckingToken, setIsCheckingToken] = useState<boolean>(true);
   const [hasToken, setHasToken] = useState<boolean>(false);
   
@@ -32,7 +31,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loginMutation = useLogin();
   const registerMutation = useRegister();
-  const googleLoginMutation = useGoogleLogin(); // Initialize hook
+  const googleLoginMutation = useGoogleLogin();
   
   const { 
     data: user, 
@@ -41,11 +40,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refetch 
   } = useCurrentUser(hasToken);
 
-  // ... existing useEffects
+  // --- FIX: Initialization Effect ---
+  useEffect(() => {
+    const initializeAuth = () => {
+      const token = localStorage.getItem("token");
+      if (token) {
+        setHasToken(true);
+        // We do NOT await refetch() here. 
+        // Setting hasToken(true) automatically triggers useCurrentUser to fetch.
+      }
+      // Immediately stop the "Checking Token" phase so the UI can update
+      setIsCheckingToken(false);
+    };
 
-  // Helper to handle navigation after successful login
+    initializeAuth();
+  }, []);
+
   const handlePostLoginNavigation = (userData: User) => {
-    // Logic: If user has no address/coordinates, go to setup. Else go to restaurants.
     if (!userData.address || !userData.latitude || !userData.longitude) {
       toast.info("Please set your delivery location to continue.");
       router.push("/setup-location");
@@ -71,9 +82,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setHasToken(true);
         if (res.user) {
           queryClient.setQueryData(["currentUser"], res.user);
-          handlePostLoginNavigation(res.user); // Use helper
+          handlePostLoginNavigation(res.user);
         } else {
-            // Fallback if user object isn't in response immediately
             await refetch();
             router.push("/restaurants");
         }
@@ -84,10 +94,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Implement Google Login
   const googleLogin = async (token: string): Promise<boolean> => {
     try {
-      // The hook handles the payload construction
       const res = await googleLoginMutation.mutateAsync(token);
       
       if (res.token) {
@@ -99,7 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           handlePostLoginNavigation(res.user); 
         } else {
            await refetch();
-           router.push("/restaurants"); // Fallback
+           router.push("/restaurants");
         }
         return true;
       }
@@ -109,10 +117,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return false;
     }
   };
-  // ... register, logout, checkAuth implementation (keep existing)
   
   const register = async (data: RegisterData) => {
-      // ... existing implementation
       try {
         const res = await registerMutation.mutateAsync(data);
         toast.success("Registration successful! Please verify your email.");
@@ -125,7 +131,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = () => {
-    // ... existing implementation
     localStorage.removeItem("token");
     setHasToken(false);
     queryClient.setQueryData(["currentUser"], null); 
@@ -135,13 +140,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const checkAuth = async () => {
-     // ... existing implementation
     const token = localStorage.getItem("token");
     if (token) {
       setHasToken(true);
+      // We can await here if called manually, but it's often safer to let the query handle it
       await refetch();
     } else {
       setHasToken(false);
+      queryClient.setQueryData(["currentUser"], null);
     }
   };
 
@@ -149,6 +155,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       queryClient.setQueryData(["currentUser"], newUser);
   };
 
+  // Logic: Loading if checking localStorage OR (we have a token AND query is loading)
+  // The (hasToken && !user && !isError) catches the edge case where fetching has started but loading state hasn't flipped
   const isLoading = isCheckingToken || (hasToken && isUserLoading) || (hasToken && !user && !isError);
 
   return (
