@@ -10,49 +10,43 @@ export function SignupForm() {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   return (
-    <div className="w-full max-w-[450px] mx-auto px-1 sm:px-0 grid gap-6">
-       <div className="text-center space-y-2">
-        <p className="text-sm text-gray-500">
-          Create an account to start your delivery journey.
-        </p>
+    <div className="flex flex-col gap-4 w-full max-w-sm mx-auto">
+      
+      {/* GOOGLE BUTTON */}
+      <div className="w-full">
+         <GoogleLoginBtn disabled={!agreedToTerms} />
       </div>
 
-      {/* TERMS CHECKBOX */}
-      <div className="flex items-start space-x-3 p-4 bg-gray-50 rounded-xl border border-gray-100">
+      {/* REQUIRED CHECKBOX (Explicit Consent for New Accounts) */}
+      <div className="flex items-start gap-3 px-2">
         <Checkbox 
           id="signup-terms" 
           checked={agreedToTerms}
           onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)}
-          className="mt-1 data-[state=checked]:bg-[#7b1e3a] data-[state=checked]:border-[#7b1e3a]"
+          className="mt-0.5 border-gray-400 data-[state=checked]:bg-[#7b1e3a] data-[state=checked]:border-[#7b1e3a] transition-all"
         />
-        <div className="grid gap-1.5 leading-none">
+        <div className="grid gap-1 leading-none">
           <Label
             htmlFor="signup-terms"
-            className="text-sm font-medium text-gray-600 leading-snug cursor-pointer"
+            className="text-xs sm:text-sm text-gray-600 font-normal leading-snug cursor-pointer select-none"
           >
              I accept the{" "}
-            <Link href="/terms" className="text-[#7b1e3a] hover:underline">
+            <Link href="/terms" className="font-medium text-[#7b1e3a] hover:underline underline-offset-2">
               Terms & Conditions
             </Link>{" "}
             and{" "}
-            <Link href="/privacy" className="text-[#7b1e3a] hover:underline">
+            <Link href="/privacy" className="font-medium text-[#7b1e3a] hover:underline underline-offset-2">
               Privacy Policy
             </Link>
           </Label>
-          <p className="text-xs text-gray-400">
-            Required to create your account.
-          </p>
+          
+          {!agreedToTerms && (
+             <p className="text-[10px] text-gray-400 font-medium">
+               * Required to create account
+             </p>
+          )}
         </div>
       </div>
-
-      {/* GOOGLE BUTTON */}
-      <div className="w-full">
-        <GoogleLoginBtn disabled={!agreedToTerms} />
-      </div>
-
-      {/* Commented out manual form
-      <Form {...form}> ... </Form>
-      */}
     </div>
   );
 }

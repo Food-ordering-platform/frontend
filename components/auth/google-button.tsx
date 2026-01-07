@@ -2,7 +2,7 @@
 
 import { GoogleLogin } from "@react-oauth/google";
 import { useAuth } from "@/lib/auth-context";
-import { toast } from "sonner";
+import { toast } from "sonner"; 
 
 interface GoogleLoginBtnProps {
   disabled?: boolean;
@@ -12,12 +12,12 @@ export function GoogleLoginBtn({ disabled = false }: GoogleLoginBtnProps) {
   const { googleLogin } = useAuth();
 
   return (
-    <div
-      className={`w-full transition-all duration-300 ${
-        disabled ? "opacity-50 pointer-events-none grayscale" : ""
+    <div 
+      className={`w-full flex justify-center transition-all duration-300 ${
+        disabled ? "opacity-50 grayscale pointer-events-none" : "opacity-100"
       }`}
     >
-      <div className="w-full flex justify-center">
+      <div className="w-full">
         <GoogleLogin
           onSuccess={async (credentialResponse) => {
             if (credentialResponse.credential) {
@@ -27,9 +27,9 @@ export function GoogleLoginBtn({ disabled = false }: GoogleLoginBtnProps) {
           onError={() => toast.error("Google login failed")}
           theme="outline"
           size="large"
-          width={320} // 🔥 IMPORTANT: Use pixel width for mobile reliability
+          width="100%" // Relies on container width
           text="continue_with"
-          shape="pill"
+          shape="pill" 
         />
       </div>
     </div>
