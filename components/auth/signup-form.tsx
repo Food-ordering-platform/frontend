@@ -14,7 +14,7 @@ export function SignupForm() {
       
       {/* GOOGLE BUTTON */}
       <div className="w-full">
-         <GoogleLoginBtn disabled={!agreedToTerms} />
+         <GoogleLoginBtn disabled={!agreedToTerms} mode="signup" />
       </div>
 
       {/* REQUIRED CHECKBOX (Explicit Consent for New Accounts) */}

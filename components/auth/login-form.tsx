@@ -7,9 +7,9 @@ export function LoginForm() {
   return (
     <div className="flex flex-col gap-4 w-full max-w-sm mx-auto">
       
-      {/* GOOGLE BUTTON (Always Active) */}
+      {/* GOOGLE BUTTON (Always Active, Strict Login Mode) */}
       <div className="w-full">
-         <GoogleLoginBtn disabled={false} />
+         <GoogleLoginBtn disabled={false} mode="login" />
       </div>
 
       {/* PASSIVE DISCLAIMER (No Checkbox) */}

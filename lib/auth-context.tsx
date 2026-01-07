@@ -12,7 +12,7 @@ interface AuthContextType {
   user: User | null; 
   isLoading: boolean;
   login: (data: LoginData) => Promise<void>;
-  googleLogin: (token: string) => Promise<boolean>;
+  googleLogin: (token: string, mode: "login" | "signup") => Promise<boolean>; // 👈 Updated
   register: (data: RegisterData) => Promise<void>;
   logout: () => void;
   checkAuth: () => Promise<void>;
@@ -40,16 +40,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refetch 
   } = useCurrentUser(hasToken);
 
-  // --- FIX: Initialization Effect ---
   useEffect(() => {
     const initializeAuth = () => {
       const token = localStorage.getItem("token");
       if (token) {
         setHasToken(true);
-        // We do NOT await refetch() here. 
-        // Setting hasToken(true) automatically triggers useCurrentUser to fetch.
       }
-      // Immediately stop the "Checking Token" phase so the UI can update
       setIsCheckingToken(false);
     };
 
@@ -94,9 +90,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const googleLogin = async (token: string): Promise<boolean> => {
+  // ------------------ UPDATED GOOGLE LOGIN ------------------
+  const googleLogin = async (token: string, mode: "login" | "signup"): Promise<boolean> => {
     try {
-      const res = await googleLoginMutation.mutateAsync(token);
+      // Pass the token AND strict "signup" mode flag
+      const res = await googleLoginMutation.mutateAsync({ 
+        token, 
+        termsAccepted: mode === "signup" 
+      });
       
       if (res.token) {
         localStorage.setItem("token", res.token);
@@ -104,7 +105,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (res.user) {
           queryClient.setQueryData(["currentUser"], res.user);
-          handlePostLoginNavigation(res.user); 
+          
+          if (mode === "signup") {
+               toast.success("Account created successfully!");
+               router.push("/setup-location");
+          } else {
+               handlePostLoginNavigation(res.user); 
+          }
         } else {
            await refetch();
            router.push("/restaurants");
@@ -113,7 +120,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       return false;
     } catch (error: any) {
-      toast.error(getErrorMessage(error));
+      // 🚀 Handle "Account not found" specifically
+      if (error?.response?.status === 404 || error.message.includes("Sign Up")) {
+         toast.error("Account does not exist.", {
+             description: "Please create an account first.",
+             action: {
+                 label: "Sign Up",
+                 onClick: () => router.push("/signup")
+             }
+         });
+      } else {
+         toast.error("Login failed", { description: error.message || "Google authentication failed" });
+      }
       return false;
     }
   };
@@ -143,7 +161,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const token = localStorage.getItem("token");
     if (token) {
       setHasToken(true);
-      // We can await here if called manually, but it's often safer to let the query handle it
       await refetch();
     } else {
       setHasToken(false);
@@ -155,8 +172,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       queryClient.setQueryData(["currentUser"], newUser);
   };
 
-  // Logic: Loading if checking localStorage OR (we have a token AND query is loading)
-  // The (hasToken && !user && !isError) catches the edge case where fetching has started but loading state hasn't flipped
   const isLoading = isCheckingToken || (hasToken && isUserLoading) || (hasToken && !user && !isError);
 
   return (

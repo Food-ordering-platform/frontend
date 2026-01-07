@@ -25,7 +25,6 @@ export default function SetupLocationPage() {
   const [address, setAddress] = useState("");
   const [loadingLocation, setLoadingLocation] = useState(false);
 
-  // Load Google Maps Script
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
@@ -40,8 +39,19 @@ export default function SetupLocationPage() {
     setMap(null);
   }, []);
 
-  // When map is dragged, update center state (visual only)
-  // To get address from drag, we'd need to geocode `map.getCenter()`
+  // 🚀 Helper to get address from lat/lng
+  const reverseGeocode = async (lat: number, lng: number) => {
+     try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+        const data = await res.json();
+        if (data.display_name) {
+            setAddress(data.display_name);
+        }
+     } catch (e) {
+        console.error("Geocoding failed", e);
+     }
+  };
+
   const onDragEnd = async () => {
     if (!map) return;
     const newCenter = map.getCenter();
@@ -49,13 +59,15 @@ export default function SetupLocationPage() {
         const lat = newCenter.lat();
         const lng = newCenter.lng();
         setCenter({ lat, lng });
-        // Optional: Reverse geocode here to show address name on drag
+        
+        // 🚀 TRIGGER UPDATE
+        await reverseGeocode(lat, lng);
     }
   };
 
   const handleConfirmLocation = async () => {
     if (!address) {
-        toast.error("Please select a valid address from the search bar");
+        toast.error("Please select a valid address");
         return;
     }
     
@@ -66,7 +78,6 @@ export default function SetupLocationPage() {
             longitude: center.lng
         });
         
-        // Update context
         if (user) {
             setUser({ ...user, ...updated.user, address, latitude: center.lat, longitude: center.lng });
         }
@@ -89,15 +100,7 @@ export default function SetupLocationPage() {
                 };
                 setCenter(pos);
                 map?.panTo(pos);
-
-                // Reverse Geocode for Address Name
-                try {
-                    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.lat}&lon=${pos.lng}`);
-                    const data = await res.json();
-                    if (data.display_name) setAddress(data.display_name);
-                } catch (e) {
-                    setAddress(`${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)}`);
-                }
+                await reverseGeocode(pos.lat, pos.lng);
                 setLoadingLocation(false);
             },
             () => {
@@ -112,7 +115,6 @@ export default function SetupLocationPage() {
 
   return (
     <div className="h-screen w-full flex flex-col relative">
-      {/* Map Background */}
       <div className="absolute inset-0 z-0">
           <GoogleMap
             mapContainerStyle={{ width: '100%', height: '100%' }}
@@ -130,14 +132,12 @@ export default function SetupLocationPage() {
                 }
             }}
           >
-            {/* The Pin is always in the center */}
             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none pb-[35px]">
                  <MapPin className="h-10 w-10 text-[#7b1e3a] drop-shadow-lg fill-current" />
             </div>
           </GoogleMap>
       </div>
 
-      {/* Floating Header Card */}
       <div className="absolute top-6 left-4 right-4 z-10 flex justify-center">
         <Card className="w-full max-w-lg shadow-xl border-0 bg-white/95 backdrop-blur">
             <div className="p-4 flex gap-2">
@@ -165,10 +165,7 @@ export default function SetupLocationPage() {
         </Card>
       </div>
 
-      {/* Floating Bottom Action */}
       <div className="absolute bottom-8 left-4 right-4 z-10 flex flex-col items-center gap-4">
-        
-        {/* GPS Button */}
         <Button 
             variant="secondary" 
             size="icon" 
@@ -178,7 +175,6 @@ export default function SetupLocationPage() {
             {loadingLocation ? <Loader2 className="h-5 w-5 animate-spin"/> : <Navigation className="h-5 w-5" />}
         </Button>
 
-        {/* Confirm Card */}
         <Card className="w-full max-w-md p-5 shadow-2xl border-0 bg-white space-y-4">
             <div>
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Confirm Location</p>

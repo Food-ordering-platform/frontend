@@ -1,3 +1,5 @@
+// food-ordering-platform/frontend/frontend-wip-staging/services/auth/auth.ts
+
 import { AArrowUp } from "lucide-react";
 import api from "../axios";
 import { RegisterData, LoginData, AuthResponse, verifyOTPpayload, VerifyOtpResponse, ForgotPasswordPayload,
@@ -8,37 +10,34 @@ import { RegisterData, LoginData, AuthResponse, verifyOTPpayload, VerifyOtpRespo
   ResetPasswordResponse,
   GoogleLoginPayload, } from "@/types/auth.type";
 
-
 //Register new user
 export const registerUser = async (
   data: RegisterData
 ): Promise<AuthResponse> => {
   try {
     const response = await api.post<AuthResponse>("/auth/register", data);
-    return response.data; // return only the data
-    console.log(response)
+    return response.data;
   } catch (error: any) {
     console.error("Register error:", error.response?.data || error.message);
     throw error;
   }
 };
+
 // Login (HYBRID UPDATE)
 export const loginUser = async (data: LoginData): Promise<AuthResponse> => {
-  // Force clientType to 'web'
   const payload = { ...data, clientType: "web" as const };
-  
   const response = await api.post<AuthResponse>("/auth/login", payload);
-
-  // Note: response.data.token might be undefined for web, which is correct (Session used)
   return response.data;
 };
 
+// --- UPDATED GOOGLE AUTH ---
 export const googleAuthenticate = async (
-  data: Omit<GoogleLoginPayload, "clientType"> // We only need the token from the UI
+  data: { token: string; termsAccepted?: boolean } // 👈 Updated signature
 ): Promise<AuthResponse> => {
-  const payload: GoogleLoginPayload = {
+  const payload = {
     token: data.token,
-    clientType: "web", // Hardcode 'web' here just like in loginUser
+    termsAccepted: data.termsAccepted, // Pass the flag
+    clientType: "web", 
   };
 
   const response = await api.post<AuthResponse>("/auth/google", payload);
@@ -54,9 +53,7 @@ export const getCurrentUser = async (): Promise<AuthResponse["user"]> => {
 
 // Verify OTP (HYBRID UPDATE)
 export const verifyOtp = async (data: verifyOTPpayload): Promise<VerifyOtpResponse> => {
-  // Force clientType to 'web'
   const payload = { ...data, clientType: "web" as const };
-  
   const response = await api.post<VerifyOtpResponse>("/auth/verify-otp", payload);
   return response.data;
 };

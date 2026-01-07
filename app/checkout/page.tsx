@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useCart } from "@/lib/cart-context";
 import { useCreateOrder, useGetOrderQuote } from "../../services/order/order.queries";
-import { useRestaurantById } from "@/services/restaurants/restaurants.queries";
 import { Header } from "@/components/layout/header";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { Button } from "@/components/ui/button";
@@ -24,13 +23,11 @@ import ReactGoogleAutocomplete from "react-google-autocomplete";
 
 const PLATFORM_FEE = 350;
 
-// 🌍 RESTRICTED BOUNDS (Warri, Effurun, Abraka Axis)
-// Excludes Asaba (6.7E) and Benin (6.3N)
 const DELTA_STATE_BOUNDS = {
-  north: 6.00, // Just above Abraka
-  south: 5.40, // Just below Warri
-  east: 6.30,  // Just East of Abraka
-  west: 5.60,  // Just West of Warri/Effurun
+  north: 6.00,
+  south: 5.40,
+  east: 6.30,
+  west: 5.60,
 };
 
 export default function CheckoutPage() {
@@ -47,17 +44,14 @@ export default function CheckoutPage() {
   const [orderNotes, setOrderNotes] = useState("");
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
 
-  // Address State (Internal Logic Only)
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [coords, setCoords] = useState<{lat: number, lng: number} | null>(null);
 
-  // ✅ PREFILL VARIABLE (Calculated once)
   const inputAutocompleteValue = user?.address || "";
 
   const idempotencyKey = useMemo(() => uuidv4(), []);
   const [quote, setQuote] = useState<OrderQuote | null>(null);
 
-  // 🚀 OPTIMIZATION: Pre-fill State from Profile (Logic only, no input manipulation)
   useEffect(() => {
     if (user?.address && user?.latitude && user?.longitude && !deliveryAddress) {
         setDeliveryAddress(user.address);
@@ -65,7 +59,6 @@ export default function CheckoutPage() {
     }
   }, [user]);
 
-  // 🧮 FETCH QUOTE EFFECT
   useEffect(() => {
     const fetchQuote = async () => {
         if (!restaurantId || !coords || items.length === 0) {
@@ -161,7 +154,6 @@ export default function CheckoutPage() {
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
               
-              {/* Left Column */}
               <div className="lg:col-span-7 space-y-8">
                 
                 <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }} className="relative z-20">
@@ -180,8 +172,10 @@ export default function CheckoutPage() {
                                     <div className="relative">
                                         <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400 z-10" />
                                         
-                                        {/* 🚀 FIXED: UNCONTROLLED COMPONENT with WARRI/ABRAKA BOUNDS */}
                                         <ReactGoogleAutocomplete
+                                            // 🚀 KEY FIX: Force re-render when default value is ready
+                                            key={inputAutocompleteValue ? "loaded" : "loading"} 
+                                            
                                             apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
                                             onPlaceSelected={(place) => {
                                                 if (place.geometry && place.geometry.location) {
@@ -189,7 +183,6 @@ export default function CheckoutPage() {
                                                     const lng = place.geometry.location.lng();
                                                     const address = place.formatted_address || "";
                                                     
-                                                    // 🛡️ Strict Client-Side Check for Delta State
                                                     if (!address.toLowerCase().includes("delta")) {
                                                         toast.error("Invalid Location", { description: "We currently only serve Warri, Effurun, and Abraka." });
                                                         setDeliveryAddress("");
@@ -203,17 +196,14 @@ export default function CheckoutPage() {
                                                 }
                                             }}
                                             options={{
-                                                types: [], // Empty to allow businesses/landmarks
+                                                types: [], 
                                                 componentRestrictions: { country: "ng" }, 
-                                                strictBounds: true, // ✅ FORCE BOUNDS
-                                                bounds: DELTA_STATE_BOUNDS, // ✅ WARRI/ABRAKA ONLY
+                                                strictBounds: true, 
+                                                bounds: DELTA_STATE_BOUNDS, 
                                             }}
-                                            defaultValue={inputAutocompleteValue}
+                                            defaultValue={inputAutocompleteValue} // This now works because of the key
                                             placeholder="Search & Select Address (e.g. PTI Junction)"
                                             className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 pl-9 ${coords ? 'border-green-500 focus-visible:ring-green-500' : ''}`}
-                                            // ❌ NO onChange
-                                            // ❌ NO value
-                                            // ❌ NO ref
                                         />
                                     </div>
 
