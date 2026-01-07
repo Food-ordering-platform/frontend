@@ -9,6 +9,10 @@ export interface RegisterData {
   terms:boolean
 }
 
+export interface GoogleLoginPayload {
+  token: string;
+  clientType: "web" | "mobile";
+}
 export interface LoginData {
   email: string;
   password: string;

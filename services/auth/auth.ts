@@ -5,7 +5,8 @@ import { RegisterData, LoginData, AuthResponse, verifyOTPpayload, VerifyOtpRespo
   VerifyResetOtpPayload,
   VerifyResetOtpResponse,
   ResetPasswordPayload,
-  ResetPasswordResponse, } from "@/types/auth.type";
+  ResetPasswordResponse,
+  GoogleLoginPayload, } from "@/types/auth.type";
 
 
 //Register new user
@@ -27,10 +28,23 @@ export const loginUser = async (data: LoginData): Promise<AuthResponse> => {
   const payload = { ...data, clientType: "web" as const };
   
   const response = await api.post<AuthResponse>("/auth/login", payload);
-  
+
   // Note: response.data.token might be undefined for web, which is correct (Session used)
   return response.data;
 };
+
+export const googleAuthenticate = async (
+  data: Omit<GoogleLoginPayload, "clientType"> // We only need the token from the UI
+): Promise<AuthResponse> => {
+  const payload: GoogleLoginPayload = {
+    token: data.token,
+    clientType: "web", // Hardcode 'web' here just like in loginUser
+  };
+
+  const response = await api.post<AuthResponse>("/auth/google", payload);
+  return response.data;
+};
+
 
 // Get Current User (Session Check)
 export const getCurrentUser = async (): Promise<AuthResponse["user"]> => {

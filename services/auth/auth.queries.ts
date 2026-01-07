@@ -5,7 +5,7 @@ import { RegisterData, LoginData, AuthResponse, VerifyOtpResponse, verifyOTPpayl
   VerifyResetOtpResponse,
   ResetPasswordPayload,
   ResetPasswordResponse, } from "@/types/auth.type";
-import { registerUser, loginUser, verifyOtp, forgotPassword, verifyResetOtp, resetPassword, getCurrentUser, updateProfile} from "./auth"
+import { registerUser, loginUser, verifyOtp, forgotPassword, verifyResetOtp, resetPassword, getCurrentUser, updateProfile, googleAuthenticate} from "./auth"
 import { toast } from "sonner";
 
 
@@ -22,6 +22,13 @@ export const useLogin =  () => {
         mutationFn: loginUser
     })
 }
+
+export const useGoogleLogin = () => {
+  return useMutation<AuthResponse, any, string>({
+    // The mutation expects a string (the token), and passes it to the service
+    mutationFn: (token) => googleAuthenticate({ token }),
+  });
+};
 
 //Get currentUser
 export const useCurrentUser = (enabled: boolean) => {
