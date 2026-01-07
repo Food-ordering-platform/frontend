@@ -2,33 +2,36 @@
 
 import { GoogleLogin } from "@react-oauth/google";
 import { useAuth } from "@/lib/auth-context";
-import { toast } from "sonner"; // Use sonner consistently if you changed to it in login-form
-// import { useToast } from "@/hooks/use-toast"; // Remove if using sonner
+import { toast } from "sonner";
 
-export function GoogleLoginBtn() {
+interface GoogleLoginBtnProps {
+  disabled?: boolean;
+}
+
+export function GoogleLoginBtn({ disabled = false }: GoogleLoginBtnProps) {
   const { googleLogin } = useAuth();
 
   return (
-    <div className="w-full flex justify-center">
-      <GoogleLogin
-        onSuccess={async (credentialResponse) => {
-          if (credentialResponse.credential) {
-            // Logic is now inside context (including redirect)
-            const success = await googleLogin(credentialResponse.credential);
-            if (!success) {
-               // Error toast already handled in context, but can add fallback here
+    <div
+      className={`w-full transition-all duration-300 ${
+        disabled ? "opacity-50 pointer-events-none grayscale" : ""
+      }`}
+    >
+      <div className="w-full flex justify-center">
+        <GoogleLogin
+          onSuccess={async (credentialResponse) => {
+            if (credentialResponse.credential) {
+              await googleLogin(credentialResponse.credential);
             }
-          }
-        }}
-        onError={() => {
-          toast.error("Google login failed");
-        }}
-        theme="outline"
-        size="large"
-        width="100%"
-        text="continue_with"
-        shape="pill" // Changed to pill/circle for modern look
-      />
+          }}
+          onError={() => toast.error("Google login failed")}
+          theme="outline"
+          size="large"
+          width={320} // 🔥 IMPORTANT: Use pixel width for mobile reliability
+          text="continue_with"
+          shape="pill"
+        />
+      </div>
     </div>
   );
 }
