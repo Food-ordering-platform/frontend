@@ -2,48 +2,39 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
+import axios from "axios";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
-import axios from "axios";
 import { 
-  Phone, 
-  Navigation, 
-  CheckCircle, 
-  MapPin, 
-  ArrowRight, 
-  ShieldCheck, 
-  Clock, 
-  Map, 
-  MoreVertical,
-  Store,
-  Receipt,
-  Utensils,
-  Loader2,
-  PackageCheck
+  Phone, Navigation, CheckCircle, MapPin, 
+  ArrowRight, ShieldCheck, Clock, Store, 
+  Receipt, Loader2, Lock
 } from "lucide-react";
 
-// API Config
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://food-ordering-app.up.railway.app/api";
 
 export default function RiderTaskPage() {
   const params = useParams();
   const trackingId = params.trackingId as string;
 
-  const [task, setTask] = useState<any>(null);
+  const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [otp, setOtp] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // 🔒 Security Gate State
+  const [isVerified, setIsVerified] = useState(false);
+  const [riderName, setRiderName] = useState("");
 
-  // 1. FETCH DATA
   const fetchTask = async () => {
     try {
       const res = await axios.get(`${API_URL}/dispatch/task/${trackingId}`);
-      setTask(res.data.data);
+      setOrder(res.data.data);
     } catch (error) {
-      toast.error("Could not load task details.");
+      toast.error("Task not found or invalid link");
     } finally {
       setLoading(false);
     }
@@ -53,296 +44,194 @@ export default function RiderTaskPage() {
     if (trackingId) fetchTask();
   }, [trackingId]);
 
-  // 2. HANDLER: PICKUP
   const handlePickup = async () => {
     setIsSubmitting(true);
     try {
       await axios.post(`${API_URL}/dispatch/task/pickup`, { trackingId });
-      toast.success("Pickup Verified!");
-      await fetchTask(); 
+      toast.success("Pickup Confirmed!");
+      fetchTask(); 
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Pickup failed");
+      toast.error(error.response?.data?.message || "Action failed");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // 3. HANDLER: DELIVERY
   const handleComplete = async () => {
     if (otp.length < 4) return toast.error("Enter valid 4-digit code");
     setIsSubmitting(true);
     try {
       await axios.post(`${API_URL}/dispatch/task/complete`, { trackingId, otp });
-      toast.success("Delivery Verified Successfully!");
-      setTask((prev: any) => ({ ...prev, status: "DELIVERED" }));
+      toast.success("Delivery Verified!");
+      setOrder((prev: any) => ({ ...prev, status: "DELIVERED" }));
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Verification failed");
+      toast.error("Incorrect Delivery Code");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (loading) return <div className="h-screen flex items-center justify-center bg-gray-50"><Loader2 className="w-10 h-10 animate-spin text-primary" /></div>;
-  if (!task) return <div className="p-10 text-center text-red-500 font-bold">Task not found.</div>;
+  if (loading) return <div className="h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-orange-600" /></div>;
+  if (!order) return <div className="p-10 text-center text-red-500">Task not found</div>;
 
-  const isPreparing = task.status === "PREPARING";
-  const isEnRoute = task.status === "OUT_FOR_DELIVERY";
-  const isDelivered = task.status === "DELIVERED";
-
-  // --- SUCCESS STATE ---
-  if (isDelivered) {
+  // 🔒 1. SECURITY GATEKEEPER
+  if (!isVerified && order.status !== "DELIVERED") {
     return (
-      <div className="flex h-screen flex-col items-center justify-center bg-green-600 text-white p-8 text-center relative overflow-hidden">
-        {/* Background Effects */}
-        <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
-        <div className="absolute -top-20 -right-20 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
-        
-        <div className="relative z-10 bg-white/20 p-6 rounded-full mb-8 backdrop-blur-md border border-white/20 shadow-2xl animate-in zoom-in duration-500">
-          <CheckCircle className="h-20 w-20 text-white" />
+      <div className="h-screen bg-gray-900 flex flex-col items-center justify-center p-6 text-center">
+        <div className="bg-gray-800 p-4 rounded-full mb-6 ring-4 ring-orange-500/20">
+            <Lock className="w-10 h-10 text-orange-500" />
         </div>
-        
-        <h1 className="relative z-10 text-4xl font-extrabold mb-2 tracking-tight">Delivery Complete!</h1>
-        <p className="relative z-10 text-white/80 text-lg mb-8">Great job, Rider.</p>
-        
-        <div className="relative z-10 bg-white/10 backdrop-blur-sm rounded-2xl p-6 w-full max-w-xs border border-white/20">
-          <p className="text-sm font-medium uppercase tracking-wider opacity-70 mb-1">Total Earnings</p>
-          <p className="text-5xl font-extrabold">₦{task.deliveryFee.toLocaleString()}</p>
+        <h1 className="text-2xl font-bold text-white mb-2">Restricted Access</h1>
+        <p className="text-gray-400 mb-8 max-w-xs">
+            This delivery task is assigned to a specific rider. Please confirm your identity.
+        </p>
+        <div className="w-full max-w-xs space-y-4">
+            <Input 
+                placeholder="Enter Your Name" 
+                className="bg-gray-800 border-gray-700 text-white h-12 text-center"
+                value={riderName}
+                onChange={(e) => setRiderName(e.target.value)}
+            />
+            <Button 
+                className="w-full h-12 bg-orange-600 hover:bg-orange-700 font-bold"
+                onClick={() => {
+                    if(riderName.length > 2) setIsVerified(true);
+                    else toast.error("Please enter your name");
+                }}
+            >
+                View Task Details
+            </Button>
         </div>
-
-        <Button 
-          variant="secondary" 
-          className="relative z-10 mt-12 w-full max-w-xs h-12 rounded-xl font-bold text-green-700 hover:bg-white/90 shadow-xl"
-          onClick={() => window.location.reload()}
-        >
-          Refresh Status
-        </Button>
       </div>
     );
   }
 
-  // --- ACTIVE TASK STATE ---
+  // --- Main Render ---
+  const isPickedUp = order.status === "OUT_FOR_DELIVERY";
+  const isDelivered = order.status === "DELIVERED";
+  
+  // Use Pickup address initially, switch to Customer address after pickup
+  const activeAddress = isPickedUp ? order.customer.address : order.vendor.address;
+  // Simple map embed URL (No API Key needed for basic embed)
+  const mapUrl = `https://maps.google.com/maps?q=${encodeURIComponent(activeAddress)}&t=&z=15&ie=UTF8&iwloc=&output=embed`;
+
   return (
-    <div className="min-h-screen bg-gray-50 font-sans flex flex-col">
-      
-      {/* --- HEADER --- */}
-      <div className="bg-white px-5 py-4 sticky top-0 z-30 shadow-sm border-b border-gray-100 flex justify-between items-center">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 bg-orange-50 rounded-full flex items-center justify-center p-2 border border-orange-100">
-             <img src="/official_logo.png" alt="Logo" className="h-full w-full object-contain" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold bg-gray-100 text-gray-600 px-2 py-0.5 rounded">#{task.id.slice(-4)}</span>
-              <span className="flex h-2 w-2 relative">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-              </span>
-            </div>
-            <p className="text-sm font-bold text-gray-900 leading-tight mt-0.5">
-                {isPreparing ? "Pickup Task" : "Ongoing Trip"}
-            </p>
-          </div>
-        </div>
-        <Button variant="ghost" size="icon" className="text-gray-500">
-          <MoreVertical className="h-5 w-5" />
-        </Button>
-      </div>
-
-      {/* --- MAP PLACEHOLDER --- */}
-      <div className="relative h-48 bg-gray-200 w-full overflow-hidden shrink-0">
-        <div className="absolute inset-0 opacity-40 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:16px_16px]"></div>
-        <div className="absolute inset-0 flex items-center justify-center">
-           <div className="bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm flex items-center gap-2 text-xs font-bold text-gray-600 border border-gray-200">
-             <Map className="h-4 w-4" /> Live Map View
-           </div>
-        </div>
-        <svg className="absolute top-1/2 left-0 w-full h-12 stroke-orange-500/50 stroke-[3] fill-none stroke-dashed" viewBox="0 0 400 50">
-           <path d="M0,25 Q200,50 400,25" />
-        </svg>
-      </div>
-
-      {/* --- SCROLLABLE CONTENT --- */}
-      <div className="flex-1 -mt-6 relative z-10 px-4 pb-40 overflow-y-auto">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* 2. LIVE MAP HEADER */}
+      <div className="relative h-64 w-full bg-gray-200">
+        <iframe 
+            width="100%" 
+            height="100%" 
+            frameBorder="0" 
+            src={mapUrl}
+            className="opacity-90"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-gray-50 to-transparent pointer-events-none" />
         
-        {/* --- MAIN UNIFIED CARD --- */}
-        <Card className="border-0 shadow-xl shadow-gray-200/60 rounded-2xl overflow-hidden bg-white">
-          
-          {/* 1. Trip Summary Header */}
-          <div className="bg-gray-50 border-b border-gray-100 p-4 flex justify-between items-center">
-             <div className="flex items-center gap-2 text-gray-600">
-               <Clock className="h-4 w-4" />
-               <span className="text-xs font-bold">{task.estTime}</span>
-             </div>
-             <div className="h-4 w-[1px] bg-gray-300"></div>
-             <div className="flex items-center gap-2 text-gray-600">
-               <Navigation className="h-4 w-4" />
-               <span className="text-xs font-bold">{task.distance}</span>
-             </div>
-             <div className="h-4 w-[1px] bg-gray-300"></div>
-             <Badge variant="outline" className="bg-white border-green-200 text-green-700 font-bold">
-               ₦{task.deliveryFee} Earned
-             </Badge>
-          </div>
-
-          <div className="p-6 relative">
-             {/* The Connecting Route Line */}
-            <div className="absolute left-[35px] top-[45px] bottom-[45px] w-0.5 bg-gray-200 bg-gradient-to-b from-gray-300 to-orange-200" />
-
-            {/* 2. PICKUP SECTION */}
-            <div className={`relative flex gap-4 mb-8 group transition-all ${isEnRoute ? 'opacity-70 grayscale' : ''}`}>
-              <div className={`relative z-10 h-8 w-8 rounded-full border-[3px] shadow-sm flex items-center justify-center shrink-0 
-                ${isPreparing ? 'bg-orange-500 border-white' : 'bg-white border-gray-300'}`}>
-                <Store className={`h-3.5 w-3.5 ${isPreparing ? 'text-white' : 'text-gray-500'}`} />
-              </div>
-              <div className="flex-1 pt-0.5">
-                <div className="flex justify-between items-start mb-1">
-                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Pickup</p>
-                  {!isPreparing && (
-                    <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-medium">Completed</span>
-                  )}
-                </div>
-                <h3 className="text-lg font-bold text-gray-900 leading-tight mb-1">{task.vendor.name}</h3>
-                <p className="text-gray-500 text-sm leading-relaxed mb-3">{task.vendor.address}</p>
-                
-                <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs border-gray-200 text-gray-600 hover:bg-gray-50" asChild>
-                        <a href={`tel:${task.vendor.phone}`}>
-                            <Phone className="h-3 w-3" /> Call Vendor
-                        </a>
-                    </Button>
-                    <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs border-gray-200 text-gray-600 hover:bg-gray-50" onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(task.vendor.address)}`)}>
-                        <MapPin className="h-3 w-3" /> Map
-                    </Button>
-                </div>
-              </div>
+        {/* Status Badge */}
+        <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end">
+            <div>
+                <h1 className="text-xl font-bold text-gray-900">{isPickedUp ? "Heading to Customer" : "Heading to Pickup"}</h1>
+                <p className="text-xs text-gray-500 font-mono">ID: {order.id.slice(-6)} • {riderName}</p>
             </div>
-
-            {/* 3. DROPOFF SECTION */}
-            <div className={`relative flex gap-4 transition-all ${isPreparing ? 'opacity-50' : 'opacity-100'}`}>
-              <div className={`relative z-10 h-8 w-8 rounded-full border-[3px] border-white shadow-md flex items-center justify-center shrink-0 
-                ${isEnRoute ? 'bg-blue-600 animate-pulse' : 'bg-gray-300'}`}>
-                <MapPin className="h-3.5 w-3.5 text-white" />
-              </div>
-              <div className="flex-1 pt-0.5">
-                <p className="text-[10px] text-primary font-bold uppercase tracking-wider mb-1">Dropoff</p>
-                <h3 className="text-lg font-bold text-gray-900 leading-tight mb-1">{task.customer.name}</h3>
-                <p className="text-gray-500 text-sm leading-relaxed mb-4">{task.customer.address}</p>
-                
-                <div className="grid grid-cols-2 gap-3">
-                  <Button className="h-10 bg-gray-900 hover:bg-black text-white border-0 shadow-md gap-2 rounded-lg" asChild disabled={isPreparing}>
-                    <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(task.customer.address)}`} target="_blank">
-                      <Navigation className="h-3.5 w-3.5" /> Navigate
-                    </a>
-                  </Button>
-                  <Button variant="outline" className="h-10 border-gray-200 gap-2 rounded-lg" asChild disabled={isPreparing}>
-                    <a href={`tel:${task.customer.phone}`}>
-                      <Phone className="h-3.5 w-3.5" /> Call
-                    </a>
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 4. MANIFEST SECTION */}
-          <div className="bg-gray-50/80 border-t border-dashed border-gray-300 p-4">
-             <div className="flex items-center gap-2 mb-3">
-               <Receipt className="h-4 w-4 text-gray-500" />
-               <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Order Manifest</span>
-             </div>
-             
-             <div className="space-y-3 bg-white p-3 rounded-lg border border-gray-100 shadow-sm">
-               {task.items.map((item: any, index: number) => (
-                 <div key={index} className="flex justify-between items-start text-sm">
-                     <div className="flex items-start gap-2">
-                       <span className="font-bold text-gray-900 min-w-[20px]">{item.quantity}x</span>
-                       <span className="text-gray-700 font-medium leading-tight">{item.menuItemName}</span>
-                     </div>
-                 </div>
-               ))}
-             </div>
-             
-             <div className="flex items-center justify-center gap-1.5 mt-3 text-[10px] text-gray-400 font-medium">
-               <Utensils className="h-3 w-3" />
-               <span>Verify items at pickup</span>
-             </div>
-          </div>
-        </Card>
-
-        {/* Security Tip */}
-        {isEnRoute && (
-            <div className="mt-6 mx-auto max-w-sm text-center">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full text-[10px] font-bold border border-blue-100">
-                <ShieldCheck className="h-3 w-3" />
-                <span>Verify 4-digit code before releasing package</span>
-            </div>
-            </div>
-        )}
+            <Badge variant="secondary" className="bg-white shadow-sm border-orange-200 text-orange-700">
+                {order.status.replace('_', ' ')}
+            </Badge>
+        </div>
       </div>
 
-      {/* --- BOTTOM ACTION SHEET --- */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 p-6 pt-2 z-40 shadow-[0_-8px_30px_-5px_rgba(0,0,0,0.1)] rounded-t-[24px]">
-        {/* Drawer Handle */}
-        <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6 mt-2"></div>
+      {/* 3. TASK CARD */}
+      <div className="flex-1 px-4 -mt-6 relative z-10 pb-32">
+        <Card className="border-0 shadow-xl rounded-xl overflow-hidden mb-4">
+            <div className="p-4 bg-white">
+                {/* Pickup */}
+                <div className={`flex gap-4 mb-6 ${isPickedUp ? 'opacity-40' : ''}`}>
+                    <div className="flex flex-col items-center">
+                        <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-600">
+                            <Store size={16} />
+                        </div>
+                        <div className="w-0.5 h-full bg-gray-100 my-1" />
+                    </div>
+                    <div className="flex-1 pt-1">
+                        <p className="text-xs font-bold text-gray-400 uppercase">Pickup</p>
+                        <h3 className="font-bold text-gray-900">{order.vendor.name}</h3>
+                        <p className="text-sm text-gray-500 mb-2">{order.vendor.address}</p>
+                        {!isPickedUp && (
+                            <Button variant="outline" size="sm" className="h-8 text-xs gap-2" onClick={() => window.open(`geo:0,0?q=${encodeURIComponent(order.vendor.address)}`)}>
+                                <Navigation size={12} /> Navigate
+                            </Button>
+                        )}
+                    </div>
+                </div>
 
-        <div className="max-w-md mx-auto">
-          
-          {/* SCENARIO 1: PICKUP BUTTON */}
-          {isPreparing && (
-             <Button 
-                className="w-full h-14 bg-orange-600 hover:bg-orange-700 text-white text-lg font-bold rounded-xl shadow-lg shadow-orange-500/20"
+                {/* Dropoff */}
+                <div className={`flex gap-4 ${!isPickedUp ? 'opacity-40' : ''}`}>
+                    <div className="flex flex-col items-center">
+                        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                            <MapPin size={16} />
+                        </div>
+                    </div>
+                    <div className="flex-1 pt-1">
+                        <p className="text-xs font-bold text-blue-600 uppercase">Dropoff</p>
+                        <h3 className="font-bold text-gray-900">{order.customer.name}</h3>
+                        <p className="text-sm text-gray-500 mb-2">{order.customer.address}</p>
+                        {isPickedUp && (
+                            <div className="flex gap-2">
+                                <Button size="sm" className="h-8 text-xs gap-2 bg-blue-600" onClick={() => window.open(`geo:0,0?q=${encodeURIComponent(order.customer.address)}`)}>
+                                    <Navigation size={12} /> Navigate
+                                </Button>
+                                <Button variant="outline" size="sm" className="h-8 text-xs gap-2" onClick={() => window.open(`tel:${order.customer.phone}`)}>
+                                    <Phone size={12} /> Call
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+            
+            {/* Manifest */}
+            <div className="bg-gray-50 p-4 border-t border-gray-100">
+                <div className="flex items-center gap-2 mb-2 text-gray-500">
+                    <Receipt size={14} /> <span className="text-xs font-bold uppercase">Items</span>
+                </div>
+                {order.items.map((item:any, i:number) => (
+                    <div key={i} className="flex justify-between text-sm py-1">
+                        <span className="text-gray-600"><span className="font-bold text-gray-900">{item.quantity}x</span> {item.menuItemName}</span>
+                    </div>
+                ))}
+            </div>
+        </Card>
+      </div>
+
+      {/* 4. FLOATING ACTION FOOTER */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 z-20 pb-8">
+        {!isPickedUp ? (
+            <Button 
+                className="w-full h-14 text-lg font-bold bg-gray-900 hover:bg-black shadow-lg"
                 onClick={handlePickup}
                 disabled={isSubmitting}
-             >
-                {isSubmitting ? (
-                    <>
-                        <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Confirming...
-                    </>
-                ) : (
-                    <>
-                        <PackageCheck className="mr-2 h-5 w-5" /> CONFIRM PICKUP
-                    </>
-                )}
-             </Button>
-          )}
-
-          {/* SCENARIO 2: DELIVERY OTP */}
-          {isEnRoute && (
-            <>
-                <div className="flex justify-between items-end mb-3 px-1">
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Verification Code</label>
-                    <span className="text-[10px] text-primary font-bold bg-primary/5 px-2 py-1 rounded">Required</span>
-                </div>
-                
-                <div className="flex gap-3 h-14">
-                    <Input 
-                    placeholder="----" 
-                    className="h-full w-28 text-center font-mono text-2xl font-bold tracking-[0.3em] border-2 border-gray-100 focus-visible:ring-primary focus-visible:border-primary bg-gray-50 rounded-xl transition-all" 
+            >
+                {isSubmitting ? "Processing..." : "CONFIRM PICKUP"}
+            </Button>
+        ) : (
+            <div className="flex gap-3">
+                <Input 
+                    className="h-14 text-center text-xl font-mono tracking-widest font-bold border-2 focus:border-green-500"
+                    placeholder="CODE"
                     maxLength={4}
                     inputMode="numeric"
                     value={otp}
                     onChange={(e) => setOtp(e.target.value)}
-                    />
-                    <Button 
-                    className="h-full flex-1 bg-green-600 hover:bg-green-700 text-white text-lg font-bold rounded-xl shadow-lg shadow-green-500/20 transition-all active:scale-[0.98]" 
+                />
+                <Button 
+                    className="flex-1 h-14 text-lg font-bold bg-green-600 hover:bg-green-700 shadow-lg"
                     onClick={handleComplete}
                     disabled={isSubmitting}
-                    >
-                    {isSubmitting ? (
-                        <span className="flex items-center gap-2">
-                        <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin"/> 
-                        Verifying...
-                        </span>
-                    ) : (
-                        <span className="flex items-center gap-2">
-                        COMPLETE <ArrowRight className="h-5 w-5 opacity-60" />
-                        </span>
-                    )}
-                    </Button>
-                </div>
-            </>
-          )}
-        </div>
+                >
+                    COMPLETE
+                </Button>
+            </div>
+        )}
       </div>
     </div>
   );
