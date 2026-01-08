@@ -25,7 +25,8 @@ export default function SetupLocationPage() {
   const [address, setAddress] = useState("");
   const [loadingLocation, setLoadingLocation] = useState(false);
   
-  // Ref to hold the geocoder instance so we don't recreate it constantly
+  // 1. Create a ref to control the input box directly
+  const inputRef = useRef<HTMLInputElement>(null);
   const geocoderRef = useRef<google.maps.Geocoder | null>(null);
 
   const { isLoaded } = useJsApiLoader({
@@ -36,7 +37,6 @@ export default function SetupLocationPage() {
 
   const onLoad = useCallback(function callback(map: google.maps.Map) {
     setMap(map);
-    // Initialize Geocoder once map script is loaded
     geocoderRef.current = new google.maps.Geocoder();
   }, []);
 
@@ -45,7 +45,6 @@ export default function SetupLocationPage() {
     geocoderRef.current = null;
   }, []);
 
-  // 🚀 UPDATED: Uses Google Geocoding API instead of OSM
   const reverseGeocode = async (lat: number, lng: number) => {
      if (!geocoderRef.current) return;
 
@@ -53,18 +52,22 @@ export default function SetupLocationPage() {
         const response = await geocoderRef.current.geocode({ location: { lat, lng } });
         
         if (response.results && response.results[0]) {
-            // Google returns many results; the first is usually the most specific
-            setAddress(response.results[0].formatted_address);
-        } else {
-            setAddress("Unknown location");
+            const newAddress = response.results[0].formatted_address;
+            
+            // Update State
+            setAddress(newAddress);
+            
+            // 2. FORCE UPDATE the input box text immediately
+            if (inputRef.current) {
+                inputRef.current.value = newAddress;
+            }
         }
      } catch (e) {
         console.error("Google Geocoding failed", e);
-        // Fail silently or show a generic message, don't break the UI
      }
   };
 
-  // 1. Handle Dragging the Map
+  // Handle Dragging the Map
   const onDragEnd = async () => {
     if (!map) return;
     const newCenter = map.getCenter();
@@ -76,7 +79,7 @@ export default function SetupLocationPage() {
     }
   };
 
-  // 2. Handle Clicking the Map
+  // Handle Clicking the Map
   const handleMapClick = async (e: google.maps.MapMouseEvent) => {
     if (!e.latLng || !map) return;
 
@@ -156,7 +159,6 @@ export default function SetupLocationPage() {
                 }
             }}
           >
-            {/* Center Pin */}
             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none pb-[35px]">
                  <MapPin className="h-10 w-10 text-[#7b1e3a] drop-shadow-lg fill-current animate-bounce" />
             </div>
@@ -166,8 +168,10 @@ export default function SetupLocationPage() {
       <div className="absolute top-6 left-4 right-4 z-10 flex justify-center">
         <Card className="w-full max-w-lg shadow-xl border-0 bg-white/95 backdrop-blur">
             <div className="p-4 flex gap-2">
+                {/* 3. Attach the REF here so we can force values into it */}
                 <ReactGoogleAutocomplete
                     apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
+                    ref={inputRef} 
                     onPlaceSelected={(place) => {
                         if (place.geometry && place.geometry.location) {
                             const lat = place.geometry.location.lat();
