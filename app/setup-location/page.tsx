@@ -42,9 +42,22 @@ export default function SetupLocationPage() {
   // 🚀 Helper to get address from lat/lng
   const reverseGeocode = async (lat: number, lng: number) => {
      try {
-        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
         const data = await res.json();
-        if (data.display_name) {
+        if (data.address) {
+            // Build detailed address from specific to general
+            const parts = [];
+            
+            if (data.address.house_number) parts.push(data.address.house_number);
+            if (data.address.road) parts.push(data.address.road);
+            if (data.address.neighbourhood) parts.push(data.address.neighbourhood);
+            if (data.address.suburb) parts.push(data.address.suburb);
+            if (data.address.city || data.address.town) parts.push(data.address.city || data.address.town);
+            if (data.address.state) parts.push(data.address.state);
+            
+            const detailedAddress = parts.length > 0 ? parts.join(", ") : data.display_name;
+            setAddress(detailedAddress);
+        } else if (data.display_name) {
             setAddress(data.display_name);
         }
      } catch (e) {
