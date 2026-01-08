@@ -40,6 +40,15 @@ export default function RiderTaskPage() {
   const [showOtpInput, setShowOtpInput] = useState(false);
   
   const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
+  // 1. Check LocalStorage on Load to see if "I" am the owner
+  const [isMyClaim, setIsMyClaim] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+        const storedClaim = localStorage.getItem(`claimed_${trackingId}`);
+        if (storedClaim === 'true') setIsMyClaim(true);
+    }
+  }, [trackingId]);
   
   const { isLoaded } = useJsApiLoader({
     id: "google-map-script",
@@ -68,6 +77,8 @@ export default function RiderTaskPage() {
   const handleClaimOrder = async () => {
     if (!riderName || !riderPhone) return toast.error("Enter your details");
     await claimOrder({ trackingId, name: riderName, phone: riderPhone });
+    localStorage.setItem(`claimed_${trackingId}`, 'true')
+    setIsMyClaim(true)
   };
 
   const handlePickup = async () => {
