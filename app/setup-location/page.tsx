@@ -11,7 +11,7 @@ import { Card } from "@/components/ui/card";
 import { MapPin, Navigation, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-// Center of Warri, Delta State (Default)
+// Default: Warri, Delta State
 const DEFAULT_CENTER = { lat: 5.517, lng: 5.75 };
 const DELTA_BOUNDS = {
   north: 6.0,
@@ -28,16 +28,14 @@ export default function SetupLocationPage() {
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [center, setCenter] = useState(DEFAULT_CENTER);
   const [address, setAddress] = useState("");
+  const [inputValue, setInputValue] = useState("");
   const [loadingLocation, setLoadingLocation] = useState(false);
 
-  // Stores the actual pinned location
   const [selectedLocation, setSelectedLocation] = useState<{
     lat: number;
     lng: number;
   } | null>(null);
 
-  // Input & geocoder refs
-  const inputRef = useRef<HTMLInputElement>(null);
   const geocoderRef = useRef<google.maps.Geocoder | null>(null);
 
   const { isLoaded } = useJsApiLoader({
@@ -56,7 +54,7 @@ export default function SetupLocationPage() {
     geocoderRef.current = null;
   }, []);
 
-  // Reverse geocode lat/lng → address
+  // 🔁 Reverse Geocode
   const reverseGeocode = async (lat: number, lng: number) => {
     if (!geocoderRef.current) return;
 
@@ -68,18 +66,14 @@ export default function SetupLocationPage() {
       if (res.results && res.results[0]) {
         const formatted = res.results[0].formatted_address;
         setAddress(formatted);
-
-        // Force update autocomplete input
-        if (inputRef.current) {
-          inputRef.current.value = formatted;
-        }
+        setInputValue(formatted); // ✅ THIS fixes the search bar
       }
     } catch (err) {
       console.error("Reverse geocoding failed", err);
     }
   };
 
-  // Click → pin location (NO zoom, NO drag behavior)
+  // 🖱️ Click Map → Select Location
   const handleMapClick = async (e: google.maps.MapMouseEvent) => {
     if (!e.latLng) return;
 
@@ -87,40 +81,11 @@ export default function SetupLocationPage() {
     const lng = e.latLng.lng();
 
     setSelectedLocation({ lat, lng });
-    setCenter({ lat, lng }); // keeps pin centered visually
+    setCenter({ lat, lng });
     await reverseGeocode(lat, lng);
   };
 
-  const handleConfirmLocation = async () => {
-    if (!selectedLocation || !address) {
-      toast.error("Please select a valid address");
-      return;
-    }
-
-    try {
-      const updated = await updateProfile({
-        address,
-        latitude: selectedLocation.lat,
-        longitude: selectedLocation.lng,
-      });
-
-      if (user) {
-        setUser({
-          ...user,
-          ...updated.user,
-          address,
-          latitude: selectedLocation.lat,
-          longitude: selectedLocation.lng,
-        });
-      }
-
-      toast.success("Location saved! Let's eat.");
-      router.push("/restaurants");
-    } catch {
-      toast.error("Failed to save location.");
-    }
-  };
-
+  // 📍 Use GPS
   const handleUseGPS = () => {
     setLoadingLocation(true);
 
@@ -149,6 +114,37 @@ export default function SetupLocationPage() {
         setLoadingLocation(false);
       }
     );
+  };
+
+  // ✅ Confirm Address
+  const handleConfirmLocation = async () => {
+    if (!selectedLocation || !address) {
+      toast.error("Please select a valid address");
+      return;
+    }
+
+    try {
+      const updated = await updateProfile({
+        address,
+        latitude: selectedLocation.lat,
+        longitude: selectedLocation.lng,
+      });
+
+      if (user) {
+        setUser({
+          ...user,
+          ...updated.user,
+          address,
+          latitude: selectedLocation.lat,
+          longitude: selectedLocation.lng,
+        });
+      }
+
+      toast.success("Location saved! Let's eat 🍔");
+      router.push("/restaurants");
+    } catch {
+      toast.error("Failed to save location");
+    }
   };
 
   if (!isLoaded) {
@@ -181,8 +177,8 @@ export default function SetupLocationPage() {
             },
           }}
         >
-          {/* CENTER PIN — unchanged design */}
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none pb-[35px]">
+          {/* CENTER PIN (UNCHANGED DESIGN) */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none pb-[35px]">
             <MapPin className="h-10 w-10 text-[#7b1e3a] drop-shadow-lg fill-current animate-bounce" />
           </div>
         </GoogleMap>
@@ -193,17 +189,21 @@ export default function SetupLocationPage() {
         <Card className="w-full max-w-lg shadow-xl border-0 bg-white/95 backdrop-blur">
           <div className="p-4 flex gap-2">
             <ReactGoogleAutocomplete
+              key={inputValue} // 🔥 force rerender
+              defaultValue={inputValue}
               apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
-              ref={inputRef}
               onPlaceSelected={(place) => {
                 if (!place.geometry || !place.geometry.location) return;
 
                 const lat = place.geometry.location.lat();
                 const lng = place.geometry.location.lng();
 
+                const formatted = place.formatted_address || "";
+
                 setSelectedLocation({ lat, lng });
                 setCenter({ lat, lng });
-                setAddress(place.formatted_address || "");
+                setAddress(formatted);
+                setInputValue(formatted);
 
                 map?.panTo({ lat, lng });
               }}
