@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 interface GoogleLoginBtnProps {
   disabled?: boolean;
-  mode?: "login" | "signup"; // 👈 New Prop
+  mode?: "login" | "signup";
 }
 
 export function GoogleLoginBtn({ disabled = false, mode = "login" }: GoogleLoginBtnProps) {
@@ -14,12 +14,14 @@ export function GoogleLoginBtn({ disabled = false, mode = "login" }: GoogleLogin
 
   return (
     <div 
-      className={`w-full flex justify-center transition-all duration-300 relative ${
+      className={`w-full flex justify-center transition-all duration-300 ${
         disabled ? "opacity-50 grayscale pointer-events-none" : "opacity-100"
       }`}
     >
-      {/* Container with min-height fixes the "pop up" layout shift issue */}
-      <div className="w-full min-h-[44px] sm:min-h-[50px] relative overflow-hidden rounded-full">
+      {/* FIX: Removed 'overflow-hidden' so the Google popup/shadow isn't clipped.
+         Kept min-height to prevent layout shift during loading.
+      */}
+      <div className="w-full min-h-[44px] sm:min-h-[50px] flex justify-center">
         <GoogleLogin
           onSuccess={async (credentialResponse) => {
             if (credentialResponse.credential) {
@@ -31,7 +33,11 @@ export function GoogleLoginBtn({ disabled = false, mode = "login" }: GoogleLogin
           }}
           theme="outline"
           size="large"
-          width="100%" 
+          // FIX: Removing specific width="100%" can sometimes help Google's 
+          // internal responsive logic, but if you need it full width, 
+          // ensure the parent container provides enough padding.
+          width={undefined} 
+          // automatic width often handles "Continue as..." better
           text={mode === "signup" ? "signup_with" : "continue_with"} 
           shape="pill" 
         />

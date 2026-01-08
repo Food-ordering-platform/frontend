@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useUpdateProfile } from "@/services/auth/auth.queries";
-import { GoogleMap, useJsApiLoader, Marker } from "@react-google-maps/api";
+import { GoogleMap, useJsApiLoader } from "@react-google-maps/api";
 import ReactGoogleAutocomplete from "react-google-autocomplete";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -24,34 +24,47 @@ export default function SetupLocationPage() {
   const [center, setCenter] = useState(DEFAULT_CENTER);
   const [address, setAddress] = useState("");
   const [loadingLocation, setLoadingLocation] = useState(false);
+  
+  // Ref to hold the geocoder instance so we don't recreate it constantly
+  const geocoderRef = useRef<google.maps.Geocoder | null>(null);
 
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
-    libraries: ['places']
+    libraries: ['places'] 
   });
 
   const onLoad = useCallback(function callback(map: google.maps.Map) {
     setMap(map);
+    // Initialize Geocoder once map script is loaded
+    geocoderRef.current = new google.maps.Geocoder();
   }, []);
 
   const onUnmount = useCallback(function callback(map: google.maps.Map) {
     setMap(null);
+    geocoderRef.current = null;
   }, []);
 
-  // 🚀 Helper to get address from lat/lng
+  // 🚀 UPDATED: Uses Google Geocoding API instead of OSM
   const reverseGeocode = async (lat: number, lng: number) => {
+     if (!geocoderRef.current) return;
+
      try {
-        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
-        const data = await res.json();
-        if (data.display_name) {
-            setAddress(data.display_name);
+        const response = await geocoderRef.current.geocode({ location: { lat, lng } });
+        
+        if (response.results && response.results[0]) {
+            // Google returns many results; the first is usually the most specific
+            setAddress(response.results[0].formatted_address);
+        } else {
+            setAddress("Unknown location");
         }
      } catch (e) {
-        console.error("Geocoding failed", e);
+        console.error("Google Geocoding failed", e);
+        // Fail silently or show a generic message, don't break the UI
      }
   };
 
+  // 1. Handle Dragging the Map
   const onDragEnd = async () => {
     if (!map) return;
     const newCenter = map.getCenter();
@@ -59,10 +72,20 @@ export default function SetupLocationPage() {
         const lat = newCenter.lat();
         const lng = newCenter.lng();
         setCenter({ lat, lng });
-        
-        // 🚀 TRIGGER UPDATE
         await reverseGeocode(lat, lng);
     }
+  };
+
+  // 2. Handle Clicking the Map
+  const handleMapClick = async (e: google.maps.MapMouseEvent) => {
+    if (!e.latLng || !map) return;
+
+    const lat = e.latLng.lat();
+    const lng = e.latLng.lng();
+
+    map.panTo({ lat, lng });
+    setCenter({ lat, lng });
+    await reverseGeocode(lat, lng);
   };
 
   const handleConfirmLocation = async () => {
@@ -123,6 +146,7 @@ export default function SetupLocationPage() {
             onLoad={onLoad}
             onUnmount={onUnmount}
             onDragEnd={onDragEnd}
+            onClick={handleMapClick}
             options={{
                 disableDefaultUI: true,
                 zoomControl: true,
@@ -132,8 +156,9 @@ export default function SetupLocationPage() {
                 }
             }}
           >
+            {/* Center Pin */}
             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none pb-[35px]">
-                 <MapPin className="h-10 w-10 text-[#7b1e3a] drop-shadow-lg fill-current" />
+                 <MapPin className="h-10 w-10 text-[#7b1e3a] drop-shadow-lg fill-current animate-bounce" />
             </div>
           </GoogleMap>
       </div>
