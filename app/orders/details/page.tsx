@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useGetOrderByReference } from "../../../services/order/order.queries"; // Correct import path
+import { useGetOrderByReference } from "../../../services/order/order.queries";
 import { Header } from "@/components/layout/header";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,9 +21,10 @@ import {
   AlertCircle,
   CreditCard,
   ShoppingBag,
+  LockKeyhole,
+  Phone,
 } from "lucide-react";
 import Link from "next/link";
-import Image from "next/image";
 import { Suspense } from "react";
 import { motion } from "framer-motion";
 
@@ -42,26 +43,25 @@ function OrderDetailsContent() {
     toast({ description: "Order Reference Copied!" });
   };
 
-  // ✅ Visual Configuration (From your preferred design)
+  // ✅ Visual Configuration
   const steps = [
     { id: "pending", label: "Placed", icon: Clock },
-    { id: "preparing", label: "Preparing", icon: ChefHat },
+    { id: "preparing", label: "Preparing", icon: ChefHat }, // Shortened label for mobile
     { id: "ready_for_pickup", label: "Ready", icon: Package },
     { id: "out_for_delivery", label: "En Route", icon: Truck },
     { id: "delivered", label: "Delivered", icon: CheckCircle2 },
   ];
 
-  // Helper to map backend status to step index
   const getCurrentStep = (status: string) => {
     const map: Record<string, number> = {
       PENDING: 0,
       PAID: 0,
       PREPARING: 1,
-      OUT_FOR_DELIVERY: 2,
-      DELIVERED: 3,
+      READY_FOR_PICKUP: 2,
+      OUT_FOR_DELIVERY: 3,
+      DELIVERED: 4,
       CANCELLED: -1,
     };
-    // Handle both uppercase (backend) and lowercase cases robustly
     return map[status?.toUpperCase()] ?? 0;
   };
 
@@ -84,8 +84,8 @@ function OrderDetailsContent() {
   if (isError || !order) {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] text-center px-4">
-        <div className="h-20 w-20 bg-red-50 rounded-full flex items-center justify-center mb-6">
-          <Package className="h-10 w-10 text-red-400" />
+        <div className="h-20 w-20 bg-[#7b1e3a]/10 rounded-full flex items-center justify-center mb-6">
+          <Package className="h-10 w-10 text-[#7b1e3a]" />
         </div>
         <h2 className="text-2xl font-bold text-gray-900">Order Not Found</h2>
         <p className="text-gray-500 mt-2 mb-8 max-w-sm">
@@ -93,7 +93,7 @@ function OrderDetailsContent() {
         </p>
         <Button
           asChild
-          className="bg-[#7b1e3a] hover:bg-[#66172e] rounded-full px-8"
+          className="bg-[#7b1e3a] hover:bg-[#60152b] rounded-full px-8"
         >
           <Link href="/orders">Back to Orders</Link>
         </Button>
@@ -102,12 +102,13 @@ function OrderDetailsContent() {
   }
 
   const currentStep = getCurrentStep(order.status);
-
-  // Logic needed for summary calculation
   const subtotal = order.items.reduce(
-    (sum, item) => sum + item.price * item.quantity,
+    (sum: number, item: any) => sum + item.price * item.quantity,
     0
   );
+
+  const isOrderActive = !["DELIVERED", "CANCELLED", "REFUNDED"].includes(order.status);
+  const showDeliveryCode = ["OUT_FOR_DELIVERY", "READY_FOR_PICKUP"].includes(order.status);
 
   return (
     <div className="max-w-6xl mx-auto pb-12">
@@ -143,21 +144,21 @@ function OrderDetailsContent() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Main Content (Left) */}
         <div className="lg:col-span-8 space-y-6">
-          {/* Status Card (Your Preferred Design) */}
-          <Card className="border-0 shadow-lg shadow-gray-200/50 rounded-2xl overflow-hidden bg-white">
+          
+          {/* Status Card */}
+          <Card className="border-0 shadow-lg shadow-[#7b1e3a]/5 rounded-2xl overflow-hidden bg-white">
             <div className="bg-[#7b1e3a] p-8 text-white relative overflow-hidden">
-              {/* Background Pattern */}
               <div className="absolute top-0 right-0 p-8 opacity-10">
                 <Package className="h-40 w-40" />
               </div>
 
               <div className="relative z-10">
                 <div className="flex items-center gap-3 mb-2">
-                  <Badge className="bg-white/20 hover:bg-white/20 text-white border-0 uppercase tracking-widest text-[10px]">
+                  <Badge className="bg-white/20 hover:bg-white/30 text-white border-0 uppercase tracking-widest text-[10px]">
                     {order.status.replace(/_/g, " ")}
                   </Badge>
                 </div>
-                <h1 className="text-3xl font-extrabold mb-2">
+                <h1 className="text-2xl md:text-3xl font-extrabold mb-2">
                   {order.status === "DELIVERED"
                     ? "Order Delivered"
                     : "Order in Progress"}
@@ -170,13 +171,16 @@ function OrderDetailsContent() {
               </div>
             </div>
 
-            <CardContent className="p-8">
-              {/* Stepper Logic */}
-              <div className="relative flex justify-between items-center w-full">
-                {/* Connecting Line Background */}
-                <div className="absolute top-1/2 left-0 w-full h-1 bg-gray-100 -translate-y-1/2 -z-10 rounded-full" />
-
-                {/* Connecting Line Active */}
+            <CardContent className="p-4 md:p-8">
+              {/* Stepper Logic - Optimized for Mobile */}
+              <div className="relative flex justify-between items-start w-full mb-8 mt-2">
+                
+                {/* 1. Background Line (Positioned relative to Icon center) */}
+                {/* Mobile Icon is h-8 (32px) -> Center is 16px (top-4) */}
+                {/* Desktop Icon is h-12 (48px) -> Center is 24px (top-6) */}
+                <div className="absolute top-4 md:top-6 left-0 w-full h-1 bg-gray-100 -translate-y-1/2 -z-10 rounded-full" />
+                
+                {/* 2. Active Line (Animated) */}
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{
@@ -186,9 +190,10 @@ function OrderDetailsContent() {
                     )}%`,
                   }}
                   transition={{ duration: 1, ease: "easeInOut" }}
-                  className="absolute top-1/2 left-0 h-1 bg-[#7b1e3a] -translate-y-1/2 -z-10 rounded-full"
+                  className="absolute top-4 md:top-6 left-0 h-1 bg-[#7b1e3a] -translate-y-1/2 -z-10 rounded-full"
                 />
 
+                {/* 3. Steps */}
                 {steps.map((step, index) => {
                   const isActive = index <= currentStep;
                   const isCompleted = index < currentStep;
@@ -197,30 +202,30 @@ function OrderDetailsContent() {
                   return (
                     <div
                       key={step.id}
-                      className="flex flex-col items-center gap-3 bg-white px-2"
+                      className="flex flex-col items-center gap-2 z-10"
+                      style={{ width: '20%' }} // Distribute space evenly
                     >
+                      {/* Icon Circle */}
                       <motion.div
                         initial={{ scale: 0.8, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         transition={{ delay: index * 0.1 }}
-                        className={`
-                                            h-10 w-10 md:h-12 md:w-12 rounded-full flex items-center justify-center border-2 transition-colors duration-300
-                                            ${
-                                              isActive
-                                                ? "border-[#7b1e3a] text-[#7b1e3a] bg-white"
-                                                : "border-gray-100 text-gray-300 bg-white"
-                                            }
-                                            ${
-                                              isCompleted
-                                                ? "bg-[#7b1e3a] text-white !border-[#7b1e3a]"
-                                                : ""
-                                            }
-                                        `}
+                        className={`h-8 w-8 md:h-12 md:w-12 rounded-full flex items-center justify-center border-2 transition-colors duration-300 bg-white ${
+                          isActive
+                            ? "border-[#7b1e3a] text-[#7b1e3a]"
+                            : "border-gray-200 text-gray-300"
+                        } ${
+                          isCompleted
+                            ? "!bg-[#7b1e3a] !text-white !border-[#7b1e3a]"
+                            : ""
+                        }`}
                       >
-                        <StepIcon className="h-5 w-5 md:h-6 md:w-6" />
+                        <StepIcon className="h-3.5 w-3.5 md:h-6 md:w-6" />
                       </motion.div>
+                      
+                      {/* Text Label - Visible on Mobile now */}
                       <span
-                        className={`text-[10px] md:text-xs font-bold uppercase tracking-wide ${
+                        className={`text-[9px] md:text-xs font-bold uppercase tracking-wide text-center leading-tight transition-colors duration-300 ${
                           isActive ? "text-[#7b1e3a]" : "text-gray-300"
                         }`}
                       >
@@ -231,18 +236,18 @@ function OrderDetailsContent() {
                 })}
               </div>
 
-              {/* ✅ CRITICAL FEATURE: Payment Pending Alert */}
+              {/* Payment Pending Alert */}
               {order.paymentStatus === "PENDING" &&
                 order.status !== "CANCELLED" && (
-                  <div className="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-xl flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                    <div className="bg-amber-100 p-2.5 rounded-full shrink-0">
-                      <AlertCircle className="h-6 w-6 text-amber-600" />
+                  <div className="p-4 bg-[#7b1e3a]/5 border border-[#7b1e3a]/20 rounded-xl flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                    <div className="bg-[#7b1e3a]/10 p-2.5 rounded-full shrink-0">
+                      <AlertCircle className="h-6 w-6 text-[#7b1e3a]" />
                     </div>
                     <div className="flex-1">
-                      <h4 className="font-bold text-amber-900 text-base">
+                      <h4 className="font-bold text-[#7b1e3a] text-base">
                         Payment Required
                       </h4>
-                      <p className="text-sm text-amber-700 mt-0.5">
+                      <p className="text-sm text-[#7b1e3a]/80 mt-0.5">
                         Your order is pending. Please complete payment to start
                         preparation.
                       </p>
@@ -250,7 +255,7 @@ function OrderDetailsContent() {
 
                     {order.checkoutUrl && (
                       <Button
-                        className="bg-amber-600 hover:bg-amber-700 text-white shadow-sm shrink-0 w-full sm:w-auto"
+                        className="bg-[#7b1e3a] hover:bg-[#60152b] text-white shadow-md shadow-[#7b1e3a]/20 shrink-0 w-full sm:w-auto"
                         onClick={() =>
                           (window.location.href = order.checkoutUrl!)
                         }
@@ -263,6 +268,45 @@ function OrderDetailsContent() {
             </CardContent>
           </Card>
 
+          {/* 🚀 DELIVERY CODE SECTION */}
+          {isOrderActive && (
+            <>
+              {showDeliveryCode && order.deliveryCode ? (
+                // 🟢 SHOW CODE (When Rider is coming)
+                <Card className="border-2 border-[#7b1e3a] bg-white shadow-lg shadow-[#7b1e3a]/10 rounded-2xl overflow-hidden">
+                  <CardContent className="flex flex-col items-center justify-center p-6 text-center">
+                    <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-[#7b1e3a]/10">
+                      <LockKeyhole className="h-6 w-6 text-[#7b1e3a]" />
+                    </div>
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400">
+                      Secure Delivery Code
+                    </h3>
+                    <div className="my-3 text-5xl font-black tracking-[0.2em] text-[#7b1e3a]">
+                      {order.deliveryCode}
+                    </div>
+                    <div className="flex items-center gap-2 rounded-lg bg-[#7b1e3a]/5 px-4 py-2 text-xs font-bold text-[#7b1e3a]">
+                      <AlertCircle size={14} />
+                      Give this code to the rider ONLY upon delivery.
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                // ℹ️ SHOW INFO MESSAGE (When Preparing)
+                <div className="flex items-center gap-3 rounded-xl bg-[#7b1e3a]/5 p-4 border border-[#7b1e3a]/10 shadow-sm">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white shadow-sm border border-[#7b1e3a]/10">
+                    <LockKeyhole size={18} className="text-[#7b1e3a]" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-[#7b1e3a]">Secure Delivery</p>
+                    <p className="text-xs text-[#7b1e3a]/70 leading-relaxed mt-0.5">
+                      A delivery code will be sent to you once your order is en route.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
           {/* Items List */}
           <Card className="border border-gray-100 shadow-sm rounded-2xl overflow-hidden">
             <CardHeader className="bg-gray-50/50 border-b border-gray-100 py-4">
@@ -273,13 +317,12 @@ function OrderDetailsContent() {
             </CardHeader>
             <CardContent className="p-0">
               <div className="divide-y divide-gray-100">
-                {order.items?.map((orderItem, i) => (
+                {order.items?.map((orderItem: any, i: number) => (
                   <div
                     key={`${i}-${orderItem.menuItemName}`}
                     className="flex gap-4 p-5 hover:bg-gray-50/50 transition-colors"
                   >
                     <div className="relative h-20 w-20 flex-shrink-0 bg-gray-100 rounded-xl overflow-hidden border border-gray-100 flex items-center justify-center">
-                      {/* Placeholder since images aren't on order items directly in backend currently */}
                       <ShoppingBag className="h-8 w-8 text-gray-300" />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -340,18 +383,20 @@ function OrderDetailsContent() {
                 </span>
               </div>
             </CardContent>
+            
+            {/* Payment Status Bar */}
             <div
-              className={`p-4 border-t border-[#7b1e3a]/10 ${
+              className={`p-4 border-t ${
                 order.paymentStatus === "PAID"
-                  ? "bg-[#7b1e3a]/5"
-                  : "bg-amber-50"
+                  ? "bg-[#7b1e3a]/5 border-[#7b1e3a]/10"
+                  : "bg-gray-50 border-gray-100"
               }`}
             >
               <div
                 className={`flex items-center gap-2 justify-center text-xs font-bold uppercase tracking-wide ${
                   order.paymentStatus === "PAID"
                     ? "text-[#7b1e3a]"
-                    : "text-amber-700"
+                    : "text-gray-500"
                 }`}
               >
                 {order.paymentStatus === "PAID" ? (
@@ -371,8 +416,8 @@ function OrderDetailsContent() {
           <Card className="border border-gray-100 shadow-sm rounded-2xl">
             <CardContent className="p-6">
               <div className="flex items-start gap-4">
-                <div className="h-10 w-10 bg-blue-50 rounded-full flex items-center justify-center shrink-0">
-                  <MapPin className="h-5 w-5 text-blue-600" />
+                <div className="h-10 w-10 bg-[#7b1e3a]/10 rounded-full flex items-center justify-center shrink-0">
+                  <MapPin className="h-5 w-5 text-[#7b1e3a]" />
                 </div>
                 <div>
                   <h4 className="font-bold text-gray-900 mb-1">
@@ -383,10 +428,12 @@ function OrderDetailsContent() {
                   </p>
                 </div>
               </div>
+              
+              {/* Delivery Note */}
               {order.deliveryNotes && (
                 <div className="mt-4 pt-4 border-t border-gray-100 flex items-start gap-4">
-                  <div className="h-10 w-10 bg-yellow-50 rounded-full flex items-center justify-center shrink-0">
-                    <div className="h-5 w-5 text-yellow-600 font-bold flex items-center justify-center">
+                  <div className="h-10 w-10 bg-[#7b1e3a]/10 rounded-full flex items-center justify-center shrink-0">
+                    <div className="h-5 w-5 text-[#7b1e3a] font-bold flex items-center justify-center">
                       !
                     </div>
                   </div>
@@ -400,6 +447,17 @@ function OrderDetailsContent() {
                   </div>
                 </div>
               )}
+              
+              {/* Restaurant Contact */}
+              <div className="mt-6 flex items-center justify-between rounded-xl bg-gray-50 p-4 border border-gray-100">
+                <div>
+                    <p className="text-xs text-gray-500 font-bold uppercase">Vendor</p>
+                    <p className="font-bold text-gray-900 text-sm">{order.restaurant?.name}</p>
+                </div>
+                <Button size="icon" variant="outline" className="h-9 w-9 rounded-full border-gray-200 hover:border-[#7b1e3a] hover:text-[#7b1e3a]">
+                    <Phone className="h-4 w-4" />
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -408,7 +466,6 @@ function OrderDetailsContent() {
   );
 }
 
-// Main Page Component with Suspense Boundary
 export default function OrderDetailsPage() {
   return (
     <ProtectedRoute>

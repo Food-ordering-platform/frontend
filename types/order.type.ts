@@ -48,6 +48,7 @@ export interface Order {
   paymentStatus: string;
   status: string;
   deliveryAddress: string;
+  deliveryCode?:string
   deliveryNotes:string | null
   deliveryLatitude?: number | undefined
   deliveryLongitude?: number | undefined
