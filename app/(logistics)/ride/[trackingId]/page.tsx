@@ -9,9 +9,9 @@ import {
 } from "@react-google-maps/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, MapPin, Phone, Bike, PackageCheck, User } from "lucide-react";
+import { Loader2, MapPin, Phone, Bike, PackageCheck, User, LockKeyhole } from "lucide-react"; // Added LockIcon
 import { toast } from "sonner";
-import { useRiderTask } from "../../../../services/dispatch/dispatch.queries"; // Import your new hook
+import { useRiderTask } from "../../../../services/dispatch/dispatch.queries";
 
 const MAP_OPTIONS = {
   disableDefaultUI: true,
@@ -22,7 +22,6 @@ export default function RiderTaskPage() {
   const params = useParams();
   const trackingId = params?.trackingId as string;
 
-  // 🚀 USE THE HOOK
   const { 
     task, 
     isLoading, 
@@ -33,31 +32,35 @@ export default function RiderTaskPage() {
     isActionLoading 
   } = useRiderTask(trackingId);
 
-  // Local UI State
   const [riderName, setRiderName] = useState("");
   const [riderPhone, setRiderPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [showOtpInput, setShowOtpInput] = useState(false);
-  
   const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
-  // 1. Check LocalStorage on Load to see if "I" am the owner
-  const [isMyClaim, setIsMyClaim] = useState(false);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-        const storedClaim = localStorage.getItem(`claimed_${trackingId}`);
-        if (storedClaim === 'true') setIsMyClaim(true);
-    }
-  }, [trackingId]);
   
+  // 🔐 SECURITY STATE
+  const [isMyClaim, setIsMyClaim] = useState(false);
+  const [checkingIdentity, setCheckingIdentity] = useState(true);
+
   const { isLoaded } = useJsApiLoader({
     id: "google-map-script",
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
   });
 
-  // Calculate Route when task loads
+  // 1. CHECK "RECEIPT" ON LOAD
   useEffect(() => {
-    if (isLoaded && task && task.vendor && task.riderName) {
+    if (typeof window !== 'undefined' && trackingId) {
+        const receipt = localStorage.getItem(`claimed_${trackingId}`);
+        if (receipt === 'true') {
+            setIsMyClaim(true);
+        }
+        setCheckingIdentity(false);
+    }
+  }, [trackingId]);
+
+  // 2. CALCULATE ROUTE (Only if allowed)
+  useEffect(() => {
+    if (isLoaded && task && task.vendor && task.riderName && isMyClaim) {
       const directionsService = new google.maps.DirectionsService();
       directionsService.route(
         {
@@ -70,20 +73,26 @@ export default function RiderTaskPage() {
         }
       );
     }
-  }, [isLoaded, task]);
+  }, [isLoaded, task, isMyClaim]);
 
   // --- HANDLERS ---
 
   const handleClaimOrder = async () => {
     if (!riderName || !riderPhone) return toast.error("Enter your details");
-    await claimOrder({ trackingId, name: riderName, phone: riderPhone });
-    localStorage.setItem(`claimed_${trackingId}`, 'true')
-    setIsMyClaim(true)
+    
+    try {
+        await claimOrder({ trackingId, name: riderName, phone: riderPhone });
+        
+        // ✅ SAVE "RECEIPT" TO STORAGE
+        localStorage.setItem(`claimed_${trackingId}`, 'true'); 
+        setIsMyClaim(true);
+        
+    } catch (e) {
+        // Toast handled in hook
+    }
   };
 
-  const handlePickup = async () => {
-    await pickupOrder();
-  };
+  const handlePickup = async () => await pickupOrder();
 
   const handleComplete = async () => {
     if (!otp || otp.length < 4) return toast.error("Enter valid code");
@@ -92,7 +101,7 @@ export default function RiderTaskPage() {
 
   // --- RENDER ---
 
-  if (isLoading) {
+  if (isLoading || checkingIdentity) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-[#7b1e3a]" /></div>;
   }
 
@@ -100,7 +109,25 @@ export default function RiderTaskPage() {
     return <div className="h-screen flex items-center justify-center">Invalid or Expired Link</div>;
   }
 
-  // 🛑 IDENTITY WALL (Derived from data)
+  // 🛑 CASE 1: ORDER TAKEN (Name exists, but I don't have the receipt)
+  if (task.riderName && !isMyClaim) {
+      return (
+        <div className="h-screen bg-gray-50 flex flex-col items-center justify-center p-6 text-center">
+            <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center mb-6">
+                <LockKeyhole size={48} className="text-gray-400" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Order Unavailable</h1>
+            <p className="text-gray-500 mb-8 max-w-xs">
+                This delivery has already been accepted by <span className="font-bold text-gray-800">{task.riderName}</span>.
+            </p>
+            <Button variant="outline" className="border-[#7b1e3a] text-[#7b1e3a]" onClick={() => window.location.reload()}>
+                Refresh Status
+            </Button>
+        </div>
+      );
+  }
+
+  // 📝 CASE 2: NEW ORDER (No Name yet) -> SHOW FORM
   if (!task.riderName) {
     return (
       <div className="h-screen bg-[#7b1e3a] flex flex-col items-center justify-center p-6">
@@ -144,7 +171,7 @@ export default function RiderTaskPage() {
     );
   }
 
-  // NORMAL RIDER VIEW
+  // 🗺️ CASE 3: MY ORDER (Name exists AND I have receipt) -> SHOW MAP
   return (
     <div className="h-screen flex flex-col bg-gray-50 relative">
       <div className="flex-1 relative bg-gray-200">
@@ -165,6 +192,7 @@ export default function RiderTaskPage() {
         )}
       </div>
 
+      {/* ... (Bottom Sheet & Actions - Same as before) ... */}
       <div className="bg-white rounded-t-3xl shadow-xl p-6 -mt-6 relative z-10 pb-10">
         <div className="flex justify-between items-start mb-6">
           <div>
