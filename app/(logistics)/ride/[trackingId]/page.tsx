@@ -9,7 +9,7 @@ import {
 } from "@react-google-maps/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, MapPin, Phone, Bike, PackageCheck, User, LockKeyhole } from "lucide-react"; // Added LockIcon
+import { Loader2, MapPin, Phone, Bike, PackageCheck, User, LockKeyhole, ShoppingBag } from "lucide-react"; // Added ShoppingBag icon
 import { toast } from "sonner";
 import { useRiderTask } from "../../../../services/dispatch/dispatch.queries";
 
@@ -192,7 +192,7 @@ export default function RiderTaskPage() {
         )}
       </div>
 
-      {/* ... (Bottom Sheet & Actions - Same as before) ... */}
+      {/* BOTTOM SHEET */}
       <div className="bg-white rounded-t-3xl shadow-xl p-6 -mt-6 relative z-10 pb-10">
         <div className="flex justify-between items-start mb-6">
           <div>
@@ -231,6 +231,26 @@ export default function RiderTaskPage() {
             </div>
           </div>
         </div>
+
+        {/* ✅ NEW: ITEMS TO PICKUP */}
+        {task.items && task.items.length > 0 && (
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-2">
+              <ShoppingBag size={14} className="text-gray-400" />
+              <p className="text-xs text-gray-400 font-bold">ITEMS TO PICKUP</p>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+              <ul className="space-y-2">
+                {task.items.map((item: any, index: number) => (
+                  <li key={index} className="flex items-start text-sm">
+                    <span className="font-bold text-[#7b1e3a] min-w-[24px]">{item.quantity}x</span>
+                    <span className="text-gray-700 font-medium">{item.menuItemName}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
 
         {/* Actions */}
         <div className="space-y-3">
