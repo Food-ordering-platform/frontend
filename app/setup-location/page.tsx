@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { GoogleMap, useJsApiLoader } from "@react-google-maps/api";
+import { GoogleMap, useJsApiLoader, Libraries } from "@react-google-maps/api";
 import ReactGoogleAutocomplete from "react-google-autocomplete";
 import { Button } from "@/components/ui/button";
 import { MapPin, Loader2, ArrowLeft, Crosshair } from "lucide-react";
@@ -24,6 +24,9 @@ const MAP_OPTIONS: google.maps.MapOptions = {
   streetViewControl: false,
 };
 
+// ✅ FIX 1: Define libraries OUTSIDE the component to prevent reload loops
+const LIBRARIES: Libraries = ["places"];
+
 export default function SetupLocationPage() {
   const router = useRouter();
   const { user } = useAuth();
@@ -41,7 +44,7 @@ export default function SetupLocationPage() {
   // --- LOAD MAP SCRIPT ---
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
-    libraries: ["places"],
+    libraries: LIBRARIES, // ✅ Use the static constant
   });
 
   // --- MAP INIT ---
@@ -65,7 +68,7 @@ export default function SetupLocationPage() {
 
       if (res.results?.length) {
         const bestResult =
-          res.results.find(r =>
+          res.results.find((r) =>
             r.types.includes("street_address") ||
             r.types.includes("premise")
           ) || res.results[0];
@@ -76,6 +79,8 @@ export default function SetupLocationPage() {
       }
     } catch (err) {
       console.error("Geocoding error:", err);
+      // Don't show "Unable" if it's just a rate limit hiccup, keep old address if possible
+      // But for now, we leave it to inform user
       setAddress("Unable to get address");
     }
   }, []);
@@ -90,20 +95,6 @@ export default function SetupLocationPage() {
       return;
     }
 
-    try {
-      const permission = await navigator.permissions.query({
-        name: "geolocation",
-      });
-
-      if (permission.state === "denied") {
-        toast.error("Location permission denied. Enable it in browser settings.");
-        setIsLoadingLocation(false);
-        return;
-      }
-    } catch {
-      // Permissions API not supported
-    }
-
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const coords = {
@@ -111,31 +102,21 @@ export default function SetupLocationPage() {
           lng: position.coords.longitude,
         };
 
-        setCenter(coords);
+        // It is okay to setCenter HERE because this is a User Action (Click)
+        setCenter(coords); 
         map?.panTo(coords);
         map?.setZoom(17);
 
+        setAddress("Locating...");
         fetchAddress(coords.lat, coords.lng);
         setIsLoadingLocation(false);
       },
       (error) => {
         console.error("GPS error:", error);
-
-        if (error.code === error.PERMISSION_DENIED) {
-          toast.error("Please allow location access");
-        } else if (error.code === error.POSITION_UNAVAILABLE) {
-          toast.error("Location unavailable");
-        } else if (error.code === error.TIMEOUT) {
-          toast.error("Location request timed out");
-        }
-
+        toast.error("Location unavailable. Please check permissions.");
         setIsLoadingLocation(false);
       },
-      {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 0,
-      }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
   };
 
@@ -161,7 +142,10 @@ export default function SetupLocationPage() {
     const lat = newCenter.lat();
     const lng = newCenter.lng();
 
-    setCenter({ lat, lng });
+    // ✅ FIX 2: REMOVED `setCenter({ lat, lng })`
+    // We do NOT update React state here. The map is already at this location.
+    // Updating state here would trigger a re-render -> map reload -> onIdle -> loop.
+    
     setAddress("Locating...");
     fetchAddress(lat, lng);
     setIsDragging(false);
@@ -178,6 +162,7 @@ export default function SetupLocationPage() {
       setAddress(place.formatted_address);
     }
 
+    // It is safe to setCenter here (User Action: Search)
     setCenter({ lat, lng });
     map?.panTo({ lat, lng });
     map?.setZoom(17);
@@ -185,16 +170,22 @@ export default function SetupLocationPage() {
 
   // --- CONFIRM ---
   const handleConfirm = async () => {
-    if (!address || address === "Locating...") {
-      toast.error("Please wait for the location to be identified");
+    if (!address || address === "Locating..." || address === "Unable to get address") {
+      toast.error("Please wait for a valid location");
       return;
     }
+
+    // ✅ FIX 3: Get the EXACT current position from the map instance
+    // Since we stopped updating 'center' state on drag, we must ask the map directly.
+    const currentCenter = map?.getCenter();
+    const finalLat = currentCenter?.lat() || center.lat;
+    const finalLng = currentCenter?.lng() || center.lng;
 
     try {
       await updateProfile({
         address,
-        latitude: center.lat,
-        longitude: center.lng,
+        latitude: finalLat,
+        longitude: finalLng,
       });
 
       router.push("/restaurants");
@@ -296,7 +287,7 @@ export default function SetupLocationPage() {
 
           <Button
             className="w-full h-14 bg-[#7b1e3a] text-white rounded-2xl"
-            disabled={isPending || isDragging || !address}
+            disabled={isPending || isDragging || !address || address === "Locating..."}
             onClick={handleConfirm}
           >
             {isPending && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
