@@ -5,23 +5,23 @@ import { useRouter } from "next/navigation";
 import { GoogleMap, useJsApiLoader } from "@react-google-maps/api";
 import ReactGoogleAutocomplete from "react-google-autocomplete";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { MapPin, Navigation, Loader2, ArrowLeft } from "lucide-react";
+import { MapPin, Loader2, ArrowLeft, Crosshair } from "lucide-react"; // Using Crosshair for 'locate' icon
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 import { useUpdateProfile } from "@/services/auth/auth.queries";
 
-// Default: Warri
-const DEFAULT_CENTER = { lat: 5.517, lng: 5.75 };
+// --- CONSTANTS ---
+const DEFAULT_CENTER = { lat: 6.5244, lng: 3.3792 }; // Default to Lagos (matching your RN version)
+const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
 
 const MAP_OPTIONS: google.maps.MapOptions = {
-  disableDefaultUI: true,
+  disableDefaultUI: true, // Hides default Google controls
   clickableIcons: false,
+  zoomControl: false,
+  mapTypeControl: false,
   fullscreenControl: false,
   streetViewControl: false,
-  mapTypeControl: false,
-  zoomControl: false,
 };
 
 export default function SetupLocationPage() {
@@ -29,33 +29,33 @@ export default function SetupLocationPage() {
   const { user } = useAuth();
   const { mutateAsync: updateProfile, isPending } = useUpdateProfile();
 
+  // --- STATE ---
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [center, setCenter] = useState(DEFAULT_CENTER);
-  const [address, setAddress] = useState("");
+  const [address, setAddress] = useState("Locating...");
   const [isDragging, setIsDragging] = useState(false);
-  const [loadingGPS, setLoadingGPS] = useState(false);
+  const [isLoadingLocation, setIsLoadingLocation] = useState(false);
 
+  // Ref for Geocoder to prevent re-instantiation
   const geocoderRef = useRef<google.maps.Geocoder | null>(null);
 
+  // --- LOAD MAP SCRIPT ---
   const { isLoaded } = useJsApiLoader({
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
     libraries: ["places"],
   });
 
-  /* -------------------- MAP INIT -------------------- */
+  // --- 1. INITIALIZE MAP ---
   const onLoad = useCallback((mapInstance: google.maps.Map) => {
     setMap(mapInstance);
     geocoderRef.current = new google.maps.Geocoder();
-
-    mapInstance.setTilt(0);
-    mapInstance.setHeading(0);
   }, []);
 
   const onUnmount = useCallback(() => {
     setMap(null);
   }, []);
 
-  /* -------------------- GEOCODING -------------------- */
+  // --- 2. GEOCODING (Reverse Geocode) ---
   const fetchAddress = useCallback(async (lat: number, lng: number) => {
     if (!geocoderRef.current) return;
 
@@ -64,96 +64,101 @@ export default function SetupLocationPage() {
         location: { lat, lng },
       });
 
-      const precise =
-        res.results.find(
-          (r) =>
-            r.geometry.location_type === "ROOFTOP" ||
-            r.geometry.location_type === "RANGE_INTERPOLATED"
-        ) || res.results[0];
-
-      if (precise) setAddress(precise.formatted_address);
+      // Logic to find the most relevant address (similar to RN results[0])
+      if (res.results && res.results.length > 0) {
+        setAddress(res.results[0].formatted_address);
+      } else {
+        setAddress("Unknown Location");
+      }
     } catch (err) {
-      console.error(err);
+      console.error("Geocoding error:", err);
     }
   }, []);
 
-  /* -------------------- AUTO GPS ON LOAD -------------------- */
+  // --- 3. AUTO GPS ON MOUNT ---
+  // Matches RN: useEffect(() => { ...Location.getCurrentPositionAsync... }, [])
   useEffect(() => {
-    if (isLoaded && !user?.address) {
+    if (isLoaded) {
       handleUseGPS();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoaded]);
 
-  /* -------------------- MAP MOVEMENT -------------------- */
+  // --- 4. MAP EVENTS ---
+  const handleMapDragStart = () => {
+    setIsDragging(true);
+  };
+
   const handleMapIdle = () => {
     if (!map) return;
 
-    const c = map.getCenter();
-    if (!c) return;
+    // Get the new center coordinates
+    const newCenter = map.getCenter();
+    if (!newCenter) return;
 
-    const lat = c.lat();
-    const lng = c.lng();
+    const lat = newCenter.lat();
+    const lng = newCenter.lng();
 
     setCenter({ lat, lng });
+    
+    // Only fetch address if we are done dragging
     fetchAddress(lat, lng);
     setIsDragging(false);
   };
 
-  /* -------------------- GPS -------------------- */
-  const handleUseGPS = () => {
-    setLoadingGPS(true);
-
-    if (!navigator.geolocation) {
-      toast.error("Geolocation not supported");
-      setLoadingGPS(false);
-      return;
-    }
-
-    const watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        const coords = {
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-        };
-
-        setCenter(coords);
-        map?.panTo(coords);
-        map?.setZoom(18);
-        fetchAddress(coords.lat, coords.lng);
-
-        navigator.geolocation.clearWatch(watchId);
-        setLoadingGPS(false);
-      },
-      () => {
-        toast.error("Enable precise GPS location");
-        setLoadingGPS(false);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 0,
-      }
-    );
-  };
-
-  /* -------------------- SEARCH -------------------- */
+  // --- 5. SEARCH HANDLER ---
   const handlePlaceSelected = (place: google.maps.places.PlaceResult) => {
     if (!place.geometry?.location) return;
 
     const lat = place.geometry.location.lat();
     const lng = place.geometry.location.lng();
 
+    // Optimistic update: Set address immediately from search result (Matches RN behavior)
+    if (place.formatted_address) {
+      setAddress(place.formatted_address);
+    }
+
     setCenter({ lat, lng });
-    setAddress(place.formatted_address || "");
     map?.panTo({ lat, lng });
-    map?.setZoom(18);
+    map?.setZoom(17); // equivalent to delta zoom
   };
 
-  /* -------------------- CONFIRM -------------------- */
+  // --- 6. GPS HANDLER ---
+  const handleUseGPS = () => {
+    setIsLoadingLocation(true);
+
+    if (!navigator.geolocation) {
+      toast.error("Geolocation is not supported by your browser");
+      setIsLoadingLocation(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const coords = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        };
+        setCenter(coords);
+        map?.panTo(coords);
+        map?.setZoom(17);
+        fetchAddress(coords.lat, coords.lng);
+        setIsLoadingLocation(false);
+      },
+      (error) => {
+        console.error(error);
+        // Only show error if user explicitly clicked the button, 
+        // silently fail on auto-load to avoid spamming toast
+        setIsLoadingLocation(false);
+      },
+      { enableHighAccuracy: true }
+    );
+  };
+
+  // --- 7. CONFIRMATION ---
   const handleConfirm = async () => {
-    if (!address) {
-      toast.error("Select a valid address");
+    if (!address || address === "Locating...") {
+      toast.error("Please wait for the location to be identified");
       return;
     }
 
@@ -164,8 +169,11 @@ export default function SetupLocationPage() {
         longitude: center.lng,
       });
 
-      router.push("/restaurants");
-    } catch {}
+      // Navigate based on your flow
+      router.push("/restaurants"); 
+    } catch (error) {
+      toast.error("Failed to update location");
+    }
   };
 
   if (!isLoaded) {
@@ -177,94 +185,105 @@ export default function SetupLocationPage() {
   }
 
   return (
-    <div className="h-screen relative overflow-hidden">
-      {/* Top Search */}
-      <div className="absolute top-0 inset-x-0 z-10 p-4 bg-gradient-to-b from-white/90 to-transparent">
-        <div className="max-w-md mx-auto flex gap-2">
+    <div className="h-screen w-full relative overflow-hidden bg-gray-100">
+      
+      {/* --- TOP SEARCH BAR (Overlay) --- */}
+      <div className="absolute top-0 inset-x-0 z-20 pt-4 px-4 bg-gradient-to-b from-black/10 to-transparent pointer-events-none">
+        <div className="max-w-md mx-auto flex items-center gap-3 pointer-events-auto">
+          {/* Back Button */}
           <Button
-            variant="ghost"
-            size="icon"
-            className="bg-white shadow rounded-full h-11 w-11"
             onClick={() => router.back()}
+            size="icon"
+            className="h-11 w-11 rounded-full bg-white text-black shadow-md hover:bg-gray-100 border border-gray-100 shrink-0"
           >
-            <ArrowLeft />
+            <ArrowLeft className="h-5 w-5" />
           </Button>
 
-          <Card className="flex-1 px-4 flex items-center rounded-xl shadow bg-white">
+          {/* Search Input */}
+          <div className="flex-1 h-11 bg-white rounded-full shadow-md flex items-center px-4 border border-gray-100">
             <ReactGoogleAutocomplete
-              apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
+              apiKey={GOOGLE_MAPS_API_KEY}
               onPlaceSelected={handlePlaceSelected}
               options={{
                 types: ["geocode", "establishment"],
-                componentRestrictions: { country: "ng" },
+                componentRestrictions: { country: "ng" }, // Limit to Nigeria
               }}
-              placeholder="Search your street"
-              className="w-full h-11 bg-transparent outline-none text-sm"
+              placeholder="Search street, area..."
+              className="w-full bg-transparent outline-none text-sm text-gray-800 placeholder:text-gray-400"
             />
-          </Card>
+          </div>
         </div>
       </div>
 
-      {/* Map */}
-      <GoogleMap
-        mapContainerStyle={{ width: "100%", height: "100%" }}
-        center={center}
-        zoom={15}
-        onLoad={onLoad}
-        onUnmount={onUnmount}
-        onDragStart={() => setIsDragging(true)}
-        onIdle={handleMapIdle}
-        options={MAP_OPTIONS}
-      />
+      {/* --- MAP --- */}
+      <div className="absolute inset-0 z-0">
+        <GoogleMap
+          mapContainerStyle={{ width: "100%", height: "100%" }}
+          center={center}
+          zoom={15}
+          onLoad={onLoad}
+          onUnmount={onUnmount}
+          onDragStart={handleMapDragStart}
+          onIdle={handleMapIdle}
+          options={MAP_OPTIONS}
+        />
+      </div>
 
-      {/* Fixed Pin */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-full z-20 pointer-events-none">
-        <div
-          className={cn(
-            "transition-transform",
-            isDragging && "-translate-y-3 scale-110"
-          )}
+      {/* --- CENTER PIN --- */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none pb-[40px]">
+        <div className={cn(
+          "flex flex-col items-center justify-center transition-transform duration-200",
+          isDragging ? "-translate-y-3 scale-110" : ""
+        )}>
+           {/* Pin Icon */}
+          <MapPin className="h-10 w-10 text-[#7b1e3a] fill-[#7b1e3a] drop-shadow-lg" />
+          {/* Shadow dot */}
+          <div className="w-2.5 h-1.5 bg-black/20 rounded-full mt-1 blur-[1px]" />
+        </div>
+      </div>
+
+      {/* --- RE-CENTER BUTTON --- */}
+      <div className="absolute bottom-[280px] md:bottom-[240px] right-4 z-10">
+        <Button
+          onClick={handleUseGPS}
+          size="icon"
+          className="h-12 w-12 rounded-full bg-white text-[#7b1e3a] shadow-lg hover:bg-gray-50"
         >
-          <MapPin className="h-10 w-10 text-[#7b1e3a] fill-[#7b1e3a]" />
-        </div>
+          {isLoadingLocation ? (
+            <Loader2 className="h-6 w-6 animate-spin" />
+          ) : (
+            <Crosshair className="h-6 w-6" />
+          )}
+        </Button>
       </div>
 
-      {/* Bottom */}
-      <div className="absolute bottom-0 inset-x-0 z-10 p-4 pb-8 bg-gradient-to-t from-white via-white/90">
+      {/* --- BOTTOM CARD --- */}
+      <div className="absolute bottom-0 inset-x-0 z-20 bg-white rounded-t-3xl shadow-[0_-4px_20px_rgba(0,0,0,0.1)] p-6 pb-8 animate-in slide-in-from-bottom duration-300">
         <div className="max-w-md mx-auto space-y-4">
-          <div className="flex justify-end">
-            <Button
-              size="icon"
-              className="h-12 w-12 rounded-full bg-white shadow"
-              onClick={handleUseGPS}
-            >
-              {loadingGPS ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                <Navigation />
-              )}
-            </Button>
+          
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">
+            Confirm Delivery Address
+          </p>
+
+          <div className="flex items-center gap-3 bg-gray-50 p-4 rounded-xl border border-gray-100">
+            <MapPin className="h-6 w-6 text-[#7b1e3a] shrink-0" />
+            <p className="text-base font-semibold text-gray-900 line-clamp-2">
+              {address}
+            </p>
           </div>
 
-          <Card className="p-5 rounded-2xl shadow-xl space-y-4">
-            <div className="flex gap-2">
-              <MapPin className="text-[#7b1e3a]" />
-              <p className="font-semibold text-lg line-clamp-2">
-                {address || "Locating..."}
-              </p>
-            </div>
+          <Button
+            className="w-full h-14 bg-[#7b1e3a] hover:bg-[#60152b] text-white text-base font-bold rounded-2xl shadow-md"
+            disabled={isPending || isDragging || !address}
+            onClick={handleConfirm}
+          >
+            {isPending && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
+            Confirm Location
+          </Button>
 
-            <Button
-              className="w-full h-12 bg-[#7b1e3a] hover:bg-[#60152b]"
-              disabled={isPending || !address || isDragging}
-              onClick={handleConfirm}
-            >
-              {isPending && <Loader2 className="mr-2 animate-spin" />}
-              Confirm Location
-            </Button>
-          </Card>
         </div>
       </div>
+
     </div>
   );
 }
