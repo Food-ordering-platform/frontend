@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { MapPin, Navigation, Loader2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils"; // Assuming you have a utils file for class merging
+import { cn } from "@/lib/utils";
 
 // Default: Warri, Delta State
 const DEFAULT_CENTER = { lat: 5.517, lng: 5.750 }; 
@@ -19,11 +19,11 @@ const DELTA_BOUNDS = { north: 6.00, south: 5.40, east: 6.30, west: 5.60 };
 // Map styles to remove default POI icons for a cleaner "Chowdeck" look
 const MAP_OPTIONS: google.maps.MapOptions = {
   disableDefaultUI: true,
-  zoomControl: false, // Chowdeck usually relies on pinch-to-zoom
+  zoomControl: false,
   mapTypeControl: false,
   streetViewControl: false,
   fullscreenControl: false,
-  clickableIcons: false, // Prevents clicking on default landmarks
+  clickableIcons: false, 
   restriction: {
     latLngBounds: DELTA_BOUNDS,
     strictBounds: false
@@ -32,7 +32,7 @@ const MAP_OPTIONS: google.maps.MapOptions = {
 
 export default function SetupLocationPage() {
   const router = useRouter();
-  const { user, setUser } = useAuth();
+  const { user } = useAuth();
   const { mutateAsync: updateProfile, isPending } = useUpdateProfile();
   
   const [map, setMap] = useState<google.maps.Map | null>(null);
@@ -58,26 +58,24 @@ export default function SetupLocationPage() {
     setMap(null);
   }, []);
 
-  // 🚀 Google Maps Geocoding (More accurate than Nominatim)
+  // 🚀 Google Maps Geocoding
   const fetchAddress = useCallback(async (lat: number, lng: number) => {
     if (!geocoderRef.current) return;
 
     try {
       const response = await geocoderRef.current.geocode({ location: { lat, lng } });
       if (response.results[0]) {
-        // Prefer "street address" or "premise" or "route" for better precision
         const formattedAddress = response.results[0].formatted_address;
         setAddress(formattedAddress);
       }
     } catch (error) {
       console.error("Geocoding failed:", error);
-      // Fallback: don't clear address, keep previous or show generic
     }
   }, []);
 
-  // 🚀 Auto-detect location on mount (Chowdeck style)
+  // 🚀 Auto-detect location on mount if user has no address
   useEffect(() => {
-    if (navigator.geolocation && isLoaded) {
+    if (navigator.geolocation && isLoaded && !user?.address) {
       handleUseGPS();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -110,7 +108,7 @@ export default function SetupLocationPage() {
                 };
                 setCenter(pos);
                 map?.panTo(pos);
-                map?.setZoom(17); // Zoom in closer for accuracy
+                map?.setZoom(17);
                 fetchAddress(pos.lat, pos.lng);
                 setLoadingLocation(false);
             },
@@ -147,21 +145,16 @@ export default function SetupLocationPage() {
     }
     
     try {
-        const updated = await updateProfile({
+        await updateProfile({
             address,
             latitude: center.lat,
             longitude: center.lng
         });
         
-        if (user) {
-            setUser({ ...user, ...updated.user, address, latitude: center.lat, longitude: center.lng });
-        }
-
-        toast.success("Location set successfully!");
+        // Redirect to Restaurants page
         router.push("/restaurants");
     } catch (e) {
-        console.error(e);
-        toast.error("Failed to save location.");
+        // Error handling is done in the hook
     }
   };
 
@@ -187,7 +180,7 @@ export default function SetupLocationPage() {
             >
                 <ArrowLeft className="h-5 w-5" />
             </Button>
-            <Card className="flex-1 shadow-lg border-0 bg-white/95 backdrop-blur rounded-xl overflow-hidden">
+            <Card className="flex-1 shadow-lg border-0 bg-white/95 backdrop-blur rounded-xl overflow-hidden px-4 flex items-center">
                 <ReactGoogleAutocomplete
                     apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
                     onPlaceSelected={handlePlaceSelected}
@@ -196,7 +189,7 @@ export default function SetupLocationPage() {
                         componentRestrictions: { country: "ng" },
                     }}
                     placeholder="Search for your street..."
-                    className="w-full h-11 px-4 bg-transparent border-none outline-none text-sm font-medium placeholder:text-gray-400"
+                    className="w-full h-11 bg-transparent border-none outline-none text-sm font-medium placeholder:text-gray-400"
                 />
             </Card>
         </div>
@@ -214,7 +207,7 @@ export default function SetupLocationPage() {
             onDragEnd={onDragEnd}
             options={MAP_OPTIONS}
           >
-             {/* We use a CSS overlay for the pin instead of a Marker to replicate the "Fixed Pin" UX */}
+             {/* No Marker component here - we use the fixed overlay pin below */}
           </GoogleMap>
       </div>
 
