@@ -2,11 +2,10 @@
 
 import { useState, useEffect } from "react"
 import { useRestaurants } from "@/services/restaurants/restaurants.queries"
-import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Search, MapPin, Clock, Star, Truck, Utensils, Info } from "lucide-react"
+import { MapPin, Clock, Star, Truck, Utensils, Info, ArrowRight } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import type { Restaurant } from "@/types/restuarants.type"
@@ -17,33 +16,20 @@ export function Restaurants() {
   const restaurants = restaurantResponse?.data || []
 
   const [filteredRestaurants, setFilteredRestaurants] = useState<Restaurant[]>([])
-  const [searchQuery, setSearchQuery] = useState("")
   const [selectedCuisine, setSelectedCuisine] = useState<string>("")
 
-  // Update filtered list when data or filters change
+  // Update filtered list when cuisine changes
   useEffect(() => {
-    let filtered = restaurants
-
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase()
-      filtered = filtered.filter(
-        (r) =>
-          r.name.toLowerCase().includes(q) ||
-          (typeof r.cuisine === 'string' && r.cuisine.toLowerCase().includes(q)) ||
-          (typeof r.description === 'string' && r.description.toLowerCase().includes(q))
-      )
-    }
-
     if (selectedCuisine) {
-      filtered = filtered.filter((r) => r.cuisine === selectedCuisine)
+      setFilteredRestaurants(restaurants.filter((r) => r.cuisine === selectedCuisine))
+    } else {
+      setFilteredRestaurants(restaurants)
     }
+  }, [restaurants, selectedCuisine])
 
-    setFilteredRestaurants(filtered)
-  }, [restaurants, searchQuery, selectedCuisine])
-
+  // Extract unique cuisines
   const cuisines = Array.from(new Set(restaurants.map((r) => r.cuisine as string).filter(Boolean)))
 
-  // Naira formatter
   const formatMoney = (amount: number) => {
     return new Intl.NumberFormat("en-NG", {
       style: "currency",
@@ -52,14 +38,13 @@ export function Restaurants() {
     }).format(amount)
   }
 
-  // Helper to handle missing values
   const getRating = (rating?: number) => rating ?? 4.5; 
 
   if (isLoading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {[1, 2, 3, 4, 5, 6].map((i) => (
-          <div key={i} className="h-[340px] rounded-3xl bg-gray-100 animate-pulse border border-gray-200" />
+          <div key={i} className="h-[400px] rounded-[32px] bg-gray-100 animate-pulse" />
         ))}
       </div>
     )
@@ -67,13 +52,13 @@ export function Restaurants() {
 
   if (error) {
     return (
-        <div className="text-center py-20 bg-red-50 rounded-3xl border border-red-100">
-            <div className="mx-auto w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4">
-                <Info className="h-6 w-6 text-red-600" />
+        <div className="text-center py-20 bg-red-50/50 rounded-3xl border border-red-100">
+            <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                <Info className="h-8 w-8 text-red-600" />
             </div>
-            <p className="text-red-900 font-semibold text-lg">Failed to load restaurants.</p>
-            <p className="text-red-600/80 mb-6">Something went wrong while fetching the data.</p>
-            <Button variant="outline" className="border-red-200 text-red-700 hover:bg-red-100" onClick={() => window.location.reload()}>
+            <h3 className="text-xl font-bold text-gray-900">Unable to load restaurants</h3>
+            <p className="text-gray-500 mb-6 mt-2">We encountered an issue fetching the data.</p>
+            <Button className="bg-[#7b1e3a] hover:bg-[#60152b] rounded-full px-8" onClick={() => window.location.reload()}>
                 Try Again
             </Button>
         </div>
@@ -81,169 +66,139 @@ export function Restaurants() {
   }
 
   return (
-    <div className="space-y-10">
-      {/* Sticky Filter Bar */}
-      <div className="top-20 z-30 bg-white/80 backdrop-blur-xl rounded-2xl shadow-sm border border-gray-200/60 p-4 transition-all supports-[backdrop-filter]:bg-white/60">
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="relative flex-1 group">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 group-focus-within:text-[#7b1e3a] transition-colors" />
-            <Input
-              placeholder="What are you craving? (e.g. Jollof, Pizza)"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 h-11 bg-gray-50 border-gray-200 focus:bg-white focus:border-[#7b1e3a] focus:ring-[#7b1e3a]/20 rounded-xl transition-all"
-            />
-          </div>
-          
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 no-scrollbar mask-gradient-r">
-             <Button
-                variant={selectedCuisine === "" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSelectedCuisine("")}
-                className={`rounded-full px-5 h-10 font-medium transition-all ${
-                    selectedCuisine === "" 
-                    ? "bg-[#7b1e3a] hover:bg-[#66172e] shadow-md shadow-red-900/10" 
-                    : "border-gray-200 text-gray-600 hover:text-[#7b1e3a] hover:border-[#7b1e3a]/30 hover:bg-gray-50"
-                }`}
-              >
-                All
-              </Button>
-            {cuisines.map((cuisine) => (
-              <Button
-                key={cuisine}
-                variant={selectedCuisine === cuisine ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSelectedCuisine(cuisine)}
-                className={`rounded-full px-5 h-10 font-medium whitespace-nowrap transition-all ${
-                    selectedCuisine === cuisine 
-                    ? "bg-[#7b1e3a] hover:bg-[#66172e] shadow-md shadow-red-900/10" 
-                    : "border-gray-200 text-gray-600 hover:text-[#7b1e3a] hover:border-[#7b1e3a]/30 hover:bg-gray-50"
-                }`}
-              >
-                {cuisine}
-              </Button>
-            ))}
-          </div>
+    <div className="space-y-12">
+      
+      {/* 🟢 REDESIGNED CATEGORY PILLS (Centered, no search bar) */}
+      {cuisines.length > 0 && (
+        <div className="flex justify-center">
+            <div className="inline-flex items-center gap-2 overflow-x-auto p-2 bg-gray-100/80 backdrop-blur-md rounded-full border border-gray-200/50 max-w-full no-scrollbar">
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedCuisine("")}
+                    className={`rounded-full px-6 h-9 font-medium transition-all ${
+                        selectedCuisine === "" 
+                        ? "bg-white text-[#7b1e3a] shadow-sm font-bold" 
+                        : "text-gray-500 hover:text-gray-900 hover:bg-gray-200/50"
+                    }`}
+                >
+                    All
+                </Button>
+                {cuisines.map((cuisine) => (
+                <Button
+                    key={cuisine}
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedCuisine(cuisine)}
+                    className={`rounded-full px-6 h-9 font-medium whitespace-nowrap transition-all ${
+                        selectedCuisine === cuisine 
+                        ? "bg-white text-[#7b1e3a] shadow-sm font-bold" 
+                        : "text-gray-500 hover:text-gray-900 hover:bg-gray-200/50"
+                    }`}
+                >
+                    {cuisine}
+                </Button>
+                ))}
+            </div>
         </div>
-      </div>
+      )}
 
-      {/* Restaurant Grid */}
+      {/* 🟡 RESTAURANT GRID */}
       {filteredRestaurants.length === 0 ? (
-        <div className="text-center py-24 bg-gray-50 rounded-3xl border border-dashed border-gray-200">
-          <div className="inline-flex h-20 w-20 bg-white rounded-full items-center justify-center mb-6 shadow-sm border border-gray-100">
-            <Utensils className="h-8 w-8 text-gray-400" />
+        <div className="text-center py-32">
+          <div className="inline-flex h-24 w-24 bg-gray-50 rounded-full items-center justify-center mb-6">
+            <Utensils className="h-10 w-10 text-gray-300" />
           </div>
-          <h3 className="text-xl font-bold text-gray-900 mb-2">No restaurants found</h3>
-          <p className="text-gray-500 max-w-sm mx-auto">We couldn't find any matches for your search. Try adjusting your filters.</p>
+          <h3 className="text-2xl font-bold text-gray-900">No restaurants found</h3>
+          <p className="text-gray-500 mt-2">Try selecting "All" to see everything available.</p>
           <Button 
             variant="link" 
             className="text-[#7b1e3a] mt-4 font-semibold" 
-            onClick={() => {setSearchQuery(""); setSelectedCuisine("")}}
+            onClick={() => setSelectedCuisine("")}
           >
-            Clear All Filters
+            Reset Filters
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-          <AnimatePresence>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-10">
+          <AnimatePresence mode="popLayout">
             {filteredRestaurants.map((restaurant, index) => (
                 <motion.div
                     key={restaurant.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
                     transition={{ duration: 0.3, delay: index * 0.05 }}
                 >
                     <Link href={`/restaurant/${restaurant.id}`} className="group block h-full">
-                    <Card className="h-full overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 bg-white rounded-3xl flex flex-col hover:-translate-y-1">
-                        {/* Image Header */}
-                        <div className="relative h-56 w-full overflow-hidden">
-                            <Image
-                                src={restaurant.imageUrl || "/placeholder.svg"}
-                                alt={restaurant.name}
-                                fill
-                                className="object-cover group-hover:scale-105 transition-transform duration-700"
-                            />
+                        <Card className="h-full border-0 shadow-none bg-transparent flex flex-col group">
                             
-                            {/* Gradient Overlay for Text Readability */}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 opacity-60" />
-                            
-                            {/* Status Badge (Top Left) */}
-                            <div className="absolute top-4 left-4">
-                                {restaurant.isOpen ? (
-                                    <Badge className="bg-green-500/90 hover:bg-green-600 text-white backdrop-blur-md border-0 px-3 py-1 text-xs font-bold shadow-sm flex items-center gap-1.5">
-                                        <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
-                                        Open Now
+                            {/* IMAGE CARD */}
+                            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[32px] shadow-sm group-hover:shadow-xl transition-all duration-500">
+                                <Image
+                                    src={restaurant.imageUrl || "/placeholder.svg"}
+                                    alt={restaurant.name}
+                                    fill
+                                    className="object-cover group-hover:scale-110 transition-transform duration-700"
+                                />
+                                <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-colors" />
+                                
+                                {/* Top Badges */}
+                                <div className="absolute top-4 left-4 right-4 flex justify-between items-start">
+                                    <Badge className={`backdrop-blur-md border-0 px-3 py-1.5 text-xs font-bold shadow-sm ${
+                                        restaurant.isOpen 
+                                        ? "bg-white/90 text-green-700" 
+                                        : "bg-black/60 text-white"
+                                    }`}>
+                                        {restaurant.isOpen ? "Open Now" : "Closed"}
                                     </Badge>
-                                ) : (
-                                    <Badge variant="destructive" className="bg-red-500/90 hover:bg-red-600 backdrop-blur-md border-0 px-3 py-1 text-xs font-bold shadow-sm">
-                                        Closed
-                                    </Badge>
-                                )}
-                            </div>
 
-                            {/* Rating Badge (Top Right) */}
-                            <div className="absolute top-4 right-4">
-                                <div className="bg-white/95 backdrop-blur-sm px-2.5 py-1 rounded-full shadow-sm flex items-center gap-1">
-                                    <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
-                                    <span className="text-xs font-bold text-gray-800">{getRating(restaurant.rating)}</span>
-                                </div>
-                            </div>
-                            
-                            {/* Cuisine Tag (Bottom Left) */}
-                            {restaurant.cuisine && (
-                                <div className="absolute bottom-4 left-4">
-                                    <span className="text-[10px] font-bold uppercase tracking-wider text-white bg-black/40 backdrop-blur-md px-3 py-1 rounded-full border border-white/20">
-                                        {restaurant.cuisine}
-                                    </span>
-                                </div>
-                            )}
-                        </div>
-
-                        <CardContent className="p-5 flex flex-col flex-1">
-                            {/* Header */}
-                            <div className="flex justify-between items-start mb-3">
-                                <h3 className="font-bold text-xl text-gray-900 group-hover:text-[#7b1e3a] transition-colors line-clamp-1">
-                                    {restaurant.name}
-                                </h3>
-                            </div>
-                            
-                            {/* Address */}
-                            <div className="flex items-start gap-2 mb-4">
-                                <MapPin className="h-4 w-4 text-gray-400 mt-0.5 shrink-0" />
-                                <p className="text-sm text-gray-500 line-clamp-2 leading-relaxed">
-                                    {restaurant.address}
-                                </p>
-                            </div>
-
-                            <div className="mt-auto pt-4 border-t border-gray-100 grid grid-cols-2 gap-4">
-                                {/* Prep Time */}
-                                <div className="flex items-center gap-2">
-                                    <div className="h-8 w-8 rounded-full bg-orange-50 flex items-center justify-center text-orange-600 shrink-0">
-                                        <Clock className="h-4 w-4" />
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">Prep Time</p>
-                                        <p className="text-sm font-semibold text-gray-700">{restaurant.prepTime} mins</p>
+                                    <div className="bg-white/90 backdrop-blur-md px-2.5 py-1.5 rounded-full shadow-sm flex items-center gap-1">
+                                        <Star className="h-3.5 w-3.5 fill-[#7b1e3a] text-[#7b1e3a]" />
+                                        <span className="text-xs font-extrabold text-gray-900">{getRating(restaurant.rating)}</span>
                                     </div>
                                 </div>
 
-                                {/* Delivery Fee */}
-                                <div className="flex items-center gap-2">
-                                    <div className="h-8 w-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
-                                        <Truck className="h-4 w-4" />
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">Delivery</p>
-                                        <p className="text-sm font-semibold text-gray-700">
-                                            {restaurant.deliveryFee && restaurant.deliveryFee > 0 
-                                                ? formatMoney(restaurant.deliveryFee) 
-                                                : "Free"}
-                                        </p>
+                                {/* Delivery Time Pill (Bottom Right) */}
+                                <div className="absolute bottom-4 right-4">
+                                     <div className="bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-full shadow-sm flex items-center gap-1.5">
+                                        <Clock className="h-3.5 w-3.5 text-gray-500" />
+                                        <span className="text-xs font-bold text-gray-800">{restaurant.prepTime} mins</span>
                                     </div>
                                 </div>
                             </div>
-                        </CardContent>
-                    </Card>
+
+                            {/* CONTENT BELOW IMAGE */}
+                            <CardContent className="px-2 py-5 flex flex-col flex-1">
+                                <div className="flex justify-between items-start mb-2">
+                                    <h3 className="text-xl font-bold text-gray-900 group-hover:text-[#7b1e3a] transition-colors leading-tight">
+                                        {restaurant.name}
+                                    </h3>
+                                    <div className="h-8 w-8 rounded-full bg-gray-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0">
+                                        <ArrowRight className="h-4 w-4 text-[#7b1e3a]" />
+                                    </div>
+                                </div>
+                                
+                                <div className="flex items-center gap-2 text-sm text-gray-500 mb-3">
+                                    <MapPin className="h-3.5 w-3.5 shrink-0" />
+                                    <span className="line-clamp-1">{restaurant.address}</span>
+                                </div>
+
+                                <div className="flex items-center gap-4 mt-auto">
+                                    <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600 bg-gray-100 px-2.5 py-1 rounded-md">
+                                        <Truck className="h-3.5 w-3.5" />
+                                        {restaurant.deliveryFee && restaurant.deliveryFee > 0 
+                                            ? formatMoney(restaurant.deliveryFee)
+                                            : "Free Delivery"}
+                                    </div>
+                                    {restaurant.cuisine && (
+                                        <div className="text-xs font-medium text-gray-500 border border-gray-200 px-2.5 py-1 rounded-md">
+                                            {restaurant.cuisine}
+                                        </div>
+                                    )}
+                                </div>
+                            </CardContent>
+                        </Card>
                     </Link>
                 </motion.div>
             ))}

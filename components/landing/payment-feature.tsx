@@ -7,7 +7,7 @@ import Link from "next/link";
 
 export function PaymentFeatureSection() {
   return (
-    <section className="py-12 md:py-24 bg-black overflow-hidden">
+    <section className="py-12 md:py-24 bg-[#7b1e3a] overflow-hidden">
       {/* Added responsive padding to the container */}
       <div className="container px-4 md:px-6 mx-auto">
         
