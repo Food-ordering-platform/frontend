@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { useCart } from "@/lib/cart-context"
-import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from "@/components/ui/sheet"
@@ -11,9 +10,12 @@ import Image from "next/image"
 import Link from "next/link"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
-export function CartDrawer() {
+interface CartDrawerProps {
+  children?: React.ReactNode
+}
+
+export function CartDrawer({ children }: CartDrawerProps) {
   const { items, updateQuantity, removeItem, getTotalItems, getTotalPrice, clearCart } = useCart()
-  const { user } = useAuth()
   const [isOpen, setIsOpen] = useState(false)
 
   const totalItems = getTotalItems()
@@ -24,19 +26,32 @@ export function CartDrawer() {
     return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", minimumFractionDigits: 0 }).format(amount)
   }
 
-  if (!user) return null
+  // ✅ REMOVED: if (!user) return null
+  // Now guests can see the cart too.
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative text-gray-700 hover:text-[#7b1e3a] hover:bg-orange-50 active:scale-90 transition-transform">
-          <ShoppingCart className="h-6 w-6" />
-          {totalItems > 0 && (
-            <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full flex items-center justify-center text-[10px] bg-[#7b1e3a] text-white font-bold animate-in zoom-in">
-              {totalItems}
-            </span>
-          )}
-        </Button>
+        {/* If children (Header button) exists, use it. Otherwise, use default. */}
+        {children ? (
+            <div className="relative inline-block cursor-pointer">
+                {children}
+                {totalItems > 0 && (
+                    <span className="absolute top-0 right-0 h-4 w-4 rounded-full flex items-center justify-center text-[10px] bg-[#7b1e3a] text-white font-bold animate-in zoom-in ring-2 ring-white">
+                        {totalItems}
+                    </span>
+                )}
+            </div>
+        ) : (
+            <Button variant="ghost" size="icon" className="relative text-gray-700 hover:text-[#7b1e3a] hover:bg-orange-50 active:scale-90 transition-transform">
+                <ShoppingCart className="h-6 w-6" />
+                {totalItems > 0 && (
+                    <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full flex items-center justify-center text-[10px] bg-[#7b1e3a] text-white font-bold animate-in zoom-in">
+                        {totalItems}
+                    </span>
+                )}
+            </Button>
+        )}
       </SheetTrigger>
       
       <SheetContent className="w-full sm:max-w-md flex flex-col bg-gray-50/50 p-0 border-l shadow-2xl">
@@ -45,7 +60,7 @@ export function CartDrawer() {
              <ShoppingBag className="h-5 w-5" /> My Bag 
              <Badge variant="secondary" className="bg-orange-100 text-orange-800 hover:bg-orange-100 ml-2">{totalItems}</Badge>
           </SheetTitle>
-          {/* Custom Close Button in Header */}
+          {/* Custom Close Button */}
           <SheetClose asChild>
              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-gray-100">
                 <X className="h-4 w-4" />
