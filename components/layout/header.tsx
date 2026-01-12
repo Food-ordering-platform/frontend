@@ -99,7 +99,7 @@ export function Header() {
           {/* --- RIGHT ACTIONS --- */}
           <div className="flex items-center gap-2 md:gap-4">
             
-            {/* Cart (Visible on Mobile & Desktop) */}
+            {/* Cart - Always visible, positioned before user actions */}
             <CartDrawer />
 
             {/* Loading State */}
@@ -107,7 +107,6 @@ export function Header() {
               <Skeleton className="h-10 w-10 rounded-full bg-gray-200" />
             ) : user ? (
               // --- LOGGED IN USER (Desktop & Mobile) ---
-              // FIX APPLIED: modal={false} prevents body scroll locking which causes the hang
               <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
                   <div className="relative h-9 w-9 md:h-10 md:w-10 rounded-full cursor-pointer hover:bg-[#7b1e3a]/10 flex items-center justify-center transition-colors">
@@ -150,18 +149,13 @@ export function Header() {
             ) : (
               // --- GUEST STATE ---
               <>
-              <CartDrawer />
                 {/* Desktop Buttons (Hidden on Mobile) */}
                 <div className="hidden md:flex items-center space-x-3">
-                  {/* <Button variant="ghost" asChild className="font-semibold text-gray-700 hover:text-[#7b1e3a] hover:bg-[#7b1e3a]/5">
-                    <Link href="/login">Sign In</Link>
-                  </Button> */}
                   <Button asChild className="font-bold px-6 rounded-full bg-[#7b1e3a] hover:bg-[#66172e] text-white shadow-sm">
                     <Link href="/signup">Get Started</Link>
                   </Button>
                 </div>
 
-                <CartDrawer />
                 {/* Mobile Hamburger (Visible on Mobile Only) */}
                 <button 
                   onClick={() => setIsMobileMenuOpen(true)}
