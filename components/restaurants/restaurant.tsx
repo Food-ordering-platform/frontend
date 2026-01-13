@@ -2,14 +2,10 @@
 
 import { useState, useEffect } from "react"
 import { useRestaurants } from "@/services/restaurants/restaurants.queries"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { MapPin, Clock, Star, Truck, Utensils, Info, ArrowRight } from "lucide-react"
+import { MapPin, Clock, Star, Truck, Utensils, Info, Heart, TrendingUp, ChefHat } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import type { Restaurant } from "@/types/restuarants.type"
-import { motion, AnimatePresence } from "framer-motion"
 
 export function Restaurants() {
   const { data: restaurantResponse, isLoading, error } = useRestaurants()
@@ -18,7 +14,6 @@ export function Restaurants() {
   const [filteredRestaurants, setFilteredRestaurants] = useState<Restaurant[]>([])
   const [selectedCuisine, setSelectedCuisine] = useState<string>("")
 
-  // Update filtered list when cuisine changes
   useEffect(() => {
     if (selectedCuisine) {
       setFilteredRestaurants(restaurants.filter((r) => r.cuisine === selectedCuisine))
@@ -27,7 +22,6 @@ export function Restaurants() {
     }
   }, [restaurants, selectedCuisine])
 
-  // Extract unique cuisines
   const cuisines = Array.from(new Set(restaurants.map((r) => r.cuisine as string).filter(Boolean)))
 
   const formatMoney = (amount: number) => {
@@ -38,13 +32,25 @@ export function Restaurants() {
     }).format(amount)
   }
 
-  const getRating = (rating?: number) => rating ?? 4.5; 
+  const getRating = (rating?: number) => rating ?? 4.5
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {[1, 2, 3, 4, 5, 6].map((i) => (
-          <div key={i} className="h-[400px] rounded-[32px] bg-gray-100 animate-pulse" />
+          <div key={i} className="group">
+            <div className="relative bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
+              <div className="aspect-[4/3] w-full bg-gradient-to-br from-gray-100 to-gray-200 animate-pulse" />
+              <div className="p-5 space-y-3">
+                <div className="h-6 w-3/4 bg-gray-200 rounded-lg animate-pulse" />
+                <div className="h-4 w-1/2 bg-gray-200 rounded-lg animate-pulse" />
+                <div className="flex gap-2 pt-2">
+                  <div className="h-8 w-20 bg-gray-200 rounded-full animate-pulse" />
+                  <div className="h-8 w-24 bg-gray-200 rounded-full animate-pulse" />
+                </div>
+              </div>
+            </div>
+          </div>
         ))}
       </div>
     )
@@ -52,159 +58,210 @@ export function Restaurants() {
 
   if (error) {
     return (
-        <div className="text-center py-20 bg-red-50/50 rounded-3xl border border-red-100">
-            <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
-                <Info className="h-8 w-8 text-red-600" />
-            </div>
-            <h3 className="text-xl font-bold text-gray-900">Unable to load restaurants</h3>
-            <p className="text-gray-500 mb-6 mt-2">We encountered an issue fetching the data.</p>
-            <Button className="bg-[#7b1e3a] hover:bg-[#60152b] rounded-full px-8" onClick={() => window.location.reload()}>
-                Try Again
-            </Button>
+      <div className="flex flex-col items-center justify-center py-24 text-center">
+        <div className="relative mb-6">
+          <div className="w-20 h-20 bg-gradient-to-br from-red-100 to-red-200 rounded-2xl flex items-center justify-center shadow-lg">
+            <Info className="h-10 w-10 text-red-600" />
+          </div>
         </div>
+        <h3 className="text-3xl font-black text-gray-900 mb-3">Something went wrong</h3>
+        <p className="text-gray-600 mb-8 max-w-md text-lg">We couldn't load the restaurants. Please refresh and try again.</p>
+        <button
+          className="px-8 py-3.5 bg-gradient-to-r from-[#7b1e3a] to-[#a62b50] text-white rounded-xl font-bold hover:shadow-xl hover:shadow-[#7b1e3a]/30 transition-all duration-300 hover:scale-105 active:scale-95"
+          onClick={() => window.location.reload()}
+        >
+          Reload Page
+        </button>
+      </div>
     )
   }
 
   return (
-    <div className="space-y-12">
-      
-      {/* 🟢 REDESIGNED CATEGORY PILLS (Centered, no search bar) */}
+    <div className="space-y-8">
+      {/* Modern Filter Tabs */}
       {cuisines.length > 0 && (
-        <div className="flex justify-center">
-            <div className="inline-flex items-center gap-2 overflow-x-auto p-2 bg-gray-100/80 backdrop-blur-md rounded-full border border-gray-200/50 max-w-full no-scrollbar">
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setSelectedCuisine("")}
-                    className={`rounded-full px-6 h-9 font-medium transition-all ${
-                        selectedCuisine === "" 
-                        ? "bg-white text-[#7b1e3a] shadow-sm font-bold" 
-                        : "text-gray-500 hover:text-gray-900 hover:bg-gray-200/50"
-                    }`}
+        <div className="sticky top-20 z-40 -mx-4 px-4 md:mx-0 md:px-0 pb-4">
+          <div className="bg-white/90 backdrop-blur-xl rounded-2xl border border-gray-200/60 shadow-lg p-2">
+            <div className="flex overflow-x-auto no-scrollbar gap-2">
+              <button
+                onClick={() => setSelectedCuisine("")}
+                className={`flex-shrink-0 px-6 py-3 rounded-xl font-bold text-sm transition-all duration-300 ${
+                  selectedCuisine === ""
+                    ? "bg-gradient-to-r from-[#7b1e3a] to-[#a62b50] text-white shadow-lg shadow-[#7b1e3a]/30"
+                    : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  <Utensils className="h-4 w-4" />
+                  All Restaurants
+                </span>
+              </button>
+              {cuisines.map((cuisine) => (
+                <button
+                  key={cuisine}
+                  onClick={() => setSelectedCuisine(cuisine)}
+                  className={`flex-shrink-0 px-6 py-3 rounded-xl font-bold text-sm whitespace-nowrap transition-all duration-300 ${
+                    selectedCuisine === cuisine
+                      ? "bg-gradient-to-r from-[#7b1e3a] to-[#a62b50] text-white shadow-lg shadow-[#7b1e3a]/30"
+                      : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                  }`}
                 >
-                    All
-                </Button>
-                {cuisines.map((cuisine) => (
-                <Button
-                    key={cuisine}
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setSelectedCuisine(cuisine)}
-                    className={`rounded-full px-6 h-9 font-medium whitespace-nowrap transition-all ${
-                        selectedCuisine === cuisine 
-                        ? "bg-white text-[#7b1e3a] shadow-sm font-bold" 
-                        : "text-gray-500 hover:text-gray-900 hover:bg-gray-200/50"
-                    }`}
-                >
-                    {cuisine}
-                </Button>
-                ))}
+                  {cuisine}
+                </button>
+              ))}
             </div>
+          </div>
         </div>
       )}
 
-      {/* 🟡 RESTAURANT GRID */}
+      {/* Empty State */}
       {filteredRestaurants.length === 0 ? (
-        <div className="text-center py-32">
-          <div className="inline-flex h-24 w-24 bg-gray-50 rounded-full items-center justify-center mb-6">
-            <Utensils className="h-10 w-10 text-gray-300" />
+        <div className="flex flex-col items-center justify-center py-24">
+          <div className="relative mb-6">
+            <div className="w-24 h-24 bg-gradient-to-br from-gray-100 to-gray-200 rounded-3xl flex items-center justify-center shadow-lg">
+              <ChefHat className="h-12 w-12 text-gray-400" />
+            </div>
           </div>
-          <h3 className="text-2xl font-bold text-gray-900">No restaurants found</h3>
-          <p className="text-gray-500 mt-2">Try selecting "All" to see everything available.</p>
-          <Button 
-            variant="link" 
-            className="text-[#7b1e3a] mt-4 font-semibold" 
+          <h3 className="text-3xl font-black text-gray-900 mb-3">No restaurants found</h3>
+          <p className="text-gray-600 mb-8 text-lg">Try adjusting your filters or browse all options</p>
+          <button
             onClick={() => setSelectedCuisine("")}
+            className="px-8 py-3.5 bg-gradient-to-r from-[#7b1e3a] to-[#a62b50] text-white rounded-xl font-bold hover:shadow-xl hover:shadow-[#7b1e3a]/30 transition-all duration-300 hover:scale-105 active:scale-95"
           >
-            Reset Filters
-          </Button>
+            Clear Filters
+          </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-10">
-          <AnimatePresence mode="popLayout">
-            {filteredRestaurants.map((restaurant, index) => (
-                <motion.div
-                    key={restaurant.id}
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    transition={{ duration: 0.3, delay: index * 0.05 }}
-                >
-                    <Link href={`/restaurant/${restaurant.id}`} className="group block h-full">
-                        <Card className="h-full border-0 shadow-none bg-transparent flex flex-col group">
-                            
-                            {/* IMAGE CARD */}
-                            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[32px] shadow-sm group-hover:shadow-xl transition-all duration-500">
-                                <Image
-                                    src={restaurant.imageUrl || "/placeholder.svg"}
-                                    alt={restaurant.name}
-                                    fill
-                                    className="object-cover group-hover:scale-110 transition-transform duration-700"
-                                />
-                                <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-colors" />
-                                
-                                {/* Top Badges */}
-                                <div className="absolute top-4 left-4 right-4 flex justify-between items-start">
-                                    <Badge className={`backdrop-blur-md border-0 px-3 py-1.5 text-xs font-bold shadow-sm ${
-                                        restaurant.isOpen 
-                                        ? "bg-white/90 text-green-700" 
-                                        : "bg-black/60 text-white"
-                                    }`}>
-                                        {restaurant.isOpen ? "Open Now" : "Closed"}
-                                    </Badge>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredRestaurants.map((restaurant, index) => (
+            <Link
+              key={restaurant.id}
+              href={`/restaurant/${restaurant.id}`}
+              className="group"
+              style={{
+                animation: `slideUp 0.5s ease-out ${index * 0.05}s both`,
+              }}
+            >
+              <div className="relative h-full bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-2xl hover:border-[#7b1e3a]/20 transition-all duration-500 hover:-translate-y-2">
+                {/* Image Section */}
+                <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-100">
+                  <Image
+                    src={restaurant.imageUrl || "/placeholder.svg"}
+                    alt={restaurant.name}
+                    fill
+                    className="object-cover group-hover:scale-110 transition-transform duration-700"
+                  />
+                  
+                  {/* Gradient Overlay on Hover */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
-                                    <div className="bg-white/90 backdrop-blur-md px-2.5 py-1.5 rounded-full shadow-sm flex items-center gap-1">
-                                        <Star className="h-3.5 w-3.5 fill-[#7b1e3a] text-[#7b1e3a]" />
-                                        <span className="text-xs font-extrabold text-gray-900">{getRating(restaurant.rating)}</span>
-                                    </div>
-                                </div>
+                  {/* Top Badges Row */}
+                  <div className="absolute top-4 left-4 right-4 flex justify-between items-start">
+                    {/* Status Badge */}
+                    {restaurant.isOpen ? (
+                      <div className="px-3 py-1.5 bg-green-500/95 backdrop-blur-sm text-white text-xs font-black uppercase tracking-wide rounded-full shadow-lg flex items-center gap-1.5">
+                        <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+                        Open
+                      </div>
+                    ) : (
+                      <div className="px-3 py-1.5 bg-gray-900/90 backdrop-blur-sm text-white text-xs font-bold uppercase tracking-wide rounded-full shadow-lg">
+                        Closed
+                      </div>
+                    )}
 
-                                {/* Delivery Time Pill (Bottom Right) */}
-                                <div className="absolute bottom-4 right-4">
-                                     <div className="bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-full shadow-sm flex items-center gap-1.5">
-                                        <Clock className="h-3.5 w-3.5 text-gray-500" />
-                                        <span className="text-xs font-bold text-gray-800">{restaurant.prepTime} mins</span>
-                                    </div>
-                                </div>
-                            </div>
+                    {/* Favorite Button */}
+                    <button 
+                      className="w-10 h-10 bg-white/95 backdrop-blur-sm rounded-full shadow-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110 active:scale-95"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        // Add to favorites logic
+                      }}
+                    >
+                      <Heart className="h-4.5 w-4.5 text-gray-700 hover:text-[#7b1e3a] hover:fill-[#7b1e3a] transition-colors" />
+                    </button>
+                  </div>
 
-                            {/* CONTENT BELOW IMAGE */}
-                            <CardContent className="px-2 py-5 flex flex-col flex-1">
-                                <div className="flex justify-between items-start mb-2">
-                                    <h3 className="text-xl font-bold text-gray-900 group-hover:text-[#7b1e3a] transition-colors leading-tight">
-                                        {restaurant.name}
-                                    </h3>
-                                    <div className="h-8 w-8 rounded-full bg-gray-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0">
-                                        <ArrowRight className="h-4 w-4 text-[#7b1e3a]" />
-                                    </div>
-                                </div>
-                                
-                                <div className="flex items-center gap-2 text-sm text-gray-500 mb-3">
-                                    <MapPin className="h-3.5 w-3.5 shrink-0" />
-                                    <span className="line-clamp-1">{restaurant.address}</span>
-                                </div>
+                  {/* Rating Badge - Bottom Right */}
+                  <div className="absolute bottom-4 right-4 flex items-center gap-1.5 px-3 py-1.5 bg-white/95 backdrop-blur-sm rounded-full shadow-lg">
+                    <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+                    <span className="text-sm font-black text-gray-900">{getRating(restaurant.rating)}</span>
+                  </div>
+                </div>
 
-                                <div className="flex items-center gap-4 mt-auto">
-                                    <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600 bg-gray-100 px-2.5 py-1 rounded-md">
-                                        <Truck className="h-3.5 w-3.5" />
-                                        {restaurant.deliveryFee && restaurant.deliveryFee > 0 
-                                            ? formatMoney(restaurant.deliveryFee)
-                                            : "Free Delivery"}
-                                    </div>
-                                    {restaurant.cuisine && (
-                                        <div className="text-xs font-medium text-gray-500 border border-gray-200 px-2.5 py-1 rounded-md">
-                                            {restaurant.cuisine}
-                                        </div>
-                                    )}
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </Link>
-                </motion.div>
-            ))}
-          </AnimatePresence>
+                {/* Content Section */}
+                <div className="p-5 space-y-4">
+                  {/* Restaurant Name & Cuisine */}
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-black text-gray-900 group-hover:text-[#7b1e3a] transition-colors line-clamp-1">
+                      {restaurant.name}
+                    </h3>
+                    
+                    <div className="flex items-center gap-2 text-sm">
+                      {restaurant.cuisine && (
+                        <span className="px-3 py-1 bg-[#7b1e3a]/10 text-[#7b1e3a] rounded-full font-bold text-xs">
+                          {restaurant.cuisine}
+                        </span>
+                      )}
+                      <span className="text-gray-400">•</span>
+                      <div className="flex items-center gap-1 text-gray-600">
+                        <Clock className="h-3.5 w-3.5" />
+                        <span className="font-bold text-xs">{restaurant.prepTime} min</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Address */}
+                  <div className="flex items-start gap-2 text-sm text-gray-500">
+                    <MapPin className="h-4 w-4 text-gray-400 flex-shrink-0 mt-0.5" />
+                    <span className="line-clamp-1 font-medium">{restaurant.address}</span>
+                  </div>
+
+                  {/* Delivery Info & CTA */}
+                  <div className="pt-4 border-t border-gray-100 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-10 h-10 bg-gradient-to-br from-[#7b1e3a]/10 to-purple-500/10 rounded-xl flex items-center justify-center">
+                        <Truck className="h-5 w-5 text-[#7b1e3a]" />
+                      </div>
+                      <div>
+                        {restaurant.deliveryFee && restaurant.deliveryFee > 0 ? (
+                          <div className="text-sm font-black text-gray-900">{formatMoney(restaurant.deliveryFee)}</div>
+                        ) : (
+                          <div className="text-sm font-black text-green-600">Free</div>
+                        )}
+                        <div className="text-xs text-gray-500 font-medium">Delivery</div>
+                      </div>
+                    </div>
+                    
+                    <button className="px-5 py-2.5 bg-gradient-to-r from-[#7b1e3a] to-[#a62b50] text-white rounded-xl font-bold text-sm hover:shadow-lg hover:shadow-[#7b1e3a]/30 transition-all duration-300 group-hover:scale-105 active:scale-95">
+                      Order
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </Link>
+          ))}
         </div>
       )}
+
+      <style jsx>{`
+        @keyframes slideUp {
+          from {
+            opacity: 0;
+            transform: translateY(40px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .no-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        .no-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
     </div>
   )
 }
