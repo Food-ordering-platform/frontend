@@ -57,3 +57,16 @@ export const getQuote = async (data: {
     throw new Error(error.response?.data?.message || "Failed to calculate fees");
   }
 }
+
+export const rateOrder = async (
+  orderId: string,
+  rating: number,
+  comment?: string
+) => {
+  const { data } = await api.post(`/orders/${orderId}/rate`, {
+    rating,
+    comment,
+  });
+
+  return data;
+};
