@@ -1,3 +1,5 @@
+// food-ordering-platform/frontend/frontend-wip-staging/app/orders/details/page.tsx
+
 "use client";
 
 import { useSearchParams } from "next/navigation";
@@ -9,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { RatingDialog } from "@/components/orders/rating-dialog"; // 🟢 Added Import
 import {
   ArrowLeft,
   MapPin,
@@ -23,6 +26,7 @@ import {
   ShoppingBag,
   LockKeyhole,
   Phone,
+  Star, // 🟢 Added Star Icon
 } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -152,22 +156,36 @@ function OrderDetailsContent() {
                 <Package className="h-40 w-40" />
               </div>
 
-              <div className="relative z-10">
-                <div className="flex items-center gap-3 mb-2">
-                  <Badge className="bg-white/20 hover:bg-white/30 text-white border-0 uppercase tracking-widest text-[10px]">
-                    {order.status.replace(/_/g, " ")}
-                  </Badge>
+              <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+                <div>
+                    <div className="flex items-center gap-3 mb-2">
+                    <Badge className="bg-white/20 hover:bg-white/30 text-white border-0 uppercase tracking-widest text-[10px]">
+                        {order.status.replace(/_/g, " ")}
+                    </Badge>
+                    </div>
+                    <h1 className="text-2xl md:text-3xl font-extrabold mb-2">
+                    {order.status === "DELIVERED"
+                        ? "Order Delivered"
+                        : "Order in Progress"}
+                    </h1>
+                    <p className="text-white/80">
+                    {order.status === "DELIVERED"
+                        ? "Enjoy your meal!"
+                        : "Estimated delivery: 30-45 mins"}
+                    </p>
                 </div>
-                <h1 className="text-2xl md:text-3xl font-extrabold mb-2">
-                  {order.status === "DELIVERED"
-                    ? "Order Delivered"
-                    : "Order in Progress"}
-                </h1>
-                <p className="text-white/80">
-                  {order.status === "DELIVERED"
-                    ? "Enjoy your meal!"
-                    : "Estimated delivery: 30-45 mins"}
-                </p>
+
+                {/* 🟢 NEW: RATING BUTTON LOGIC */}
+                {order.status === "DELIVERED" && (
+                   <RatingDialog 
+                     orderId={order.id} 
+                     trigger={
+                       <Button className="bg-white text-[#7b1e3a] hover:bg-gray-100 font-bold shadow-lg transition-transform hover:scale-105">
+                         <Star className="w-4 h-4 mr-2 fill-[#7b1e3a]" /> Rate Order
+                       </Button>
+                     }
+                   />
+                )}
               </div>
             </div>
 
@@ -175,9 +193,7 @@ function OrderDetailsContent() {
               {/* Stepper Logic - Optimized for Mobile */}
               <div className="relative flex justify-between items-start w-full mb-8 mt-2">
                 
-                {/* 1. Background Line (Positioned relative to Icon center) */}
-                {/* Mobile Icon is h-8 (32px) -> Center is 16px (top-4) */}
-                {/* Desktop Icon is h-12 (48px) -> Center is 24px (top-6) */}
+                {/* 1. Background Line */}
                 <div className="absolute top-4 md:top-6 left-0 w-full h-1 bg-gray-100 -translate-y-1/2 -z-10 rounded-full" />
                 
                 {/* 2. Active Line (Animated) */}
@@ -223,7 +239,7 @@ function OrderDetailsContent() {
                         <StepIcon className="h-3.5 w-3.5 md:h-6 md:w-6" />
                       </motion.div>
                       
-                      {/* Text Label - Visible on Mobile now */}
+                      {/* Text Label */}
                       <span
                         className={`text-[9px] md:text-xs font-bold uppercase tracking-wide text-center leading-tight transition-colors duration-300 ${
                           isActive ? "text-[#7b1e3a]" : "text-gray-300"
