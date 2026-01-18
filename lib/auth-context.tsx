@@ -108,7 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           
           if (mode === "signup") {
                toast.success("Account created successfully!");
-               router.push("/setup-location");
+               router.push("/restaurants");
           } else {
                handlePostLoginNavigation(res.user); 
           }
