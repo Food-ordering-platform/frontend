@@ -4,7 +4,17 @@ import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
-import { ArrowLeft, MapPin, ShoppingBag, Loader2, CreditCard, ShieldCheck } from "lucide-react";
+import { 
+  ArrowLeft, 
+  MapPin, 
+  ShoppingBag, 
+  Loader2, 
+  CreditCard, 
+  ShieldCheck, 
+  Phone, 
+  StickyNote,
+  PenLine
+} from "lucide-react";
 import { toast } from "sonner";
 
 // Components
@@ -17,7 +27,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Header } from "@/components/layout/header";
 import { ProtectedRoute } from "@/components/auth/protected-route";
-import SetupLocationPage from "../setup-location/page"; // Import the map component
+import SetupLocationPage from "../setup-location/page"; 
 
 // Hooks & Services
 import { useAuth } from "@/lib/auth-context";
@@ -57,7 +67,6 @@ export default function CheckoutPage() {
         }
 
         try {
-            // Only calculate if we have coordinates
             if (user?.latitude && user?.longitude) {
                 const quoteData = await calculateQuote({
                     restaurantId,
@@ -76,7 +85,6 @@ export default function CheckoutPage() {
     fetchQuote();
   }, [restaurantId, user?.latitude, user?.longitude, items, calculateQuote, hasLocation]);
 
-  // Helper to format currency
   const formatMoney = (amount: number) => {
     return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", minimumFractionDigits: 0 }).format(amount);
   };
@@ -85,7 +93,6 @@ export default function CheckoutPage() {
   const handlePlaceOrder = async () => {
     if (!user || items.length === 0) return;
 
-    // Validation
     if (!hasLocation || !quote) {
         setIsLocationModalOpen(true);
         toast.error("Location Required", { description: "Please set your delivery location first." });
@@ -100,7 +107,6 @@ export default function CheckoutPage() {
     setIsPlacingOrder(true);
 
     try {
-      // Prepare Payload
       const orderData: CreateOrderDto & { idempotencyKey: string } = {
         customerId: user.id,
         restaurantId: items[0].menuItem.restaurantId,
@@ -109,7 +115,7 @@ export default function CheckoutPage() {
           quantity: item.quantity,
         })),
         deliveryAddress: user.address!,
-        deliveryNotes: instructions.trim(), // <--- Sending Instructions
+        deliveryNotes: instructions.trim(),
         deliveryLatitude: user.latitude!,
         deliveryLongitude: user.longitude!,
         name: user.name,
@@ -117,11 +123,9 @@ export default function CheckoutPage() {
         idempotencyKey: idempotencyKey 
       };
 
-      // Call API
       const response = await placeOrder(orderData);
       const { checkoutUrl } = response;
 
-      // Redirect to Payment
       toast.success("Order initiated!", { description: "Redirecting to secure payment..." });
       clearCart();
       window.location.href = checkoutUrl;
@@ -171,7 +175,6 @@ export default function CheckoutPage() {
                                 <MapPin className="h-5 w-5 text-[#7b1e3a]" /> Delivery Details
                             </CardTitle>
                             
-                            {/* LOCATION MODAL TRIGGER */}
                             <Dialog open={isLocationModalOpen} onOpenChange={setIsLocationModalOpen}>
                                 <DialogTrigger asChild>
                                     <Button variant="outline" size="sm" className="text-[#7b1e3a] border-[#7b1e3a]/30 hover:bg-[#7b1e3a]/5">
@@ -185,7 +188,7 @@ export default function CheckoutPage() {
                         </div>
                     </CardHeader>
                     
-                    <CardContent className="p-6 space-y-5">
+                    <CardContent className="p-6 space-y-8">
                         {/* Address Status */}
                         <div className={`p-4 rounded-lg border ${hasLocation ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
                             {hasLocation ? (
@@ -204,27 +207,51 @@ export default function CheckoutPage() {
                             )}
                         </div>
 
-                        {/* Phone & Instructions */}
-                        <div className="space-y-4">
+                        {/* 🟢 REDESIGNED INPUT SECTION */}
+                        <div className="space-y-6">
+                            {/* Phone Input */}
                             <div className="space-y-2">
-                                <Label>Phone Number</Label>
-                                <Input
-                                    value={phoneNumber}
-                                    onChange={(e) => setPhoneNumber(e.target.value)}
-                                    placeholder="080..."
-                                    className="bg-gray-50"
-                                />
+                                <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                                   <Phone className="w-4 h-4 text-[#7b1e3a]" /> Contact Number <span className="text-red-500">*</span>
+                                </Label>
+                                <div className="relative group">
+                                    {/* Country Prefix */}
+                                    <div className="absolute left-0 top-0 bottom-0 w-[90px] flex items-center justify-center bg-gray-50 border-r border-gray-200 rounded-l-md z-10 text-gray-500 text-sm font-medium">
+                                        🇳🇬 +234
+                                    </div>
+                                    <Input
+                                        value={phoneNumber}
+                                        onChange={(e) => setPhoneNumber(e.target.value)}
+                                        placeholder="80 1234 5678"
+                                        className="pl-[105px] h-12 bg-white border-gray-200 focus-visible:ring-[#7b1e3a] focus-visible:border-[#7b1e3a] text-base transition-all"
+                                    />
+                                </div>
+                                <p className="text-xs text-gray-400 pl-1">Riders will call this number upon arrival.</p>
                             </div>
+
+                            {/* Divider */}
+                            <Separator className="bg-gray-100" />
+
+                            {/* Instructions Input */}
                             <div className="space-y-2">
-                                <Label>Delivery Instructions (Optional)</Label>
-                                <Textarea
-                                    value={instructions}
-                                    onChange={(e) => setInstructions(e.target.value)}
-                                    placeholder="E.g. Call when outside, leave at gate, extra spicy..."
-                                    className="bg-gray-50 min-h-[100px] resize-none"
-                                />
+                                <div className="flex items-center justify-between">
+                                    <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                                       <StickyNote className="w-4 h-4 text-[#7b1e3a]" /> Delivery Note
+                                    </Label>
+                                    <span className="text-[10px] uppercase tracking-wider text-gray-400 font-bold bg-gray-100 px-2 py-0.5 rounded">Optional</span>
+                                </div>
+                                <div className="relative">
+                                    <Textarea
+                                        value={instructions}
+                                        onChange={(e) => setInstructions(e.target.value)}
+                                        placeholder="Example: The gate code is 1234. Please do not ring the doorbell, just call me."
+                                        className="min-h-[120px] bg-white border-gray-200 focus-visible:ring-[#7b1e3a] focus-visible:border-[#7b1e3a] resize-none p-4 text-sm leading-relaxed shadow-sm"
+                                    />
+                                    <PenLine className="absolute bottom-4 right-4 h-4 w-4 text-gray-300 pointer-events-none" />
+                                </div>
                             </div>
                         </div>
+
                     </CardContent>
                 </Card>
 
