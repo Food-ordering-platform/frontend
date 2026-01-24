@@ -13,7 +13,10 @@ import {
   ShieldCheck, 
   Phone, 
   StickyNote,
-  PenLine
+  PenLine,
+  Navigation,
+  Building,
+  Home
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -24,10 +27,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Header } from "@/components/layout/header";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import SetupLocationPage from "../setup-location/page"; 
+import AddressAutocomplete from "@/components/checkout/address-autocomplete";
 
 // Hooks & Services
 import { useAuth } from "@/lib/auth-context";
@@ -52,11 +56,19 @@ export default function CheckoutPage() {
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [quote, setQuote] = useState<OrderQuote | null>(null);
+  
+  // Local address state (synced with user initially)
+  const [deliveryAddress, setDeliveryAddress] = useState(user?.address || "");
 
   // Derived State
   const restaurantId = items.length > 0 ? items[0].menuItem.restaurantId : "";
   const hasLocation = !!(user?.address && user?.latitude && user?.longitude);
   const idempotencyKey = useMemo(() => uuidv4(), []);
+
+  // Sync address if user updates it via modal
+  useEffect(() => {
+    if (user?.address) setDeliveryAddress(user.address);
+  }, [user?.address]);
 
   // 1. Calculate Dynamic Delivery Fee
   useEffect(() => {
@@ -114,7 +126,7 @@ export default function CheckoutPage() {
           menuItemId: item.menuItem.id,
           quantity: item.quantity,
         })),
-        deliveryAddress: user.address!,
+        deliveryAddress: deliveryAddress, // Use the state address
         deliveryNotes: instructions.trim(),
         deliveryLatitude: user.latitude!,
         deliveryLongitude: user.longitude!,
@@ -174,48 +186,51 @@ export default function CheckoutPage() {
                             <CardTitle className="text-lg font-bold flex items-center gap-2">
                                 <MapPin className="h-5 w-5 text-[#7b1e3a]" /> Delivery Details
                             </CardTitle>
-                            
-                            <Dialog open={isLocationModalOpen} onOpenChange={setIsLocationModalOpen}>
-                                <DialogTrigger asChild>
-                                    <Button variant="outline" size="sm" className="text-[#7b1e3a] border-[#7b1e3a]/30 hover:bg-[#7b1e3a]/5">
-                                        {hasLocation ? "Change Location" : "Set Location"}
-                                    </Button>
-                                </DialogTrigger>
-                                <DialogContent className="max-w-3xl p-0 h-[80vh] overflow-hidden rounded-xl">
-                                    <SetupLocationPage isModal={true} onComplete={() => setIsLocationModalOpen(false)} />
-                                </DialogContent>
-                            </Dialog>
                         </div>
                     </CardHeader>
                     
                     <CardContent className="p-6 space-y-8">
-                        {/* Address Status */}
-                        <div className={`p-4 rounded-lg border ${hasLocation ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
-                            {hasLocation ? (
-                                <div className="flex gap-3">
-                                    <MapPin className="h-5 w-5 text-green-700 shrink-0 mt-0.5" />
-                                    <div>
-                                        <p className="font-bold text-green-900 text-sm">Delivery Address</p>
-                                        <p className="text-green-800 text-sm mt-1">{user?.address}</p>
-                                    </div>
+                        {/* Improved Address Input Section */}
+                        <div className="space-y-3">
+                            <Label className="text-sm font-semibold text-gray-700">Delivery Address</Label>
+                            <div className="flex gap-2">
+                                {/* Auto-complete Input */}
+                                <div className="flex-1">
+                                    <AddressAutocomplete 
+                                        defaultValue={deliveryAddress}
+                                        onSelect={(addr) => setDeliveryAddress(addr)}
+                                    />
                                 </div>
-                            ) : (
-                                <div className="flex items-center gap-3 text-red-800 text-sm font-medium">
-                                    <MapPin className="h-5 w-5" />
-                                    <span>No address set. Please click "Set Location".</span>
+
+                                {/* Map Trigger Button */}
+                                <Dialog open={isLocationModalOpen} onOpenChange={setIsLocationModalOpen}>
+                                    <DialogTrigger asChild>
+                                        <Button variant="outline" className="shrink-0 aspect-square p-0 border-[#7b1e3a] text-[#7b1e3a] bg-[#7b1e3a]/5 hover:bg-[#7b1e3a]/10">
+                                            <Navigation className="h-5 w-5" />
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent className="max-w-3xl p-0 h-[80vh] overflow-hidden rounded-xl">
+                                        <SetupLocationPage isModal={true} onComplete={() => setIsLocationModalOpen(false)} />
+                                    </DialogContent>
+                                </Dialog>
+                            </div>
+                            
+                            {/* Address Status Feedback */}
+                            {!hasLocation && (
+                                <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 p-2 rounded border border-amber-100">
+                                    <MapPin className="h-3 w-3" />
+                                    <span>Please click the map icon to pinpoint your exact GPS location for accurate delivery fees.</span>
                                 </div>
                             )}
                         </div>
 
-                        {/* 🟢 REDESIGNED INPUT SECTION */}
+                        {/* Phone & Instructions */}
                         <div className="space-y-6">
-                            {/* Phone Input */}
                             <div className="space-y-2">
                                 <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                                    <Phone className="w-4 h-4 text-[#7b1e3a]" /> Contact Number <span className="text-red-500">*</span>
                                 </Label>
                                 <div className="relative group">
-                                    {/* Country Prefix */}
                                     <div className="absolute left-0 top-0 bottom-0 w-[90px] flex items-center justify-center bg-gray-50 border-r border-gray-200 rounded-l-md z-10 text-gray-500 text-sm font-medium">
                                         🇳🇬 +234
                                     </div>
@@ -226,26 +241,18 @@ export default function CheckoutPage() {
                                         className="pl-[105px] h-12 bg-white border-gray-200 focus-visible:ring-[#7b1e3a] focus-visible:border-[#7b1e3a] text-base transition-all"
                                     />
                                 </div>
-                                <p className="text-xs text-gray-400 pl-1">Riders will call this number upon arrival.</p>
                             </div>
 
-                            {/* Divider */}
-                            <Separator className="bg-gray-100" />
-
-                            {/* Instructions Input */}
                             <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                                       <StickyNote className="w-4 h-4 text-[#7b1e3a]" /> Delivery Note
-                                    </Label>
-                                    <span className="text-[10px] uppercase tracking-wider text-gray-400 font-bold bg-gray-100 px-2 py-0.5 rounded">Optional</span>
-                                </div>
+                                <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                                   <StickyNote className="w-4 h-4 text-[#7b1e3a]" /> Delivery Note <span className="text-gray-400 font-normal text-xs ml-auto">(Optional)</span>
+                                </Label>
                                 <div className="relative">
                                     <Textarea
                                         value={instructions}
                                         onChange={(e) => setInstructions(e.target.value)}
-                                        placeholder="Example: The gate code is 1234. Please do not ring the doorbell, just call me."
-                                        className="min-h-[120px] bg-white border-gray-200 focus-visible:ring-[#7b1e3a] focus-visible:border-[#7b1e3a] resize-none p-4 text-sm leading-relaxed shadow-sm"
+                                        placeholder="E.g., Gate code is 1234. Call when you arrive."
+                                        className="min-h-[100px] bg-white border-gray-200 focus-visible:ring-[#7b1e3a] focus-visible:border-[#7b1e3a] resize-none p-4 text-sm shadow-sm"
                                     />
                                     <PenLine className="absolute bottom-4 right-4 h-4 w-4 text-gray-300 pointer-events-none" />
                                 </div>
@@ -267,8 +274,8 @@ export default function CheckoutPage() {
                             {items.map((item, idx) => (
                                 <div key={idx} className="flex gap-4 p-5">
                                     <div className="h-16 w-16 bg-gray-100 rounded-md shrink-0 overflow-hidden border">
-                                        {/* Ideally use item.menuItem.image here */}
-                                        <div className="w-full h-full bg-gray-200" /> 
+                                        {/* Placeholder for image */}
+                                        <div className="w-full h-full bg-gray-200 flex items-center justify-center text-xs text-gray-400">img</div> 
                                     </div>
                                     <div className="flex-1">
                                         <div className="flex justify-between mb-1">

@@ -11,11 +11,15 @@ import { ShoppingBag, RefreshCw } from "lucide-react"
 import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
 import { Badge } from "@/components/ui/badge"
+import { RatingDialog } from "@/components/orders/rating-dialog"
 
 export default function OrdersPage() {
   const { user } = useAuth()
   const { data: orders = [], isLoading, refetch, isFetching } = useGetOrders(user?.id!)
   const [filter, setFilter] = useState<string>("all")
+  
+  // Rating State
+  const [orderToRate, setOrderToRate] = useState<string | null>(null);
 
   // Calculate stats for the tabs
   const activeCount = orders.filter(o => ["pending", "preparing", "out_for_delivery", "confirmed"].includes(o.status)).length;
@@ -58,29 +62,35 @@ export default function OrdersPage() {
             </Button>
           </div>
 
-          {/* Filters with Stats */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-6 no-scrollbar">
-            {[
-                { key: "all", label: "All Orders", count: allCount },
-                { key: "active", label: "Active", count: activeCount },
-                { key: "completed", label: "Completed", count: completedCount }
-            ].map((tab) => (
-                <Button
-                    key={tab.key}
-                    variant={filter === tab.key ? "default" : "outline"}
-                    onClick={() => setFilter(tab.key)}
-                    className={`rounded-full px-6 transition-all duration-300 h-10 ${
-                        filter === tab.key 
-                        ? "bg-[#7b1e3a] hover:bg-[#66172e] text-white shadow-md shadow-red-900/10" 
-                        : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300"
-                    }`}
-                >
-                    {tab.label}
-                    <Badge variant="secondary" className={`ml-2 h-5 min-w-5 px-1.5 rounded-full ${filter === tab.key ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'}`}>
-                        {tab.count}
-                    </Badge>
-                </Button>
-            ))}
+          {/* ALIVE TABS */}
+          <div className="flex justify-start mb-8">
+            <div className="flex p-1 bg-white border border-gray-200 rounded-xl relative shadow-sm">
+                {[
+                    { key: "all", label: "All Orders", count: allCount },
+                    { key: "active", label: "Active", count: activeCount },
+                    { key: "completed", label: "Completed", count: completedCount }
+                ].map((tab) => (
+                    <button
+                        key={tab.key}
+                        onClick={() => setFilter(tab.key)}
+                        className={`relative px-6 py-2.5 text-sm font-medium rounded-lg z-10 transition-colors duration-200 flex items-center gap-2 ${
+                            filter === tab.key ? "text-[#7b1e3a]" : "text-gray-500 hover:text-gray-700"
+                        }`}
+                    >
+                        {filter === tab.key && (
+                            <motion.div
+                                layoutId="activeTab"
+                                className="absolute inset-0 bg-[#7b1e3a]/5 rounded-lg border border-[#7b1e3a]/10 -z-10"
+                                transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                            />
+                        )}
+                        {tab.label}
+                        <Badge variant="secondary" className={`h-5 min-w-5 px-1.5 rounded-full ${filter === tab.key ? 'bg-[#7b1e3a] text-white' : 'bg-gray-100 text-gray-600'}`}>
+                            {tab.count}
+                        </Badge>
+                    </button>
+                ))}
+            </div>
           </div>
 
           <AnimatePresence mode="wait">
@@ -102,11 +112,25 @@ export default function OrdersPage() {
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredOrders.map((order) => (
-                        <OrderCard key={order.id} order={order} />
+                        <OrderCard 
+                            key={order.id} 
+                            order={order} 
+                            onRate={(id) => setOrderToRate(id)}
+                        />
                     ))}
                 </div>
             )}
           </AnimatePresence>
+
+          {/* Rating Dialog */}
+          <RatingDialog 
+             orderId={orderToRate || ""} 
+             isOpen={!!orderToRate} 
+             onClose={() => {
+                setOrderToRate(null);
+                refetch(); // Refresh to show the new rating
+             }} 
+          />
       </main>
       <Footer />
     </div>

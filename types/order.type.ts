@@ -7,7 +7,6 @@ export interface OrderItemDto {
 }
 
 // Payload sent to POST /api/payment/initialize
-// FIXED: Renamed totalAmount -> amount to match PaymentController
 export interface CreateOrderDto {
   customerId: string;
   restaurantId: string;
@@ -32,11 +31,18 @@ export interface OrderQuote {
 
 // --- OUTPUT TYPES (Receiving Data) ---
 
+export interface Review {
+  id: string;
+  rating: number;
+  comment?: string;
+  createdAt: string;
+}
+
 // Used inside Order (Displaying History)
 export interface OrderItem {
   quantity: number;
   price: number;
-  menuItemName: string; // Correct: Matches snapshot logic
+  menuItemName: string;
 }
 
 // The Order object received from GET /api/orders
@@ -44,7 +50,7 @@ export interface Order {
   id: string;
   reference: string;
   totalAmount: number;
-  deliveryFee: number; // Correct: Matches Order table
+  deliveryFee: number;
   paymentStatus: string;
   status: string;
   deliveryAddress: string;
@@ -59,10 +65,9 @@ export interface Order {
     name: string;
     imageUrl: string | null;
   };
+  review?: Review | null; // Added this field
 }
 
-// Response from POST /api/payment/initialize
-// FIXED: PaymentController returns this directly, not wrapped in { data: ... }
 export interface CreateOrderResponse {
   checkoutUrl: string;
   reference: string;
