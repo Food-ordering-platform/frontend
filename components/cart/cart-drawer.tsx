@@ -68,7 +68,7 @@ export function CartDrawer({ children }: CartDrawerProps) {
           </SheetClose>
         </SheetHeader>
 
-        {items.length > 0 && (
+        {/* {items.length > 0 && (
             <div className="px-6 py-3 bg-[#7b1e3a]/5 border-b border-[#7b1e3a]/10">
                 <div className="flex items-center gap-3 text-sm text-[#7b1e3a]">
                     <div className="p-1.5 bg-white rounded-full shadow-sm">
@@ -86,7 +86,7 @@ export function CartDrawer({ children }: CartDrawerProps) {
                     </div>
                 )}
             </div>
-        )}
+        )} */}
 
         <div className="flex-1 overflow-hidden flex flex-col">
           {items.length === 0 ? (

@@ -32,7 +32,7 @@ export function Restaurants() {
     }).format(amount)
   }
 
-  const getRating = (rating?: number) => rating ?? 4.5
+  // const getRating = (rating?: number) => rating ?? 4.5
 
   if (isLoading) {
     return (
@@ -184,7 +184,7 @@ export function Restaurants() {
                   {/* Rating Badge - Bottom Right */}
                   <div className="absolute bottom-4 right-4 flex items-center gap-1.5 px-3 py-1.5 bg-white/95 backdrop-blur-sm rounded-full shadow-lg">
                     <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-                    <span className="text-sm font-black text-gray-900">{getRating(restaurant.rating)}</span>
+                    {/* <span className="text-sm font-black text-gray-900">{getRating(restaurant.rating)}</span> */}
                   </div>
                 </div>
 
@@ -202,10 +202,9 @@ export function Restaurants() {
                           {restaurant.cuisine}
                         </span>
                       )}
-                      <span className="text-gray-400">•</span>
                       <div className="flex items-center gap-1 text-gray-600">
                         <Clock className="h-3.5 w-3.5" />
-                        <span className="font-bold text-xs">{restaurant.prepTime} min</span>
+                        <span className="font-bold text-xs">Prep Time {restaurant.prepTime} min </span>
                       </div>
                     </div>
                   </div>
@@ -219,22 +218,22 @@ export function Restaurants() {
                   {/* Delivery Info & CTA */}
                   <div className="pt-4 border-t border-gray-100 flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
-                      <div className="w-10 h-10 bg-gradient-to-br from-[#7b1e3a]/10 to-purple-500/10 rounded-xl flex items-center justify-center">
+                      {/* <div className="w-10 h-10 bg-gradient-to-br from-[#7b1e3a]/10 to-purple-500/10 rounded-xl flex items-center justify-center">
                         <Truck className="h-5 w-5 text-[#7b1e3a]" />
-                      </div>
-                      <div>
+                      </div> */}
+                      {/* <div>
                         {restaurant.deliveryFee && restaurant.deliveryFee > 0 ? (
                           <div className="text-sm font-black text-gray-900">{formatMoney(restaurant.deliveryFee)}</div>
                         ) : (
                           <div className="text-sm font-black text-green-600">Free</div>
                         )}
                         <div className="text-xs text-gray-500 font-medium">Delivery</div>
-                      </div>
+                      </div> */}
                     </div>
                     
-                    <button className="px-5 py-2.5 bg-gradient-to-r from-[#7b1e3a] to-[#a62b50] text-white rounded-xl font-bold text-sm hover:shadow-lg hover:shadow-[#7b1e3a]/30 transition-all duration-300 group-hover:scale-105 active:scale-95">
+                    {/* <button className="px-5 py-2.5 bg-gradient-to-r from-[#7b1e3a] to-[#a62b50] text-white rounded-xl font-bold text-sm hover:shadow-lg hover:shadow-[#7b1e3a]/30 transition-all duration-300 group-hover:scale-105 active:scale-95">
                       Order
-                    </button>
+                    </button> */}
                   </div>
                 </div>
               </div>
