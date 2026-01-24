@@ -56,7 +56,7 @@ export function OrderCard({ order, onRate }: OrderCardProps) {
             <div className="flex justify-between items-start mb-4 relative z-20">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Order ID</span>
+                  <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Order REF</span>
                   <Badge variant="outline" className="font-mono text-[10px] text-gray-500">
                     #{order.reference?.slice(-6).toUpperCase() || "REF"}
                   </Badge>
