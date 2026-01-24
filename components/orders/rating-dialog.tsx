@@ -1,100 +1,91 @@
-// food-ordering-platform/frontend/frontend-wip-staging/components/orders/rating-dialog.tsx
+// components/orders/rating-dialog.tsx
 
-"use client";
-
-import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  // DialogTrigger, <--- REMOVE THIS IMPORT
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { Star, Loader2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import { Star, Loader2 } from "lucide-react"; // Added Loader2
 import { toast } from "sonner";
-import { useRateOrder } from "@/services/order/order.queries"; // 🟢 Import Hook
+import { useRateOrder } from "@/services/order/order.queries"; 
 
 interface RatingDialogProps {
   orderId: string;
-  trigger?: React.ReactNode;
-  // removed onSubmit prop since we handle it internally now, 
-  // or you can keep it optional for flexibility
-  onSuccess?: () => void; 
+  isOpen: boolean;
+  onClose: () => void;
 }
 
-export function RatingDialog({ orderId, trigger, onSuccess }: RatingDialogProps) {
-  const [isOpen, setIsOpen] = useState(false);
+export function RatingDialog({ orderId, isOpen, onClose }: RatingDialogProps) {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
-  
-  // 🟢 Use the hook
-  const { mutate: submitRating, isPending } = useRateOrder();
+  const { mutateAsync: rateOrder, isPending } = useRateOrder();
 
-  const handleSubmit = () => {
-    if (rating === 0) {
-      toast.error("Please select a star rating");
-      return;
+  const handleSubmit = async () => {
+    if (rating === 0) return toast.error("Please select a star rating");
+    try {
+      await rateOrder({ orderId, rating, comment });
+      toast.success("Thanks for your feedback!");
+      onClose();
+    } catch (error) {
+      toast.error("Failed to submit rating");
     }
-    
-    submitRating(
-      { orderId, rating, comment },
-      {
-        onSuccess: () => {
-          setIsOpen(false);
-          if (onSuccess) onSuccess();
-          // Reset form
-          setRating(0);
-          setComment("");
-        }
-      }
-    );
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        {trigger || <Button variant="outline">Rate Order</Button>}
-      </DialogTrigger>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      {/* ❌ DELETE <DialogTrigger>...</DialogTrigger> IF IT EXISTS HERE 
+         We are controlling 'open' via state, so we don't need a button here.
+      */}
+      
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-center text-xl font-bold">How was your order?</DialogTitle>
+          <DialogTitle>Rate your Order</DialogTitle>
+          <DialogDescription>
+            How was your experience? Your feedback helps us improve.
+          </DialogDescription>
         </DialogHeader>
-        <div className="flex flex-col items-center gap-6 py-4">
+        
+        <div className="flex flex-col items-center gap-4 py-4">
+          {/* Star Inputs */}
           <div className="flex gap-2">
             {[1, 2, 3, 4, 5].map((star) => (
               <button
                 key={star}
                 onClick={() => setRating(star)}
-                className="transition-transform hover:scale-110 focus:outline-none"
+                className={`transition-all hover:scale-110 focus:outline-none ${
+                  star <= rating ? "text-yellow-400 fill-yellow-400" : "text-gray-300"
+                }`}
               >
-                <Star
-                  size={36}
-                  className={`${
-                    star <= rating ? "fill-yellow-400 text-yellow-400" : "text-gray-200"
-                  } transition-colors duration-200`}
-                />
+                <Star className={`h-8 w-8 ${star <= rating ? "fill-current" : ""}`} />
               </button>
             ))}
           </div>
-          
-          <Textarea
-            placeholder="Tell us more about your experience..."
+          <p className="text-sm font-medium text-gray-600">
+            {rating === 5 ? "Excellent! 🤩" : rating > 3 ? "Good 🙂" : rating > 0 ? "Fair 😐" : "Tap a star"}
+          </p>
+
+          <Textarea 
+            placeholder="Write a short review (optional)..." 
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             className="resize-none"
-            rows={4}
           />
-          
-          <Button 
-            onClick={handleSubmit} 
-            disabled={isPending || rating === 0} 
-            className="w-full bg-[#7b1e3a] hover:bg-[#60132a]"
-          >
-            {isPending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...
-              </>
-            ) : (
-              "Submit Review"
-            )}
-          </Button>
         </div>
+
+        <DialogFooter className="sm:justify-end gap-2">
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleSubmit} disabled={isPending || rating === 0} className="bg-[#7b1e3a] hover:bg-[#60132a]">
+            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Submit Review
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
