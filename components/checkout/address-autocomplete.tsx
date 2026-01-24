@@ -12,16 +12,14 @@ const AddressAutocomplete = ({ onSelect, defaultValue }: AddressAutocompleteProp
   return (
     <div className="w-full">
       <GooglePlacesAutocomplete
-        apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY}
+        // FIX: Changed _KEY to _API_KEY to match your other files/env
+        apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY} 
         selectProps={{
           defaultInputValue: defaultValue,
           placeholder: 'Search for your delivery address...',
           onChange: (val: any) => {
             if (val) {
               onSelect(val.label); 
-              // Note: In a production app, you would typically use 
-              // `geocodeByAddress` here to get the lat/lng from the selected address
-              // and pass it up as well.
             }
           },
           styles: {
