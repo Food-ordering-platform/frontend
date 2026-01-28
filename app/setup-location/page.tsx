@@ -1,3 +1,4 @@
+//
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
@@ -14,10 +15,10 @@ import { useUpdateProfile } from "@/services/auth/auth.queries";
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
 
-// Default to Warri, Delta State (Matching Vendor App)
+// Default to Warri, Delta State
 const DEFAULT_CENTER = { lat: 5.5544, lng: 5.7932 };
 
-// Delta State bounds 
+// Delta State bounds
 const DELTA_STATE_BOUNDS = {
   north: 6.5,
   south: 4.9,
@@ -29,10 +30,11 @@ const LIBRARIES: Libraries = ["places", "geometry"];
 
 const MAP_OPTIONS: google.maps.MapOptions = {
   disableDefaultUI: true,
-  clickableIcons: false,
-  zoomControl: false,
+  clickableIcons: true, // Allow clicking on POIs
+  zoomControl: true, // Allow user to zoom in/out for details
   fullscreenControl: false,
   streetViewControl: false,
+  mapTypeControl: false,
   restriction: {
     latLngBounds: DELTA_STATE_BOUNDS,
     strictBounds: false,
@@ -60,6 +62,7 @@ export default function SetupLocationPage({
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [center, setCenter] = useState(DEFAULT_CENTER);
   const [address, setAddress] = useState<string>("Locating...");
+  const [placeName, setPlaceName] = useState<string>(""); // Store place name separately (e.g., "KFC")
   const [isDragging, setIsDragging] = useState(false);
   const [isFetchingGPS, setIsFetchingGPS] = useState(false);
 
@@ -68,7 +71,7 @@ export default function SetupLocationPage({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const geocoderRef = useRef<google.maps.Geocoder | null>(null);
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
-  const isInternalUpdate = useRef(false); // To prevent loop when map updates input
+  const isInternalUpdate = useRef(false);
 
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
@@ -83,10 +86,21 @@ export default function SetupLocationPage({
 
     geocoderRef.current.geocode({ location: { lat, lng } }, (results, status) => {
       if (status === "OK" && results?.[0]) {
-        const newAddress = results[0].formatted_address;
+        // Try to find a specific street address first
+        const preciseResult = results.find(
+          (r) => r.types.includes("street_address") || r.types.includes("premise")
+        ) || results[0];
+
+        const newAddress = preciseResult.formatted_address;
+        
+        // If we dragged the pin, we lose the specific "Place Name" (like KFC), so we reset it
+        if (!isInternalUpdate.current) {
+             setPlaceName(""); 
+        }
+
         setAddress(newAddress);
         
-        // SYNC SEARCH INPUT (Vital for UX)
+        // Update Search Input to reflect the pin's location
         if (searchInputRef.current && !isInternalUpdate.current) {
           searchInputRef.current.value = newAddress;
         }
@@ -103,39 +117,43 @@ export default function SetupLocationPage({
     mapRef.current = mapInstance;
     geocoderRef.current = new google.maps.Geocoder();
 
-    // Initialize Autocomplete manually attached to the input ref
+    // Initialize Autocomplete
     if (searchInputRef.current) {
       const autocomplete = new google.maps.places.Autocomplete(searchInputRef.current, {
-        fields: ["geometry", "formatted_address", "name"],
+        fields: ["geometry", "formatted_address", "name", "place_id"], // precise details
         componentRestrictions: { country: "ng" },
         bounds: DELTA_STATE_BOUNDS,
-        strictBounds: true,
+        strictBounds: false, // Allow searching slightly outside if needed
       });
 
-      // Bind autocomplete bounds to map view
       autocomplete.bindTo("bounds", mapInstance);
       autocompleteRef.current = autocomplete;
 
-      // Handle Place Selection
+      // Handle Place Search Selection
       autocomplete.addListener("place_changed", () => {
         const place = autocomplete.getPlace();
         
         if (!place.geometry || !place.geometry.location) {
-          // User entered name of a Place that was not suggested and pressed the Enter key, or the Place Details request failed.
           return;
         }
 
-        isInternalUpdate.current = true; // Don't overwrite input while we move
+        isInternalUpdate.current = true; // Prevent reverse geocode from overwriting the nice name immediately
         
-        // Move Map
+        // Zoom in deeply (Detailed view)
         if (place.geometry.viewport) {
           mapInstance.fitBounds(place.geometry.viewport);
         } else {
           mapInstance.setCenter(place.geometry.location);
-          mapInstance.setZoom(17);
+          mapInstance.setZoom(18); // Street level zoom
         }
 
-        setAddress(place.formatted_address || place.name || "Selected Location");
+        // Set detailed address
+        const name = place.name || "";
+        const formatted = place.formatted_address || "";
+        
+        // If the name is different from the address (e.g., "Shoprite" vs "123 Road"), show both
+        setPlaceName(name !== formatted ? name : "");
+        setAddress(formatted);
         setCenter({ lat: place.geometry.location.lat(), lng: place.geometry.location.lng() });
         
         isInternalUpdate.current = false;
@@ -152,17 +170,19 @@ export default function SetupLocationPage({
 
   const handleDragStart = () => {
     setIsDragging(true);
-    isInternalUpdate.current = false; // User is manually moving, so we should update input on stop
+    isInternalUpdate.current = false;
   };
 
   const handleIdle = () => {
     if (!mapRef.current) return;
     
-    // Slight delay to prevent flickering
-    const newCenter = mapRef.current.getCenter();
-    if (newCenter) {
-       // Only fetch if we are not programmatically moving from search
-       fetchAddress(newCenter.lat(), newCenter.lng());
+    // Only reverse geocode if user manually moved the map
+    // If we just arrived via Search, 'address' is already set perfectly
+    if (!isInternalUpdate.current) {
+        const newCenter = mapRef.current.getCenter();
+        if (newCenter) {
+           fetchAddress(newCenter.lat(), newCenter.lng());
+        }
     }
     setIsDragging(false);
   };
@@ -180,38 +200,21 @@ export default function SetupLocationPage({
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const { latitude, longitude } = pos.coords;
-
-        // Simple Bounds Check (Optional: Alert if outside Delta)
-        if (
-            latitude > DELTA_STATE_BOUNDS.north || 
-            latitude < DELTA_STATE_BOUNDS.south ||
-            longitude > DELTA_STATE_BOUNDS.east || 
-            longitude < DELTA_STATE_BOUNDS.west
-        ) {
-            toast.warning("You are currently outside our service area (Delta State).");
-        }
-
         const coords = { lat: latitude, lng: longitude };
         setCenter(coords);
         map?.panTo(coords);
-        map?.setZoom(17);
+        map?.setZoom(18); // Zoom in for detail
         setIsFetchingGPS(false);
+        // Let handleIdle fetch the address
       },
       (err) => {
         console.error(err);
-        toast.error("Unable to access location. Please check permissions.");
+        toast.error("Unable to access location.");
         setIsFetchingGPS(false);
       },
       { enableHighAccuracy: true, timeout: 15000 }
     );
   };
-
-  // Auto-trigger GPS on mount if user has no address
-  useEffect(() => {
-    if (isLoaded && map && !user?.address && !isModal) {
-      handleUseGPS();
-    }
-  }, [isLoaded, map, isModal, user?.address]);
 
   // ================= CONFIRMATION =================
 
@@ -222,14 +225,17 @@ export default function SetupLocationPage({
     const lat = c?.lat() ?? center.lat;
     const lng = c?.lng() ?? center.lng;
 
+    // Combine name + address if available for better clarity
+    const finalAddress = placeName ? `${placeName}, ${address}` : address;
+
     try {
-      await updateProfile({ address, latitude: lat, longitude: lng });
+      await updateProfile({ address: finalAddress, latitude: lat, longitude: lng });
       toast.success("Delivery location updated!");
 
       if (isModal && onComplete) {
-        onComplete(); // Close modal (Checkout flow)
+        onComplete();
       } else {
-        router.back(); // Go back (Profile flow)
+        router.back();
       }
     } catch {
       toast.error("Failed to save location.");
@@ -247,13 +253,12 @@ export default function SetupLocationPage({
   return (
     <div className={cn(
         "relative w-full overflow-hidden bg-gray-100 flex flex-col",
-        isModal ? "h-full" : "h-[100dvh]" // Use dvh for mobile browsers
+        isModal ? "h-full" : "h-[100dvh]"
     )}>
       
-      {/* 1. TOP BAR & SEARCH */}
-      <div className="absolute top-0 left-0 right-0 z-20 p-4 pt-6">
-        <div className="flex gap-3 items-center">
-            {/* Back Button (Only if not modal) */}
+      {/* TOP SEARCH BAR */}
+      <div className="absolute top-0 left-0 right-0 z-20 p-4 pt-6 pointer-events-none">
+        <div className="flex gap-3 items-center pointer-events-auto">
             {!isModal && (
                 <Button 
                     size="icon" 
@@ -265,22 +270,21 @@ export default function SetupLocationPage({
                 </Button>
             )}
 
-            {/* Search Input */}
-            <div className="flex-1 relative shadow-lg rounded-full">
+            <div className="flex-1 relative shadow-lg rounded-full group">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 z-10">
-                    <Search className="h-5 w-5 text-gray-400" />
+                    <Search className="h-5 w-5 text-gray-400 group-focus-within:text-[#7b1e3a]" />
                 </div>
                 <input
                     ref={searchInputRef}
                     type="text"
-                    placeholder="Search street, area..."
+                    placeholder="Search specific places (e.g. Chicken Republic)"
                     className="w-full h-12 pl-12 pr-4 rounded-full border-none outline-none text-base bg-white placeholder:text-gray-400"
                 />
             </div>
         </div>
       </div>
 
-      {/* 2. MAP CONTAINER */}
+      {/* MAP */}
       <div className="flex-1 relative">
           <GoogleMap
             mapContainerStyle={{ width: "100%", height: "100%" }}
@@ -293,16 +297,16 @@ export default function SetupLocationPage({
             onIdle={handleIdle}
           />
 
-          {/* 3. CENTER PIN (Floating) */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none flex flex-col items-center pb-[40px]">
-              <div className={cn("transition-transform duration-200", isDragging ? "-translate-y-3 scale-110" : "")}>
+          {/* CENTER PIN */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none flex flex-col items-center pb-[38px] z-10">
+              <div className={cn("transition-transform duration-200 drop-shadow-md", isDragging ? "-translate-y-3 scale-110" : "")}>
                  <MapPin className="h-10 w-10 text-[#7b1e3a] fill-[#7b1e3a]" />
               </div>
               <div className="w-2.5 h-1 bg-black/20 rounded-full blur-[1px]" />
           </div>
 
-          {/* 4. GPS BUTTON */}
-          <div className="absolute bottom-6 right-4">
+          {/* GPS BUTTON */}
+          <div className="absolute bottom-6 right-4 z-10">
              <Button
                 size="icon"
                 onClick={handleUseGPS}
@@ -313,18 +317,25 @@ export default function SetupLocationPage({
           </div>
       </div>
 
-      {/* 5. BOTTOM CARD */}
+      {/* BOTTOM CONFIRM CARD */}
       <div className="bg-white p-6 pb-8 rounded-t-3xl shadow-[0_-5px_20px_rgba(0,0,0,0.1)] z-20">
         <div className="flex flex-col gap-4">
             <div>
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
                     Confirm Delivery Location
                 </p>
-                <div className="flex gap-3 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                <div className="flex gap-3 bg-gray-50 p-4 rounded-xl border border-gray-100 items-start">
                     <MapPin className="text-[#7b1e3a] shrink-0 mt-0.5" size={20} />
-                    <p className="text-sm font-medium text-gray-900 line-clamp-2">
-                        {address}
-                    </p>
+                    <div className="flex flex-col">
+                        {placeName && (
+                            <span className="text-sm font-bold text-gray-900 block">
+                                {placeName}
+                            </span>
+                        )}
+                        <span className={cn("text-sm text-gray-700", placeName ? "mt-0.5" : "font-medium")}>
+                            {address}
+                        </span>
+                    </div>
                 </div>
             </div>
 
@@ -334,37 +345,10 @@ export default function SetupLocationPage({
                 className="w-full h-14 text-base font-bold bg-[#7b1e3a] hover:bg-[#60132a] rounded-xl shadow-md transition-all active:scale-[0.98]"
             >
                 {isPending ? <Loader2 className="animate-spin mr-2" /> : null}
-                {address === "Locating..." ? "Locating..." : "Confirm Location"}
+                Confirm Location
             </Button>
         </div>
       </div>
-      
-      {/* Global Style for Google Autocomplete Dropdown */}
-      <style jsx global>{`
-        .pac-container {
-          z-index: 10000 !important; /* Ensure it appears above modals */
-          border-radius: 0 0 12px 12px;
-          margin-top: 2px;
-          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-          border: none;
-          font-family: var(--font-inter), sans-serif;
-        }
-        .pac-item {
-          padding: 12px 16px;
-          font-size: 14px;
-          cursor: pointer;
-          border-top: 1px solid #f3f4f6;
-        }
-        .pac-item:first-child {
-            border-top: none;
-        }
-        .pac-item:hover {
-          background-color: #f9fafb;
-        }
-        .pac-icon {
-            display: none; /* Cleaner look */
-        }
-      `}</style>
     </div>
   );
 }
