@@ -11,6 +11,7 @@ export interface CreateOrderDto {
   customerId: string;
   restaurantId: string;
   deliveryAddress: string;
+  deliveryPhoneNumber: string;
   deliveryNotes: string | null
   deliveryLatitude?: number | undefined
   deliveryLongitude?: number | undefined

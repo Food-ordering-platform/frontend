@@ -52,6 +52,7 @@ function OrderDetailsContent() {
     { id: "pending", label: "Placed", icon: Clock },
     { id: "preparing", label: "Preparing", icon: ChefHat }, // Shortened label for mobile
     { id: "ready_for_pickup", label: "Ready", icon: Package },
+    { id: "rider_accepted", label: "Ready", icon: Package },
     { id: "out_for_delivery", label: "En Route", icon: Truck },
     { id: "delivered", label: "Delivered", icon: CheckCircle2 },
   ];
@@ -62,6 +63,7 @@ function OrderDetailsContent() {
       PAID: 0,
       PREPARING: 1,
       READY_FOR_PICKUP: 2,
+      RIDER_ACCEPTED: 2,
       OUT_FOR_DELIVERY: 3,
       DELIVERED: 4,
       CANCELLED: -1,

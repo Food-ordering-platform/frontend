@@ -106,6 +106,7 @@ export default function CheckoutPage() {
           quantity: item.quantity,
         })),
         deliveryAddress: deliveryAddress,
+        deliveryPhoneNumber:phoneNumber,
         deliveryNotes: instructions.trim(),
         deliveryLatitude: user.latitude!,
         deliveryLongitude: user.longitude!,
