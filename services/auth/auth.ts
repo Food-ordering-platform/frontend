@@ -104,6 +104,6 @@ export const updateProfile = async (data: {
   latitude?: number;
   longitude?: number;
 }): Promise<AuthResponse> => {
-  const response = await api.put("/auth/profile", data);
+  const response = await api.patch("/auth/profile", data);
   return response.data;
 };
