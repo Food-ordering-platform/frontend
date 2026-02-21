@@ -52,7 +52,7 @@ function OrderDetailsContent() {
     { id: "pending", label: "Placed", icon: Clock },
     { id: "preparing", label: "Preparing", icon: ChefHat }, // Shortened label for mobile
     { id: "ready_for_pickup", label: "Ready", icon: Package },
-    { id: "rider_accepted", label: "Rider Assigned", icon: Truck },
+     { id: "rider_accepted", label: "Rider Assigned", icon: MapPin },
     { id: "out_for_delivery", label: "En Route", icon: Truck },
     { id: "delivered", label: "Delivered", icon: CheckCircle2 },
   ];
