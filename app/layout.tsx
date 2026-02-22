@@ -1,14 +1,16 @@
 // src/app/layout.tsx
 import type React from "react";
-import type { Metadata } from "next";
-import { DM_Sans } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+// 1. IMPORT NEW FONTS
+import { DM_Sans, Inter, Playfair_Display } from "next/font/google"; 
 import { GeistMono } from "geist/font/mono";
 import { Analytics } from "@vercel/analytics/next";
 import { CartProvider } from "@/lib/cart-context";
-import { Toaster } from "@/components/ui/toaster";
+import { Toaster } from "@/components/ui/sonner";
 import { Suspense } from "react";
 import "./globals.css";
-import Providers from "@/lib/provider"; // QueryClientProvider + AuthProvider
+import Providers from "@/lib/provider";
+// import { InstallPrompt } from "../components/pwa/install-prompt";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -16,10 +18,40 @@ const dmSans = DM_Sans({
   variable: "--font-dm-sans",
 });
 
+// 2. CONFIGURE INTER (For Body Text - High Readability)
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
+// 3. CONFIGURE PLAYFAIR DISPLAY (For Headings - Premium/Legal feel)
+const playfair = Playfair_Display({
+  subsets: ["latin"],
+  variable: "--font-playfair",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
-  title: "FoodOrder - Elevate Your Dining Experience",
+  title: "ChowEazy",
   description: "Order from the finest restaurants delivered to your door",
-  generator: "v0.app",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "ChowEazy",
+  },
+  icons: {
+    apple: "/official_logo.svg",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#c72c41",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({
@@ -29,11 +61,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`font-sans ${dmSans.variable} ${GeistMono.variable} antialiased`}>
+      {/* 4. ADD VARIABLES TO BODY */}
+      <body className={`font-sans ${dmSans.variable} ${inter.variable} ${playfair.variable} ${GeistMono.variable} antialiased`}>
         <Suspense fallback={null}>
-          <Providers> {/* Includes QueryClientProvider + AuthProvider */}
+          <Providers>
             <CartProvider>
-              {children} {/* Header and pages */}
+              {children}
+              {/* <InstallPrompt />  */}
               <Toaster />
             </CartProvider>
           </Providers>

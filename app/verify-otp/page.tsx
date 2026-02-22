@@ -1,97 +1,185 @@
 "use client";
 
-import type React from "react";
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+import { useVerifyOtp, useVerifyResetOtp } from "@/services/auth/auth.queries"; 
+import { useAuth } from "@/lib/auth-context";
+import { Header } from "@/components/layout/header";
+import { getErrorMessage } from "@/lib/error-utils";
 import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { useRouter } from "next/navigation";
-import { useToast } from "@/hooks/use-toast";
-import { z } from "zod";
-import { useVerifyOtp } from "@/services/auth/auth.queries";
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from "@/components/ui/input-otp";
+import { Loader2, Mail } from "lucide-react";
 
-export default function VerifyOtpPage({
-  searchParams,
-}: {
-  searchParams: { token?: string };
-}) {
-  const token = searchParams?.token || ""; // 🔑 pull token directly from query
-  const [code, setCode] = useState("");
+function VerifyOtpContent() {
   const router = useRouter();
-  const { toast } = useToast();
-  const { mutateAsync: verifyOtp, isPending } = useVerifyOtp();
+  const searchParams = useSearchParams();
+  const { checkAuth } = useAuth();
+  
+  // 1. Check if we are in "Reset Password" mode or "Signup Verification" mode
+  const type = searchParams.get("type");
+  const isResetMode = type === "reset";
 
-  // schema for OTP validation
-  const otpSchema = z.object({
-    token: z.string().min(1, "Missing token"),
-    code: z.string().min(6, "OTP must be 6 digits").max(6, "OTP must be 6 digits"),
-  });
+  const { mutateAsync: verifyOtpMutate, isPending: isVerifyPending } = useVerifyOtp();
+  const { mutateAsync: verifyResetOtpMutate, isPending: isResetPending } = useVerifyResetOtp();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const isPending = isVerifyPending || isResetPending;
 
-    const result = otpSchema.safeParse({ token, code });
-    if (!result.success) {
-      toast({
-        title: "Error",
-        description: result.error.errors[0].message,
-        variant: "destructive",
-      });
+  const [code, setCode] = useState("");
+  const [token, setToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    // 2. Decide where to get the token from
+    if (isResetMode) {
+      // Case A: Forgot Password (Token is in URL)
+      const urlToken = searchParams.get("token");
+      if (!urlToken) {
+        toast.error("Invalid reset link. Please try again.");
+        router.push("/forgot-password");
+      } else {
+        setToken(urlToken);
+      }
+    } else {
+      // Case B: Signup (Token is in LocalStorage)
+      const storedToken = localStorage.getItem("tempToken");
+      if (!storedToken) {
+        toast.error("No verification session found. Please login or register again.");
+        router.push("/login");
+      } else {
+        setToken(storedToken);
+      }
+    }
+  }, [router, isResetMode, searchParams]);
+
+  const handleVerify = async () => {
+    if (!token) return;
+
+    if (code.length !== 6) {
+      toast.error("Please enter the full 6-digit code");
       return;
     }
 
     try {
-      await verifyOtp({ token, code });
-      toast({ title: "Success", description: "Account verified successfully!" });
-      router.push("/login");
+      if (isResetMode) {
+        // ----------------- RESET PASSWORD FLOW -----------------
+        const res = await verifyResetOtpMutate({
+          token: token,
+          code,
+        });
+
+        toast.success("OTP Verified! Please set your new password.");
+        
+        // Redirect to Reset Password page with the NEW token (resetToken)
+        router.push(`/reset-password?token=${res.resetToken}`);
+
+      } else {
+        // ----------------- SIGNUP FLOW -----------------
+        const res = await verifyOtpMutate({
+          token: token,
+          code,
+          clientType: "web",
+        });
+
+        toast.success("Account verified successfully!");
+        localStorage.removeItem("tempToken");
+
+        if (res.token) {
+          localStorage.setItem("token", res.token);
+        } else {
+          localStorage.setItem("token", token);
+        }
+
+        await checkAuth();
+        router.push("/restaurants");
+      }
+
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.response?.data?.error || "Failed to verify OTP",
-        variant: "destructive",
-      });
+      const message = getErrorMessage(error);
+      toast.error(message);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-red-50 p-4">
-      <div className="w-full max-w-md space-y-6">
-        <Card className="w-full max-w-md mx-auto">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-bold">Verify OTP</CardTitle>
+    <div className="flex min-h-screen w-full flex-col bg-muted/40">
+      <Header />
+      <main className="flex flex-1 items-center justify-center p-4">
+        <Card className="w-full max-w-md shadow-lg">
+          <CardHeader className="space-y-1 text-center">
+            <div className="flex justify-center mb-4">
+              <div className="rounded-full bg-primary/10 p-3">
+                <Mail className="h-6 w-6 text-primary" />
+              </div>
+            </div>
+            <CardTitle className="text-2xl font-bold">
+              {isResetMode ? "Reset Password" : "Verify your email"}
+            </CardTitle>
             <CardDescription>
-              Enter the 6-digit code sent to your email/phone
+              We've sent a 6-digit code to your email.
+              <br />Enter it below to continue.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="otp">OTP Code</Label>
-                <Input
-                  id="otp"
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
-                  placeholder="Enter OTP"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  required
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={isPending}>
-                {isPending ? "Verifying..." : "Verify"}
-              </Button>
-            </form>
+          <CardContent className="flex flex-col items-center justify-center space-y-4">
+            <div className="flex justify-center py-4">
+              <InputOTP
+                maxLength={6}
+                value={code}
+                onChange={(value) => setCode(value)}
+              >
+                <InputOTPGroup>
+                  <InputOTPSlot index={0} />
+                  <InputOTPSlot index={1} />
+                  <InputOTPSlot index={2} />
+                  <InputOTPSlot index={3} />
+                  <InputOTPSlot index={4} />
+                  <InputOTPSlot index={5} />
+                </InputOTPGroup>
+              </InputOTP>
+            </div>
           </CardContent>
+          <CardFooter className="flex flex-col space-y-4">
+            <Button 
+              className="w-full" 
+              onClick={handleVerify} 
+              disabled={isPending || code.length < 6}
+            >
+              {isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Verifying...
+                </>
+              ) : (
+                "Verify Code"
+              )}
+            </Button>
+            <div className="text-center text-sm text-muted-foreground">
+              Didn't receive code?{" "}
+              <Button variant="link" className="p-0 h-auto font-normal text-primary">
+                Resend
+              </Button>
+            </div>
+          </CardFooter>
         </Card>
-      </div>
+      </main>
     </div>
+  );
+}
+
+export default function VerifyOtpPage() {
+  return (
+    <Suspense>
+      <VerifyOtpContent />
+    </Suspense>
   );
 }

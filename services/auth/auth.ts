@@ -1,7 +1,14 @@
+// food-ordering-platform/frontend/frontend-wip-staging/services/auth/auth.ts
+
 import { AArrowUp } from "lucide-react";
 import api from "../axios";
-import { RegisterData, LoginData, AuthResponse, verifyOTPpayload, VerifyOtpResponse } from "@/types/auth.type";
-
+import { RegisterData, LoginData, AuthResponse, verifyOTPpayload, VerifyOtpResponse, ForgotPasswordPayload,
+  ForgotPasswordResponse,
+  VerifyResetOtpPayload,
+  VerifyResetOtpResponse,
+  ResetPasswordPayload,
+  ResetPasswordResponse,
+  GoogleLoginPayload, } from "@/types/auth.type";
 
 //Register new user
 export const registerUser = async (
@@ -9,45 +16,94 @@ export const registerUser = async (
 ): Promise<AuthResponse> => {
   try {
     const response = await api.post<AuthResponse>("/auth/register", data);
-    return response.data; // return only the data
+    return response.data;
   } catch (error: any) {
     console.error("Register error:", error.response?.data || error.message);
     throw error;
   }
 };
 
-
-//login a user
+// Login (HYBRID UPDATE)
 export const loginUser = async (data: LoginData): Promise<AuthResponse> => {
+  const payload = { ...data, clientType: "web" as const };
+  const response = await api.post<AuthResponse>("/auth/login", payload);
+  return response.data;
+};
+
+// --- UPDATED GOOGLE AUTH ---
+export const googleAuthenticate = async (
+  data: { token: string; termsAccepted?: boolean } // 👈 Updated signature
+): Promise<AuthResponse> => {
+  const payload = {
+    token: data.token,
+    termsAccepted: data.termsAccepted, // Pass the flag
+    clientType: "web", 
+  };
+
+  const response = await api.post<AuthResponse>("/auth/google", payload);
+  return response.data;
+};
+
+
+// Get Current User (Session Check)
+export const getCurrentUser = async (): Promise<AuthResponse["user"]> => {
+  const response = await api.get<{ user: AuthResponse["user"] }>("/auth/me");
+  return response.data.user;
+};
+
+// Verify OTP (HYBRID UPDATE)
+export const verifyOtp = async (data: verifyOTPpayload): Promise<VerifyOtpResponse> => {
+  const payload = { ...data, clientType: "web" as const };
+  const response = await api.post<VerifyOtpResponse>("/auth/verify-otp", payload);
+  return response.data;
+};
+
+// Forgot password - send OTP
+export const forgotPassword = async (
+  data: ForgotPasswordPayload
+): Promise<ForgotPasswordResponse> => {
   try {
-    const response = await api.post("/auth/login", data);
-    const { result } = response.data; // Destructure result
-    if (!result || !result.user || !result.token) {
-      throw new Error("Invalid login response");
-    }
-    return {
-      token: result.token,
-      user: {
-        id: result.user.id,
-        name: result.user.name,
-        email: result.user.email,
-        role: result.user.role,
-      },
-    };
-  } catch (error: any) {
-    console.log("Login error:", error.response?.data || error.message);
-    throw error;
+    const res = await api.post<ForgotPasswordResponse>("/auth/forgot-password", data);
+    return res.data;
+  } catch (err: any) {
+    console.error("Forgot password error:", err.response?.data || err.message);
+    throw err;
   }
 };
 
-//verify otp
-export const verifyOtp = async (data: verifyOTPpayload ) : Promise<VerifyOtpResponse> => {
-  try{
-    const response = await api.post<VerifyOtpResponse>("/auth/verify-otp", data)
-    return response.data
+// Verify reset OTP
+export const verifyResetOtp = async (
+  data: VerifyResetOtpPayload
+): Promise<VerifyResetOtpResponse> => {
+  try {
+    const res = await api.post<VerifyResetOtpResponse>("/auth/verify-reset-otp", data);
+    return res.data;
+  } catch (err: any) {
+    console.error("Verify reset OTP error:", err.response?.data || err.message);
+    throw err;
   }
-  catch(err: any) {
-    console.log("OTP Verfication Failed", err.response.data || err.message)
+};
+
+// Reset password
+export const resetPassword = async (
+  data: ResetPasswordPayload
+): Promise<ResetPasswordResponse> => {
+  try {
+    const res = await api.post<ResetPasswordResponse>("/auth/reset-password", data);
+    return res.data;
+  } catch (err: any) {
+    console.error("Reset password error:", err.response?.data || err.message);
     throw err;
   }
 }
+
+export const updateProfile = async (data: {
+  name?: string;
+  phone?: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+}): Promise<AuthResponse> => {
+  const response = await api.patch("/auth/profile", data);
+  return response.data;
+};

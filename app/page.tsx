@@ -1,33 +1,35 @@
 import { Header } from "@/components/layout/header"
 import { HeroSection } from "@/components/landing/hero-section"
 import { FeaturesSection } from "@/components/landing/features-section"
-import { RestaurantGrid } from "@/components/restaurants/restaurant-grid"
 import { Footer } from "@/components/layout/footer"
+import { TopPicksSection } from "@/components/landing/top-picks"
+import { PaymentFeatureSection } from "@/components/landing/payment-feature"
+import { FAQSection } from "../components/landing/faq-section"
+import { VendorSection } from "@/components/landing/vendor-section" // Import New Component
+import DownloadAppSection from "@/components/landing/download"
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-white">
       <Header />
-      <main>
+      <main className="flex flex-col gap-0">
+        
         <HeroSection />
 
         <FeaturesSection />
 
-        <section className="section-padding bg-muted/30">
-          <div className="container">
-            <div className="text-center space-y-4 mb-12">
-              <h2 className="text-3xl md:text-4xl font-bold text-balance">
-                Discover Amazing <span className="text-gradient-red">Restaurants</span>
-              </h2>
-              <p className="text-lg text-muted-foreground text-pretty max-w-2xl mx-auto">
-                Browse through our curated selection of top-rated restaurants and find your next favorite meal.
-              </p>
-            </div>
-            <RestaurantGrid />
-          </div>
-        </section>
-      </main>
+        <TopPicksSection />
 
+        <PaymentFeatureSection />
+
+        {/* New Vendor Section */}
+        <VendorSection />
+
+        <DownloadAppSection />
+
+         <FAQSection />
+        
+      </main>
       <Footer />
     </div>
   )

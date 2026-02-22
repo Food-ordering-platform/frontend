@@ -1,164 +1,138 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useMemo } from "react"
+import { useGetOrders } from "../../services/order/order.queries"
 import { useAuth } from "@/lib/auth-context"
-import { getOrdersByUserId } from "@/lib/data-service"
-import { Header } from "@/components/layout/header"
-import { ProtectedRoute } from "@/components/auth/protected-route"
-import { OrderCard } from "@/components/orders/order-card"
 import { Button } from "@/components/ui/button"
-import { ShoppingBag, Clock, CheckCircle, Truck } from "lucide-react"
+import { Header } from "@/components/layout/header"
+import { Footer } from "@/components/layout/footer"
+import { OrderCard } from "@/components/orders/order-card"
+import { ShoppingBag, RefreshCw } from "lucide-react"
 import Link from "next/link"
-import type { Order } from "@/lib/types"
+import { motion, AnimatePresence } from "framer-motion"
+import { Badge } from "@/components/ui/badge"
+import { RatingDialog } from "@/components/orders/rating-dialog"
 
 export default function OrdersPage() {
   const { user } = useAuth()
-  const [orders, setOrders] = useState<Order[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const { data: orders = [], isLoading, refetch, isFetching } = useGetOrders(user?.id!)
   const [filter, setFilter] = useState<string>("all")
+  
+  // Rating State
+  const [orderToRate, setOrderToRate] = useState<string | null>(null);
 
-  useEffect(() => {
-    const loadOrders = async () => {
-      if (!user) return
+  // Calculate stats for the tabs
+  const activeCount = orders.filter(o => ["pending", "preparing", "out_for_delivery", "confirmed"].includes(o.status)).length;
+  const completedCount = orders.filter(o => ["delivered", "cancelled"].includes(o.status)).length;
+  const allCount = orders.length;
 
-      try {
-        const userOrders = await getOrdersByUserId(user.id)
-        setOrders(userOrders.sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime()))
-      } catch (error) {
-        console.error("Failed to load orders:", error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
+  const filteredOrders = useMemo(() => {
+    if (filter === "all") return orders
+    return orders.filter((o) => {
+        if (filter === "active") return ["pending", "preparing", "out_for_delivery", "confirmed"].includes(o.status);
+        if (filter === "completed") return ["delivered", "cancelled"].includes(o.status);
+        return o.status === filter
+    })
+  }, [orders, filter])
 
-    loadOrders()
-  }, [user])
-
-  const filteredOrders = orders.filter((order) => {
-    if (filter === "all") return true
-    return order.status === filter
-  })
-
-  const getStatusStats = () => {
-    const pending = orders.filter((o) => o.status === "pending").length
-    const delivered = orders.filter((o) => o.status === "delivered").length
-    const inProgress = orders.filter((o) => ["confirmed", "preparing", "out_for_delivery"].includes(o.status)).length
-
-    return { pending, delivered, inProgress }
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col bg-gray-50/30">
+        <Header />
+        <div className="flex-1 flex flex-col items-center justify-center gap-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#7b1e3a]"></div>
+            <p className="text-gray-500 animate-pulse font-medium">Loading your history...</p>
+        </div>
+      </div>
+    )
   }
 
-  const stats = getStatusStats()
-
   return (
-    <ProtectedRoute>
-      <div className="min-h-screen bg-muted/20">
-        <Header />
-        <main className="container py-8">
-          <div className="max-w-6xl mx-auto">
-            <div className="mb-8">
-              <h1 className="text-4xl font-bold text-gradient-red mb-2">Your Orders</h1>
-              <p className="text-muted-foreground text-lg">Track and manage your food orders</p>
+    <div className="min-h-screen bg-gray-50/30 flex flex-col font-sans">
+      <Header />
+      <main className="container py-8 md:py-12 flex-1 max-w-7xl mx-auto">
+          <div className="flex flex-col md:flex-row justify-between items-end gap-6 mb-10">
+            <div className="space-y-2">
+                <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight">Order History</h1>
+                <p className="text-gray-500 text-lg">Track your current orders and rediscover past favorites.</p>
             </div>
-
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <div className="bg-card p-6 rounded-xl border border-border/50 shadow-sm">
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 bg-gradient-red-light rounded-lg flex items-center justify-center">
-                    <Clock className="h-6 w-6 text-white" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold">{stats.pending}</p>
-                    <p className="text-muted-foreground">Pending Orders</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-card p-6 rounded-xl border border-border/50 shadow-sm">
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 bg-secondary/20 rounded-lg flex items-center justify-center">
-                    <Truck className="h-6 w-6 text-secondary" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold">{stats.inProgress}</p>
-                    <p className="text-muted-foreground">In Progress</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-card p-6 rounded-xl border border-border/50 shadow-sm">
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
-                    <CheckCircle className="h-6 w-6 text-green-600" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold">{stats.delivered}</p>
-                    <p className="text-muted-foreground">Delivered</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Filter Buttons */}
-            <div className="flex items-center gap-3 mb-8 overflow-x-auto pb-2">
-              <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Filter by status:</span>
-              {[
-                { key: "all", label: "All Orders" },
-                { key: "pending", label: "Pending" },
-                { key: "confirmed", label: "Confirmed" },
-                { key: "preparing", label: "Preparing" },
-                { key: "out_for_delivery", label: "Out for Delivery" },
-                { key: "delivered", label: "Delivered" },
-              ].map((status) => (
-                <Button
-                  key={status.key}
-                  variant={filter === status.key ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setFilter(status.key)}
-                  className="whitespace-nowrap rounded-full"
-                >
-                  {status.label}
-                </Button>
-              ))}
-            </div>
-
-            {isLoading ? (
-              <div className="flex items-center justify-center py-16">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-              </div>
-            ) : filteredOrders.length === 0 ? (
-              <div className="text-center py-16 bg-card rounded-2xl border border-border/50">
-                <div className="max-w-md mx-auto space-y-4">
-                  <div className="h-20 w-20 bg-gradient-red-light rounded-full flex items-center justify-center mx-auto">
-                    <ShoppingBag className="h-10 w-10 text-white" />
-                  </div>
-                  <div className="space-y-2">
-                    <h3 className="text-xl font-semibold">
-                      {filter === "all" ? "No orders yet" : `No ${filter} orders`}
-                    </h3>
-                    <p className="text-muted-foreground">
-                      {filter === "all"
-                        ? "Start browsing restaurants to place your first order!"
-                        : `You don't have any ${filter} orders at the moment.`}
-                    </p>
-                  </div>
-                  {filter === "all" && (
-                    <Button asChild className="bg-gradient-red hover:bg-gradient-red-light">
-                      <Link href="/">Browse Restaurants</Link>
-                    </Button>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {filteredOrders.map((order) => (
-                  <OrderCard key={order.id} order={order} />
-                ))}
-              </div>
-            )}
+            <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching} className="gap-2 bg-white border-gray-200 text-gray-600 hover:text-[#7b1e3a] hover:border-[#7b1e3a] active:scale-95 transition-transform">
+                <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
+                {isFetching ? "Refreshing..." : "Refresh List"}
+            </Button>
           </div>
-        </main>
-      </div>
-    </ProtectedRoute>
+
+          {/* ALIVE TABS */}
+          <div className="flex justify-start mb-8">
+            <div className="flex p-1 bg-white border border-gray-200 rounded-xl relative shadow-sm">
+                {[
+                    { key: "all", label: "All Orders", count: allCount },
+                    { key: "active", label: "Active", count: activeCount },
+                    { key: "completed", label: "Completed", count: completedCount }
+                ].map((tab) => (
+                    <button
+                        key={tab.key}
+                        onClick={() => setFilter(tab.key)}
+                        className={`relative px-6 py-2.5 text-sm font-medium rounded-lg z-10 transition-colors duration-200 flex items-center gap-2 ${
+                            filter === tab.key ? "text-[#7b1e3a]" : "text-gray-500 hover:text-gray-700"
+                        }`}
+                    >
+                        {filter === tab.key && (
+                            <motion.div
+                                layoutId="activeTab"
+                                className="absolute inset-0 bg-[#7b1e3a]/5 rounded-lg border border-[#7b1e3a]/10 -z-10"
+                                transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                            />
+                        )}
+                        {tab.label}
+                        <Badge variant="secondary" className={`h-5 min-w-5 px-1.5 rounded-full ${filter === tab.key ? 'bg-[#7b1e3a] text-white' : 'bg-gray-100 text-gray-600'}`}>
+                            {tab.count}
+                        </Badge>
+                    </button>
+                ))}
+            </div>
+          </div>
+
+          <AnimatePresence mode="wait">
+            {filteredOrders.length === 0 ? (
+                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center justify-center py-24 px-4 text-center bg-white rounded-3xl border border-dashed border-gray-200 shadow-sm">
+                    <div className="h-20 w-20 bg-orange-50 rounded-full flex items-center justify-center mb-6">
+                        <ShoppingBag className="h-10 w-10 text-orange-400" />
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">No orders found</h3>
+                    <p className="text-gray-500 max-w-sm mx-auto mb-8">
+                        {filter === "all" ? "Looks like you haven't ordered anything yet." : "No orders match this filter."}
+                    </p>
+                    {filter === "all" && (
+                        <Button asChild size="lg" className="bg-[#7b1e3a] hover:bg-[#66172e] rounded-full px-8 shadow-lg shadow-red-900/20">
+                            <Link href="/restaurants">Start Ordering</Link>
+                        </Button>
+                    )}
+                </motion.div>
+            ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filteredOrders.map((order) => (
+                        <OrderCard 
+                            key={order.id} 
+                            order={order} 
+                            onRate={(id) => setOrderToRate(id)}
+                        />
+                    ))}
+                </div>
+            )}
+          </AnimatePresence>
+
+          {/* Rating Dialog */}
+          <RatingDialog 
+             orderId={orderToRate || ""} 
+             isOpen={!!orderToRate} 
+             onClose={() => {
+                setOrderToRate(null);
+                refetch(); // Refresh to show the new rating
+             }} 
+          />
+      </main>
+      <Footer />
+    </div>
   )
 }

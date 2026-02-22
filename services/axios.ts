@@ -1,34 +1,43 @@
 import axios from "axios";
-import { config } from "process";
-
-// Base URL points directly to your backend
-const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/api";
 
 const api = axios.create({
-  baseURL,
+  baseURL: process.env.NEXT_PUBLIC_API_URL,
   headers: {
     "Content-Type": "application/json",
   },
+  // ✅ Explicitly enable cookies if your backend needs them (based on your comments)
+  // withCredentials: true, 
 });
 
-//Attach token to localStorage Automatically
-api.interceptors.request.use((config) => {
-  if (typeof window !== "undefined") {
-    const token = localStorage.getItem("foodapp-token");
-    if (token) {
-      config.headers["Authorization"] = `Bearer ${token}`;
+// Request Interceptor
+api.interceptors.request.use(
+  (config) => {
+    if (typeof window !== "undefined") {
+      const token = localStorage.getItem("token");
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
   }
-  return config;
-}, (error) => Promise.reject(error));
+);
 
-//Handle 401/403 globally
-// Handle 401/403 globally
+// Response Interceptor
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && [401, 403].includes(error.response.status)) {
-      console.warn("Unauthorized request. Token might be invalid.");
+    if (error.response?.status === 401) {
+      console.error("Session Expired or Invalid Token");
+      
+      // ✅ FIX: Actually clear the bad token so the app stops trying to use it
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("token");
+        // Optional: Redirect to login immediately to be safe
+        // window.location.href = "/login"; 
+      }
     }
     return Promise.reject(error);
   }
