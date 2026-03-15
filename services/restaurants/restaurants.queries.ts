@@ -29,6 +29,13 @@ export const useRestaurantById = (id: string) => {
     enabled: !!id,
   })
 }
+export const useRestaurantBySlug = (slug: string) => {
+  return useQuery<ApiResponse<Restaurant>, Error>({
+    queryKey: ["restaurant-slug", slug], // Changed key to avoid cache collisions
+    queryFn: () => getRestaurantById(slug), // Pointing to the new function!
+    enabled: !!slug,
+  })
+}
 
 // ✅ Mutation: Update restaurant info
 export const useUpdateRestaurant = () => {

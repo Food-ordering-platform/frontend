@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRestaurantById } from "../../../services/restaurants/restaurants.queries";
+import { useRestaurantById, useRestaurantBySlug } from "../../../services/restaurants/restaurants.queries";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -131,10 +131,10 @@ export default function RestaurantPage() {
 
   const pathname = usePathname();
   const segments = pathname.split("/");
-  const id = segments[2];
+  const slug = segments[2];
 
   // Fetch restaurant
-  const { data: restaurant, isLoading } = useRestaurantById(id!);
+  const { data: restaurant, isLoading } = useRestaurantBySlug(slug!);
 
   // Helper to flatten items for the view
   const allMenuItems: ApiMenuItem[] =

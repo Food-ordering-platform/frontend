@@ -24,6 +24,17 @@ export const getRestaurantById = async (
     throw new Error(error.response?.data?.message || "Failed to fetch restaurant")
   }
 }
+export const getRestaurantByslug = async (
+  slug: string
+): Promise<ApiResponse<Restaurant>> => {
+  try {
+    const response = await api.get<ApiResponse<Restaurant>>(`/restaurant/${slug}`)
+    return response.data
+  } catch (error: any) {
+    console.error("Fetch restaurant by ID error:", error.response?.data || error.message)
+    throw new Error(error.response?.data?.message || "Failed to fetch restaurant")
+  }
+}
 
 // ✅ 2. Update restaurant info
 export const updateRestaurant = async (
