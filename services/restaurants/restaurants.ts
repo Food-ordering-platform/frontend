@@ -28,7 +28,7 @@ export const getRestaurantByslug = async (
   slug: string
 ): Promise<ApiResponse<Restaurant>> => {
   try {
-    const response = await api.get<ApiResponse<Restaurant>>(`/restaurant/${slug}`)
+    const response = await api.get<ApiResponse<Restaurant>>(`/restaurant/slug/${slug}`)
     return response.data
   } catch (error: any) {
     console.error("Fetch restaurant by ID error:", error.response?.data || error.message)
