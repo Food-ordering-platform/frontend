@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { z } from "zod"; // 🟢 Import Zod
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -36,3 +37,20 @@ export const calculateDeliveryFee = (distanceKm: number): number => {
   
   return Math.ceil(BASE_FEE + extraFee);
 };
+
+
+//ZOD VALIDATIOIN
+// 🟢 1. Simple, readable Zod validation (No Regex)
+export const phoneSchema = z.string()
+  .min(10, { message: "Phone number is too short (minimum 10 digits)" })
+  .max(15, { message: "Phone number is too long (maximum 15 digits)" })
+  .refine((val: any) => {
+    // 1. Remove any normal spaces the user might type (e.g., "080 1234 5678")
+    const cleaned = val.split(" ").join("");
+    
+    // 2. Ignore the "+" sign if they used country code (+234)
+    const stringToCheck = cleaned.startsWith("+") ? cleaned.slice(1) : cleaned;
+    
+    // 3. Ensure whatever is left is an actual number (not letters like "080abc")
+    return !isNaN(Number(stringToCheck));
+  }, { message: "Phone number can only contain numbers" });
