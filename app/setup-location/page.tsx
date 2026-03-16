@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   GoogleMap,
@@ -16,16 +16,14 @@ import { useUpdateProfile } from "@/services/auth/auth.queries";
 import debounce from "lodash.debounce";
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
-// Set default center to Warri, Nigeria since that's your launch base
 const DEFAULT_CENTER = { lat: 5.5544, lng: 5.7932 };
 
 const LIBRARIES: Libraries = ["places"];
 
 const MAP_OPTIONS: google.maps.MapOptions = {
   disableDefaultUI: true,
-  zoomControl: true,
-  clickableIcons: true,
-  // Optional: Restrict map panning to Nigeria bounds
+  zoomControl: false, // Turned off default zoom to make mobile cleaner
+  clickableIcons: false,
   restriction: {
     latLngBounds: {
       north: 13.89,
@@ -42,8 +40,6 @@ interface SetupLocationProps {
   onComplete?: () => void;
 }
 
-// ...imports remain the same
-
 export default function SetupLocationPage({
   isModal = false,
   onComplete,
@@ -56,6 +52,7 @@ export default function SetupLocationPage({
   const [placeName, setPlaceName] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [isFetchingGPS, setIsFetchingGPS] = useState(false);
+  const [inputValue, setInputValue] = useState("");
 
   const mapRef = useRef<google.maps.Map | null>(null);
   const geocoderRef = useRef<google.maps.Geocoder | null>(null);
@@ -66,25 +63,26 @@ export default function SetupLocationPage({
     libraries: LIBRARIES,
   });
 
-  // --- Debounced Reverse Geocode to reduce billing ---
+  // Debounced Reverse Geocode to reduce billing
   const fetchAddress = useCallback(
     debounce((lat: number, lng: number) => {
-      if (!geocoderRef.current)
+      if (!geocoderRef.current) {
         geocoderRef.current = new google.maps.Geocoder();
+      }
 
       geocoderRef.current.geocode(
         { location: { lat, lng } },
         (results, status) => {
           if (status === "OK" && results?.[0]) {
             setAddress(results[0].formatted_address);
-            setPlaceName(""); // clear old search
+            setPlaceName(""); // clear old search name when dragging
           } else {
             setAddress("Unknown location");
           }
-        },
+        }
       );
     }, 500),
-    [],
+    []
   );
 
   const handleMapLoad = useCallback(
@@ -93,23 +91,32 @@ export default function SetupLocationPage({
       geocoderRef.current = new google.maps.Geocoder();
       fetchAddress(DEFAULT_CENTER.lat, DEFAULT_CENTER.lng);
     },
-    [fetchAddress],
+    [fetchAddress]
   );
 
+  // Triggered when user selects an address from the Autocomplete dropdown
   const handlePlaceChanged = () => {
-    const place = autocompleteRef.current?.getPlace();
-    if (!place || !place.geometry?.location)
-      return toast.error("Select a valid location");
+    if (!autocompleteRef.current) return;
+    
+    const place = autocompleteRef.current.getPlace();
+    
+    if (!place || !place.geometry?.location) {
+      toast.error("Please select a valid location from the dropdown");
+      return;
+    }
 
     const coords = {
       lat: place.geometry.location.lat(),
       lng: place.geometry.location.lng(),
     };
+    
     setCenter(coords);
     mapRef.current?.panTo(coords);
     mapRef.current?.setZoom(18);
+    
     setPlaceName(place.name || "");
     setAddress(place.formatted_address || "");
+    setInputValue(place.name || place.formatted_address || "");
   };
 
   const handleDragStart = () => setIsDragging(true);
@@ -123,7 +130,10 @@ export default function SetupLocationPage({
   };
 
   const handleUseGPS = () => {
-    if (!navigator.geolocation) return toast.error("Geolocation not supported");
+    if (!navigator.geolocation) {
+      return toast.error("Geolocation is not supported by your browser");
+    }
+    
     setIsFetchingGPS(true);
 
     navigator.geolocation.getCurrentPosition(
@@ -136,18 +146,20 @@ export default function SetupLocationPage({
         setIsFetchingGPS(false);
       },
       () => {
-        toast.error("Unable to fetch location");
+        toast.error("Unable to fetch location. Check your device permissions.");
         setIsFetchingGPS(false);
       },
-      { enableHighAccuracy: true, timeout: 10000 },
+      { enableHighAccuracy: true, timeout: 10000 }
     );
   };
 
   const handleConfirm = async () => {
     if (!mapRef.current) return;
     const mapCenter = mapRef.current.getCenter();
-    const lat = mapCenter!.lat();
-    const lng = mapCenter!.lng();
+    if (!mapCenter) return;
+
+    const lat = mapCenter.lat();
+    const lng = mapCenter.lng();
     const finalAddress = placeName ? `${placeName}, ${address}` : address;
 
     try {
@@ -156,42 +168,49 @@ export default function SetupLocationPage({
         longitude: lng,
         address: finalAddress,
       });
-      toast.success("Location saved successfully");
-      isModal && onComplete ? onComplete() : router.back();
+      toast.success("Location saved successfully!");
+      if (isModal && onComplete) {
+        onComplete();
+      } else {
+        router.back();
+      }
     } catch {
       toast.error("Failed to save location");
     }
   };
 
-  if (!isLoaded)
+  // Ensure map isn't rendered until Google script is loaded
+  if (!isLoaded) {
     return (
-      <div className="h-full flex items-center justify-center min-h-[400px]">
+      <div className="h-[100dvh] w-full flex items-center justify-center bg-gray-50">
         <Loader2 className="animate-spin h-8 w-8 text-[#7b1e3a]" />
       </div>
     );
+  }
 
   return (
     <div
       className={cn(
-        "flex flex-col w-full bg-gray-50",
-        isModal ? "h-[80vh] min-h-[500px]" : "h-[100dvh]",
+        "flex flex-col w-full bg-gray-50 relative overflow-hidden",
+        isModal ? "h-[80vh] min-h-[500px]" : "h-[100dvh]"
       )}
     >
-      {/* Search Bar */}
-      <div className="absolute top-0 left-0 right-0 z-50 p-4 pt-6 pointer-events-none">
-        <div className="flex gap-3 items-center pointer-events-auto">
+      {/* 🟢 TOP SEARCH BAR (Fixed absolute positioning without pointer-events-none trap) */}
+      <div className="absolute top-0 left-0 right-0 z-[60] p-4 pt-6 bg-gradient-to-b from-white/80 to-transparent">
+        <div className="flex gap-3 items-center w-full max-w-lg mx-auto">
           {!isModal && (
             <Button
               size="icon"
               variant="outline"
               onClick={() => router.back()}
-              className="h-12 w-12 rounded-full bg-white shadow-md hover:bg-gray-50 border-none"
+              className="h-14 w-14 shrink-0 rounded-full bg-white shadow-lg border-gray-100 hover:bg-gray-50"
             >
-              <ArrowLeft className="h-5 w-5 text-gray-700" />
+              <ArrowLeft className="h-6 w-6 text-gray-700" />
             </Button>
           )}
-          <div className="flex-1 relative z-50">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 z-50" />
+
+          <div className="flex-1 relative shadow-lg rounded-full bg-white border border-gray-100 h-14 overflow-visible">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[#7b1e3a]" />
             <Autocomplete
               onLoad={(autoC) => (autocompleteRef.current = autoC)}
               onPlaceChanged={handlePlaceChanged}
@@ -199,13 +218,16 @@ export default function SetupLocationPage({
                 componentRestrictions: { country: "ng" },
                 fields: ["geometry", "formatted_address", "name"],
               }}
+              className="w-full h-full"
             >
               <input
                 type="text"
-                placeholder="Search for your street or area..."
-                className="w-full h-12 pl-12 pr-4 rounded-full border-none focus:ring-0 focus:outline-none bg-white text-gray-800 font-medium placeholder:text-gray-400"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                placeholder="Search street, estate, or area..."
+                className="w-full h-full pl-12 pr-4 rounded-full border-none focus:ring-2 focus:ring-[#7b1e3a] focus:outline-none bg-transparent text-gray-900 font-medium placeholder:text-gray-400 placeholder:font-normal text-base"
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") e.preventDefault();
+                  if (e.key === "Enter") e.preventDefault(); // Stop mobile keyboards from submitting
                 }}
               />
             </Autocomplete>
@@ -213,56 +235,64 @@ export default function SetupLocationPage({
         </div>
       </div>
 
-      {/* Map */}
-      <div className="flex-1 relative w-full h-full">
+      {/* 🟢 MAP CONTAINER (min-h-0 prevents flex collapse, absolute inner forces height) */}
+      <div className="flex-1 relative w-full min-h-0 z-0">
         <GoogleMap
-          mapContainerStyle={{ width: "100%", height: "100%" }}
+          mapContainerStyle={{
+            width: "100%",
+            height: "100%",
+            position: "absolute",
+            inset: 0,
+          }}
           center={center}
-          zoom={15}
+          zoom={16}
           options={MAP_OPTIONS}
           onLoad={handleMapLoad}
-          onUnmount={(map) => {
-            mapRef.current = null; // or do any cleanup you need with the map
+          onUnmount={() => {
+            mapRef.current = null;
           }}
           onDragStart={handleDragStart}
           onIdle={handleIdle}
-        />
+        >
+          {/* Static Center Pin overlayed ON TOP of the map canvas */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-10 flex flex-col items-center justify-center">
+            <MapPin
+              className={cn(
+                "text-[#7b1e3a] fill-[#7b1e3a] h-12 w-12 transition-transform duration-200 drop-shadow-lg",
+                isDragging ? "-translate-y-4 scale-110" : "translate-y-0"
+              )}
+            />
+            {/* Tiny shadow dot for exact centering */}
+            <div className="w-2 h-1 bg-black/30 rounded-[100%] blur-[1px] mt-1" />
+          </div>
 
-        {/* Pin */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none drop-shadow-2xl z-20">
-          <MapPin
-            className={cn(
-              "text-[#7b1e3a] fill-[#7b1e3a] h-12 w-12 pb-2 transition-transform duration-200",
-              isDragging ? "-translate-y-4 scale-110" : "",
-            )}
-          />
-          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-1 bg-black/20 rounded-full blur-[1px]"></div>
-        </div>
-
-        {/* GPS */}
-        <div className="absolute bottom-6 right-4 z-20">
-          <Button
-            size="icon"
-            onClick={handleUseGPS}
-            className="h-14 w-14 rounded-full bg-white text-[#7b1e3a] shadow hover:bg-gray-50 border border-gray-100"
-          >
-            {isFetchingGPS ? (
-              <Loader2 className="animate-spin h-6 w-6" />
-            ) : (
-              <Crosshair className="h-6 w-6" />
-            )}
-          </Button>
-        </div>
+          {/* Floating GPS Button */}
+          <div className="absolute bottom-6 right-4 z-10">
+            <Button
+              size="icon"
+              onClick={handleUseGPS}
+              className="h-14 w-14 rounded-full bg-white text-[#7b1e3a] shadow-[0_4px_20px_rgba(0,0,0,0.15)] hover:bg-gray-50 border border-gray-100"
+            >
+              {isFetchingGPS ? (
+                <Loader2 className="animate-spin h-6 w-6" />
+              ) : (
+                <Crosshair className="h-6 w-6" />
+              )}
+            </Button>
+          </div>
+        </GoogleMap>
       </div>
 
-      {/* Bottom Sheet */}
-      <div className="bg-white p-6 rounded-t-3xl shadow-[0_-20px_40px_rgba(0,0,0,0.08)] z-30 relative -mt-4">
-        <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-5"></div>
+      {/* 🟢 BOTTOM CONFIRMATION SHEET */}
+      <div className="bg-white p-6 rounded-t-3xl shadow-[0_-20px_40px_rgba(0,0,0,0.1)] z-20 relative -mt-6">
+        <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-5" />
+        
         <p className="text-xs font-bold text-[#7b1e3a] uppercase tracking-widest mb-4">
-          Delivery Address
+          Delivery Location
         </p>
+
         <div className="flex gap-4 mb-6 items-start">
-          <div className="mt-1 bg-[#7b1e3a]/10 p-2.5 rounded-full shrink-0">
+          <div className="mt-1 bg-[#7b1e3a]/10 p-3 rounded-full shrink-0">
             <MapPin className="text-[#7b1e3a] h-6 w-6" />
           </div>
           <div className="flex-1 min-w-0">
@@ -272,14 +302,15 @@ export default function SetupLocationPage({
               </p>
             )}
             <p className="text-sm text-gray-600 mt-1 line-clamp-2 leading-relaxed">
-              {isDragging ? "Moving map..." : address}
+              {isDragging ? "Moving map to find address..." : address}
             </p>
           </div>
         </div>
+
         <Button
           onClick={handleConfirm}
-          disabled={isPending || isDragging}
-          className="w-full h-14 bg-[#7b1e3a] hover:bg-[#5e162c] text-white text-lg font-bold rounded-xl shadow-lg shadow-[#7b1e3a]/20"
+          disabled={isPending || isDragging || address === "Locating..."}
+          className="w-full h-14 bg-[#7b1e3a] hover:bg-[#5e162c] text-white text-lg font-bold rounded-xl shadow-lg shadow-[#7b1e3a]/20 transition-all active:scale-[0.98]"
         >
           {isPending && <Loader2 className="animate-spin mr-2 h-5 w-5" />}
           {isDragging ? "Drop pin to confirm" : "Confirm Location"}

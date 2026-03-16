@@ -1,14 +1,13 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Star, Zap, ArrowRight, Smartphone } from "lucide-react"; // Added new icons
+import { Star, Zap, ArrowRight, Smartphone } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion, easeOut } from "framer-motion";
 import { Typewriter } from "react-simple-typewriter";
 
 export function HeroSection() {
-  // 1. SINGLE IMAGE CONFIGURATION
   const backgroundImage = "/hero1.jpg";
 
   const messages = [
@@ -35,7 +34,7 @@ export function HeroSection() {
 
   return (
     <section className="relative overflow-hidden w-full min-h-[85vh] lg:min-h-screen flex items-center py-20 lg:py-0">
-      {/* 2. STATIC BACKGROUND IMAGE */}
+      {/* Background Image */}
       <div className="absolute inset-0 z-0">
         <Image
           src={backgroundImage}
@@ -44,19 +43,19 @@ export function HeroSection() {
           className="object-cover"
           priority
         />
-        {/* Overlay */}
         <div className="absolute inset-0 bg-white/75 backdrop-blur-[2px]" />
       </div>
 
       <div className="container relative z-10 mx-auto px-4 sm:px-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 items-center gap-12 lg:gap-20">
+          
           {/* Left Content */}
           <motion.div
             variants={leftVariants}
             initial="hidden"
             whileInView="show"
             viewport={{ once: true }}
-            className="flex flex-col items-start text-left space-y-6 lg:space-y-8 w-full max-w-xl mx-auto lg:mx-0"
+            className="flex flex-col items-center lg:items-start text-center lg:text-left space-y-6 lg:space-y-8 w-full max-w-2xl mx-auto lg:mx-0"
           >
             {/* Pill Badge */}
             <div className="inline-flex items-center gap-2 rounded-full bg-white border border-[#7b1e3a]/10 px-4 py-1.5 text-sm font-bold text-[#7b1e3a] shadow-sm">
@@ -68,9 +67,10 @@ export function HeroSection() {
             </div>
 
             {/* Header Text */}
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-snug text-gray-900">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-snug text-gray-900 w-full">
               Craving{" "}
-              <span className="text-[#7b1e3a] inline-block ml-2">
+              {/* Typewriter wrapper: inline-flex ensures it stays on the same line if possible, but wraps cleanly if too long */}
+              <span className="text-[#7b1e3a] inline-flex min-h-[1.2em]">
                 <Typewriter
                   words={messages}
                   loop={0}
@@ -87,17 +87,17 @@ export function HeroSection() {
               </span>
             </h1>
 
-            <p className="text-base sm:text-lg text-gray-700 leading-relaxed font-medium">
+            <p className="text-base sm:text-lg text-gray-700 leading-relaxed font-medium max-w-lg mx-auto lg:mx-0">
               Order from your favorite local spots and get it delivered hot to
               your doorstep. No delays, just enjoyment.
             </p>
 
             {/* Buttons */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mt-4 w-full sm:w-auto">
+            <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 mt-4 w-full sm:w-auto">
               <Button
                 asChild
                 size="lg"
-                className="w-full sm:w-auto rounded-full bg-[#7b1e3a] hover:bg-[#60172d] text-white px-8 h-14 text-lg font-bold shadow-lg shadow-[#7b1e3a]/20 transition-all hover:scale-105"
+                className="w-full sm:w-auto min-w-[200px] rounded-full bg-[#7b1e3a] hover:bg-[#60172d] text-white px-8 h-14 text-lg font-bold shadow-lg shadow-[#7b1e3a]/20 transition-all hover:scale-105"
               >
                 <Link href="/restaurants">
                   Order Food Now <ArrowRight className="ml-2 h-5 w-5" />
@@ -108,7 +108,7 @@ export function HeroSection() {
                 asChild
                 variant="outline"
                 size="lg"
-                className="w-full sm:w-auto rounded-full border-2 border-gray-200 bg-white hover:bg-gray-50 text-gray-900 px-8 h-14 text-lg font-bold transition-all hover:border-[#7b1e3a]/30"
+                className="w-full sm:w-auto min-w-[200px] rounded-full border-2 border-gray-200 bg-white hover:bg-gray-50 text-gray-900 px-8 h-14 text-lg font-bold transition-all hover:border-[#7b1e3a]/30"
               >
                 <Link href="/app">
                   <Smartphone className="mr-2 h-5 w-5 text-[#7b1e3a]" /> Get the
@@ -118,7 +118,7 @@ export function HeroSection() {
             </div>
 
             {/* Trust Badges */}
-            <div className="pt-6 flex flex-wrap gap-6 text-sm font-bold text-gray-800">
+            <div className="pt-6 flex flex-wrap justify-center lg:justify-start gap-6 text-sm font-bold text-gray-800 w-full">
               <div className="flex items-center gap-2.5">
                 <div className="bg-orange-100 p-2 rounded-full">
                   <Star className="h-4 w-4 text-[#f59e0b] fill-current" />
@@ -152,7 +152,7 @@ export function HeroSection() {
                   className="w-full h-full object-contain drop-shadow-2xl z-10 relative transform hover:scale-105 transition-transform duration-500"
                 />
 
-                {/* Floating Cards - Kept these as they are nice details */}
+                {/* Floating Cards */}
                 <motion.div
                   animate={{ y: [-10, 10, -10] }}
                   transition={{
@@ -198,6 +198,7 @@ export function HeroSection() {
               </div>
             </div>
           </motion.div>
+          
         </div>
       </div>
     </section>
