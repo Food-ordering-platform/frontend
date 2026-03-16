@@ -136,7 +136,7 @@ export function Restaurants() {
           {filteredRestaurants.map((restaurant, index) => (
             <Link
               key={restaurant.id}
-              href={`/restaurant/${restaurant.id}`}
+              href={`/restaurant/${restaurant.slug}`}
               className="group"
               style={{
                 animation: `slideUp 0.5s ease-out ${index * 0.05}s both`,

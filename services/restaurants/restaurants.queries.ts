@@ -7,6 +7,7 @@ import {
   updateMenuItem,
   deleteMenuItem,
   getMenuItems,
+  getRestaurantByslug,
 } from "./restaurants"
 import { Restaurant, MenuItem, ApiResponse } from "../../types/restuarants.type"
 
@@ -27,6 +28,13 @@ export const useRestaurantById = (id: string) => {
     queryKey: ["restaurant", id],
     queryFn: () => getRestaurantById(id),
     enabled: !!id,
+  })
+}
+export const useRestaurantBySlug = (slug: string) => {
+  return useQuery<ApiResponse<Restaurant>, Error>({
+    queryKey: ["restaurant-slug", slug], // Changed key to avoid cache collisions
+    queryFn: () => getRestaurantByslug(slug), // Pointing to the new function!
+    enabled: !!slug,
   })
 }
 

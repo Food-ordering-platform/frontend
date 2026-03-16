@@ -63,9 +63,9 @@ function OrderDetailsContent() {
       PAID: 0,
       PREPARING: 1,
       READY_FOR_PICKUP: 2,
-      RIDER_ACCEPTED: 2,
-      OUT_FOR_DELIVERY: 3,
-      DELIVERED: 4,
+      RIDER_ACCEPTED: 3,
+      OUT_FOR_DELIVERY: 4,
+      DELIVERED: 5,
       CANCELLED: -1,
     };
     return map[status?.toUpperCase()] ?? 0;

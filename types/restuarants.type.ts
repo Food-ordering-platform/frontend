@@ -19,6 +19,7 @@ export interface Restaurant {
   categories: MenuCategory[]; 
   menuItems: MenuItem[];
   cuisine?: ReactNode;
+  slug?: string
   description?: ReactNode;
   rating?: number;
   deliveryFee?: number;
