@@ -16,8 +16,8 @@ const LIBRARIES: Libraries = ["places"];
 
 const MAP_OPTIONS: google.maps.MapOptions = {
   disableDefaultUI: true,
-  zoomControl: false, // We'll add our own or rely on pinch-zoom on mobile
-  clickableIcons: false, // Reduces unnecessary Places API calls = lower billing
+  zoomControl: false,
+  clickableIcons: false,
   restriction: {
     latLngBounds: { north: 13.89, south: 4.27, west: 2.67, east: 14.68 },
     strictBounds: false,
@@ -49,7 +49,6 @@ export default function SetupLocationPage({
   const [isDragging, setIsDragging] = useState(false);
   const [isFetchingGPS, setIsFetchingGPS] = useState(false);
 
-  // Search state
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -58,25 +57,26 @@ export default function SetupLocationPage({
 
   const mapRef = useRef<google.maps.Map | null>(null);
   const geocoderRef = useRef<google.maps.Geocoder | null>(null);
-  // Session token groups autocomplete + place detail into one billing session
   const sessionTokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
   const autocompleteServiceRef = useRef<google.maps.places.AutocompleteService | null>(null);
   const placesServiceRef = useRef<google.maps.places.PlacesService | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // KEY FIX: track whether the user has focus on the search input.
+  // Map-driven resets (idle, drag) must never fire while this is true.
+  const isSearchFocusedRef = useRef(false);
+
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
     libraries: LIBRARIES,
   });
 
-  // Renew session token after each completed selection (billing best-practice)
   const renewSessionToken = useCallback(() => {
     if (!window.google) return;
     sessionTokenRef.current = new google.maps.places.AutocompleteSessionToken();
   }, []);
 
-  // Debounced reverse geocode — fires at most once per 600ms after dragging stops
   const fetchAddress = useCallback(
     debounce((lat: number, lng: number) => {
       if (!geocoderRef.current) return;
@@ -91,7 +91,6 @@ export default function SetupLocationPage({
     [],
   );
 
-  // Debounced autocomplete — 300ms, minimum 2 chars
   const fetchSuggestions = useCallback(
     debounce((input: string) => {
       if (!autocompleteServiceRef.current || input.length < 2) {
@@ -99,7 +98,6 @@ export default function SetupLocationPage({
         setIsSearching(false);
         return;
       }
-
       autocompleteServiceRef.current.getPlacePredictions(
         {
           input,
@@ -137,7 +135,6 @@ export default function SetupLocationPage({
       mapRef.current = mapInstance;
       geocoderRef.current = new google.maps.Geocoder();
       autocompleteServiceRef.current = new google.maps.places.AutocompleteService();
-      // PlacesService needs a map or a DOM node
       placesServiceRef.current = new google.maps.places.PlacesService(mapInstance);
       renewSessionToken();
       fetchAddress(DEFAULT_CENTER.lat, DEFAULT_CENTER.lng);
@@ -145,7 +142,6 @@ export default function SetupLocationPage({
     [fetchAddress, renewSessionToken],
   );
 
-  // Select a suggestion from the dropdown
   const selectSuggestion = useCallback(
     (suggestion: Suggestion) => {
       if (!placesServiceRef.current) return;
@@ -155,16 +151,17 @@ export default function SetupLocationPage({
       setSuggestions([]);
       setPlaceName(suggestion.mainText);
       setAddress(suggestion.description);
+      // User completed a selection — they're no longer actively searching
+      isSearchFocusedRef.current = false;
 
-      // Fetch full place details (geometry) — this + autocomplete = 1 session = cheaper
       placesServiceRef.current.getDetails(
         {
           placeId: suggestion.placeId,
-          fields: ["geometry", "formatted_address", "name"], // Only request needed fields
+          fields: ["geometry", "formatted_address", "name"],
           sessionToken: sessionTokenRef.current ?? undefined,
         },
         (place, status) => {
-          renewSessionToken(); // Renew after completing a session
+          renewSessionToken();
           if (
             status === google.maps.places.PlacesServiceStatus.OK &&
             place?.geometry?.location
@@ -201,7 +198,6 @@ export default function SetupLocationPage({
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (!showDropdown || suggestions.length === 0) return;
-
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setActiveIndex((i) => Math.min(i + 1, suggestions.length - 1));
@@ -225,10 +221,11 @@ export default function SetupLocationPage({
     setSuggestions([]);
     setShowDropdown(false);
     setPlaceName("");
+    isSearchFocusedRef.current = false;
     searchInputRef.current?.focus();
   };
 
-  // Close dropdown when clicking outside
+  // Close dropdown on outside click/touch
   useEffect(() => {
     const handler = (e: MouseEvent | TouchEvent) => {
       if (
@@ -248,26 +245,37 @@ export default function SetupLocationPage({
   }, []);
 
   const handleDragStart = () => {
+    // Only register a drag if the user isn't searching.
+    // On mobile, tapping the input can briefly fire map touch events.
+    if (isSearchFocusedRef.current) return;
     setIsDragging(true);
     setShowDropdown(false);
   };
 
-  const handleIdle = () => {
+  const handleIdle = useCallback(() => {
     if (!mapRef.current) return;
     setIsDragging(false);
+
+    // CRITICAL: never overwrite the query or address while the user is typing
+    if (isSearchFocusedRef.current) return;
+
     const currentCenter = mapRef.current.getCenter();
     if (!currentCenter) return;
     const lat = currentCenter.lat();
     const lng = currentCenter.lng();
     setCenter({ lat, lng });
     fetchAddress(lat, lng);
-    setPlaceName(""); // User dragged away from the searched place
-    setQuery("");
-  };
+    // Only clear the place name on a genuine map drag (not on initial load or after a search selection)
+    if (isDragging) {
+      setPlaceName("");
+      setQuery("");
+    }
+  }, [fetchAddress, isDragging]);
 
   const handleUseGPS = () => {
     if (!navigator.geolocation) return toast.error("Geolocation not supported");
     setIsFetchingGPS(true);
+    isSearchFocusedRef.current = false;
 
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
@@ -292,7 +300,6 @@ export default function SetupLocationPage({
     if (!mapRef.current) return;
     const mapCenter = mapRef.current.getCenter();
     if (!mapCenter) return;
-
     const lat = mapCenter.lat();
     const lng = mapCenter.lng();
     const finalAddress = placeName ? `${placeName}, ${address}` : address;
@@ -321,7 +328,7 @@ export default function SetupLocationPage({
         isModal ? "h-[85vh] min-h-[520px] rounded-2xl" : "h-[100dvh]",
       )}
     >
-      {/* ─── Search bar overlay ─── */}
+      {/* Search bar */}
       <div className="absolute top-0 left-0 right-0 z-50 p-3 pt-safe-top">
         <div className="flex gap-2 items-center">
           {!isModal && (
@@ -335,9 +342,7 @@ export default function SetupLocationPage({
             </Button>
           )}
 
-          {/* Search input + dropdown */}
           <div className="flex-1 relative">
-            {/* Input pill */}
             <div className="flex items-center h-12 bg-white rounded-full shadow-md px-4 gap-2">
               {isSearching ? (
                 <Loader2 className="h-4 w-4 text-gray-400 animate-spin shrink-0" />
@@ -355,13 +360,22 @@ export default function SetupLocationPage({
                 value={query}
                 onChange={handleQueryChange}
                 onKeyDown={handleKeyDown}
-                onFocus={() => suggestions.length > 0 && setShowDropdown(true)}
+                onFocus={() => {
+                  isSearchFocusedRef.current = true;
+                  if (suggestions.length > 0) setShowDropdown(true);
+                }}
+                onBlur={() => {
+                  // Small delay so tap-to-select on mobile fires before we lose focus state
+                  setTimeout(() => {
+                    isSearchFocusedRef.current = false;
+                  }, 300);
+                }}
                 placeholder="Search street or area..."
                 className="flex-1 bg-transparent text-gray-800 text-sm font-medium placeholder:text-gray-400 focus:outline-none min-w-0"
               />
               {query.length > 0 && (
                 <button
-                  onMouseDown={(e) => e.preventDefault()} // Prevent blur before clear fires
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={clearSearch}
                   className="shrink-0 p-0.5 rounded-full text-gray-400 hover:text-gray-600 active:text-gray-800"
                 >
@@ -370,7 +384,6 @@ export default function SetupLocationPage({
               )}
             </div>
 
-            {/* Suggestions dropdown */}
             {showDropdown && suggestions.length > 0 && (
               <div
                 ref={dropdownRef}
@@ -379,7 +392,6 @@ export default function SetupLocationPage({
                 {suggestions.map((s, i) => (
                   <button
                     key={s.placeId}
-                    // onMouseDown prevents the input losing focus before click fires
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => {
                       selectSuggestion(s);
@@ -387,12 +399,12 @@ export default function SetupLocationPage({
                     }}
                     className={cn(
                       "w-full flex items-center gap-3 px-4 py-3 text-left transition-colors",
-                      "active:bg-gray-100 touch-manipulation", // Better mobile tap response
+                      "active:bg-gray-100 touch-manipulation",
                       i === activeIndex ? "bg-[#7b1e3a]/5" : "hover:bg-gray-50",
                       i !== 0 && "border-t border-gray-50",
                     )}
                   >
-                    <div className="shrink-0 w-8 h-8 rounded-full bg-[#7b1e3a]/8 flex items-center justify-center">
+                    <div className="shrink-0 w-8 h-8 rounded-full bg-[#7b1e3a]/10 flex items-center justify-center">
                       <MapPin className="h-4 w-4 text-[#7b1e3a]" />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -413,7 +425,7 @@ export default function SetupLocationPage({
         </div>
       </div>
 
-      {/* ─── Map ─── */}
+      {/* Map */}
       <div className="flex-1 relative w-full">
         <GoogleMap
           mapContainerStyle={{ width: "100%", height: "100%" }}
@@ -426,22 +438,18 @@ export default function SetupLocationPage({
           onIdle={handleIdle}
         />
 
-        {/* Crosshair pin */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 pointer-events-none z-20"
-          style={{ marginTop: isDragging ? "-60px" : "-48px", transition: "margin-top 0.15s ease" }}>
-          <MapPin
-            className="text-[#7b1e3a] fill-[#7b1e3a] h-12 w-12 drop-shadow-lg"
-          />
-        </div>
-        {/* Pin shadow dot */}
+        {/* Pin */}
         <div
           className="absolute top-1/2 left-1/2 -translate-x-1/2 pointer-events-none z-20 transition-all duration-150"
+          style={{ marginTop: isDragging ? "-60px" : "-48px" }}
+        >
+          <MapPin className="text-[#7b1e3a] fill-[#7b1e3a] h-12 w-12 drop-shadow-lg" />
+        </div>
+        <div
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 pointer-events-none z-20 transition-all duration-150 rounded-full bg-black/20"
           style={{
             width: isDragging ? "6px" : "10px",
             height: isDragging ? "3px" : "5px",
-            marginTop: "0px",
-            borderRadius: "50%",
-            background: "rgba(0,0,0,0.25)",
             filter: isDragging ? "blur(2px)" : "blur(1px)",
           }}
         />
@@ -463,7 +471,7 @@ export default function SetupLocationPage({
         </div>
       </div>
 
-      {/* ─── Bottom sheet ─── */}
+      {/* Bottom sheet */}
       <div className="bg-white px-5 pt-4 pb-6 rounded-t-3xl shadow-[0_-12px_32px_rgba(0,0,0,0.07)] z-30 relative">
         <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4" />
         <p className="text-[10px] font-bold text-[#7b1e3a] uppercase tracking-widest mb-3">
@@ -487,7 +495,7 @@ export default function SetupLocationPage({
         <Button
           onClick={handleConfirm}
           disabled={isPending || isDragging || address === "Locating..."}
-          className="w-full h-13 bg-[#7b1e3a] hover:bg-[#5e162c] text-white text-base font-bold rounded-xl shadow-md shadow-[#7b1e3a]/20 disabled:opacity-50"
+          className="w-full h-14 bg-[#7b1e3a] hover:bg-[#5e162c] text-white text-base font-bold rounded-xl shadow-md shadow-[#7b1e3a]/20 disabled:opacity-50"
         >
           {isPending ? (
             <><Loader2 className="animate-spin mr-2 h-4 w-4" /> Saving…</>
