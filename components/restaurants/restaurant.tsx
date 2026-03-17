@@ -210,10 +210,10 @@ export function Restaurants() {
                   </div>
 
                   {/* Address */}
-                  <div className="flex items-start gap-2 text-sm text-gray-500">
+                  {/* <div className="flex items-start gap-2 text-sm text-gray-500">
                     <MapPin className="h-4 w-4 text-gray-400 flex-shrink-0 mt-0.5" />
-                    {/* <span className="line-clamp-1 font-medium">{restaurant.address}</span> */}
-                  </div>
+                    <span className="line-clamp-1 font-medium">{restaurant.address}</span>
+                  </div> */}
 
                   {/* Delivery Info & CTA */}
                   <div className="pt-4 border-t border-gray-100 flex items-center justify-between gap-3">
