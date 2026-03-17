@@ -101,7 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       
       if (res.token) {
-        // 🟢 Switched to "accessToken"
+        //  Switched to "accessToken"
         localStorage.setItem("accessToken", res.token);
         setHasToken(true);
         
@@ -149,7 +149,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
   };
 
-  // 🟢 THE FIX: Ask the backend to destroy the HttpOnly cookie
+  //  THE FIX: Ask the backend to destroy the HttpOnly cookie
   const logout = async () => {
     try {
       await api.post("/auth/logout"); // Hits the new logout endpoint
@@ -166,7 +166,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const checkAuth = async () => {
-    // 🟢 Switched to "accessToken"
+    //  Switched to "accessToken"
     const token = localStorage.getItem("accessToken");
     if (token) {
       setHasToken(true);
