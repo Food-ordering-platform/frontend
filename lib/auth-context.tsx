@@ -7,14 +7,15 @@ import { LoginData, RegisterData, User } from "@/types/auth.type";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/error-utils";
 import { useCurrentUser, useLogin, useRegister, useGoogleLogin } from "@/services/auth/auth.queries"; 
+import api from "../services/axios"; // 🟢 Added this to call the logout endpoint
 
 interface AuthContextType {
   user: User | null; 
   isLoading: boolean;
   login: (data: LoginData) => Promise<void>;
-  googleLogin: (token: string, mode: "login" | "signup") => Promise<boolean>; // 👈 Updated
+  googleLogin: (token: string, mode: "login" | "signup") => Promise<boolean>;
   register: (data: RegisterData) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>; // 🟢 Changed to Promise<void>
   checkAuth: () => Promise<void>;
   setUser: (user: User | null) => void; 
 }
@@ -42,7 +43,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const initializeAuth = () => {
-      const token = localStorage.getItem("token");
+      // 🟢 Switched to "accessToken"
+      const token = localStorage.getItem("accessToken");
       if (token) {
         setHasToken(true);
       }
@@ -74,7 +76,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (res.token) {
-        localStorage.setItem("token", res.token);
+        // 🟢 Switched to "accessToken" (Backend still returns res.token in the JSON)
+        localStorage.setItem("accessToken", res.token);
         setHasToken(true);
         if (res.user) {
           queryClient.setQueryData(["currentUser"], res.user);
@@ -90,17 +93,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // ------------------ UPDATED GOOGLE LOGIN ------------------
   const googleLogin = async (token: string, mode: "login" | "signup"): Promise<boolean> => {
     try {
-      // Pass the token AND strict "signup" mode flag
       const res = await googleLoginMutation.mutateAsync({ 
         token, 
         termsAccepted: mode === "signup" 
       });
       
       if (res.token) {
-        localStorage.setItem("token", res.token);
+        // 🟢 Switched to "accessToken"
+        localStorage.setItem("accessToken", res.token);
         setHasToken(true);
         
         if (res.user) {
@@ -120,7 +122,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       return false;
     } catch (error: any) {
-      // 🚀 Handle "Account not found" specifically
       if (error?.response?.status === 404 || error.message.includes("Sign Up")) {
          toast.error("Account does not exist.", {
              description: "Please create an account first.",
@@ -148,17 +149,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
   };
 
-  const logout = () => {
-    localStorage.removeItem("token");
-    setHasToken(false);
-    queryClient.setQueryData(["currentUser"], null); 
-    queryClient.removeQueries({ queryKey: ["currentUser"] });
-    toast.success("Logged out successfully");
-    router.push("/login");
+  // 🟢 THE FIX: Ask the backend to destroy the HttpOnly cookie
+  const logout = async () => {
+    try {
+      await api.post("/auth/logout"); // Hits the new logout endpoint
+    } catch (error) {
+      console.error("Logout API failed, forcing local logout", error);
+    } finally {
+      localStorage.removeItem("accessToken");
+      setHasToken(false);
+      queryClient.setQueryData(["currentUser"], null); 
+      queryClient.removeQueries({ queryKey: ["currentUser"] });
+      toast.success("Logged out successfully");
+      router.push("/login");
+    }
   };
 
   const checkAuth = async () => {
-    const token = localStorage.getItem("token");
+    // 🟢 Switched to "accessToken"
+    const token = localStorage.getItem("accessToken");
     if (token) {
       setHasToken(true);
       await refetch();
