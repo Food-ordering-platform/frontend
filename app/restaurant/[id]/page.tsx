@@ -16,13 +16,13 @@ import { cn } from "@/lib/utils";
 import type { MenuItem as ApiMenuItem } from "../../../types/restuarants.type";
 
 // --- REUSABLE COMPONENT: Menu Item ---
-const RestaurantMenuItem = ({ item }: { item: any }) => {
+const RestaurantMenuItem = ({ item, restaurantOpen }: { item: any; restaurantOpen: boolean }) => {
   const { addItem } = useCart();
   const [quantity, setQuantity] = useState(1);
   const [isAdded, setIsAdded] = useState(false);
 
-  // 🟢 Availability Logic
-  const isAvailable = item.isAvailable !== false;
+  // 🟢 Use the mapped availability from the backend
+  const isAvailable = item.isAvailable;
 
   const increment = () => setQuantity((prev) => prev + 1);
   const decrement = () => setQuantity((prev) => (prev > 1 ? prev - 1 : 1));
@@ -30,7 +30,17 @@ const RestaurantMenuItem = ({ item }: { item: any }) => {
   const totalPrice = item.price * quantity;
 
   const handleAddToCart = () => {
-    if (!isAvailable) return;
+    // 🟢 Restriction 1: Item must be available
+    if (!isAvailable) {
+      toast.error("This item is currently sold out");
+      return;
+    }
+
+    // 🟢 Restriction 2: Restaurant must be open
+    if (!restaurantOpen) {
+      toast.error("This restaurant is currently closed. You cannot add items to your cart.");
+      return;
+    }
 
     addItem({ ...item, quantity });
 
@@ -58,15 +68,21 @@ const RestaurantMenuItem = ({ item }: { item: any }) => {
   return (
     <div className={cn(
       "bg-white p-3 sm:p-4 rounded-xl border border-gray-100 shadow-sm flex gap-3 sm:gap-5 hover:shadow-md transition-all duration-300 group relative",
-      // 🟢 Ghosted effect if unavailable
-      !isAvailable && "opacity-70 grayscale-[0.5]"
+      // 🟢 Visual ghosting if unavailable or restaurant is closed
+      (!isAvailable || !restaurantOpen) && "opacity-70 grayscale-[0.5]"
     )}>
       
-      {/* 🟢 Sold Out Overlay */}
-      {!isAvailable && (
+      {/* 🟢 Status Overlays */}
+      {!isAvailable ? (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/40 backdrop-blur-[1px] rounded-xl">
            <Badge className="bg-gray-900 text-white border-0 font-bold px-3 py-1 shadow-xl uppercase tracking-wider text-[10px] sm:text-xs">
              Sold Out
+           </Badge>
+        </div>
+      ) : !restaurantOpen && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/5 backdrop-blur-[1px] rounded-xl">
+           <Badge variant="destructive" className="font-bold px-3 py-1 shadow-xl uppercase tracking-wider text-[10px] sm:text-xs">
+             Closed
            </Badge>
         </div>
       )}
@@ -79,7 +95,7 @@ const RestaurantMenuItem = ({ item }: { item: any }) => {
           fill
           className={cn(
             "object-cover transition-transform duration-500",
-            isAvailable && "group-hover:scale-105"
+            (isAvailable && restaurantOpen) && "group-hover:scale-105"
           )}
         />
       </div>
@@ -103,12 +119,12 @@ const RestaurantMenuItem = ({ item }: { item: any }) => {
           {/* Quantity Selector */}
           <div className={cn(
             "flex items-center bg-gray-50 rounded-lg border border-gray-200 h-7 sm:h-9",
-            !isAvailable && "opacity-50"
+            (!isAvailable || !restaurantOpen) && "opacity-50"
           )}>
             <button 
               onClick={decrement}
               className="h-full w-7 sm:w-8 flex items-center justify-center rounded-l-lg bg-white text-gray-600 hover:bg-gray-100 disabled:opacity-50 active:bg-gray-200 transition-colors"
-              disabled={quantity <= 1 || !isAvailable}
+              disabled={quantity <= 1 || !isAvailable || !restaurantOpen}
             >
               <Minus className="w-3 h-3" />
             </button>
@@ -116,7 +132,7 @@ const RestaurantMenuItem = ({ item }: { item: any }) => {
             <button 
               onClick={increment}
               className="h-full w-7 sm:w-8 flex items-center justify-center rounded-r-lg bg-white text-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-colors"
-              disabled={!isAvailable}
+              disabled={!isAvailable || !restaurantOpen}
             >
               <Plus className="w-3 h-3" />
             </button>
@@ -126,18 +142,20 @@ const RestaurantMenuItem = ({ item }: { item: any }) => {
           <Button
             size="sm"
             onClick={handleAddToCart}
-            disabled={!isAvailable}
+            disabled={!isAvailable || !restaurantOpen}
             className={cn(
               "h-8 sm:h-9 px-3 sm:px-5 text-xs sm:text-sm font-medium transition-all duration-300 shadow-sm min-w-[90px] sm:min-w-[110px]", 
-              !isAvailable 
+              (!isAvailable || !restaurantOpen) 
                 ? "bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200" 
                 : isAdded 
-                  ? "bg-green-600 hover:bg-green-700 text-white" 
+                  ? "bg-green-600 hover:bg-green-700 text-white border-transparent" 
                   : "bg-[#7b1e3a] text-white hover:bg-[#60182f]"
             )}
           >
             {!isAvailable ? (
-              "Unavailable"
+              "Sold Out"
+            ) : !restaurantOpen ? (
+              "Closed"
             ) : isAdded ? (
               <span className="flex items-center gap-1.5 animate-in fade-in zoom-in">
                 <Check className="w-3.5 h-3.5" /> 
@@ -162,7 +180,7 @@ export default function RestaurantPage() {
   const segments = pathname.split("/");
   const slug = segments[2];
 
-  // Fetch restaurant
+  // Fetch restaurant by slug
   const { data: restaurant, isLoading } = useRestaurantBySlug(slug!);
 
   // Helper to flatten items for the view
@@ -235,6 +253,7 @@ export default function RestaurantPage() {
                     <Badge className="bg-white text-black border-0 font-bold px-2 py-0.5 text-xs sm:text-sm">
                         <Star className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1 fill-yellow-400 text-yellow-400" /> 4.8
                     </Badge>
+                    {/* 🟢 Displaying current Open/Closed status */}
                     {!r.isOpen ? (
                         <Badge variant="destructive" className="font-bold text-xs sm:text-sm">Closed</Badge>
                     ) : (
@@ -305,13 +324,14 @@ export default function RestaurantPage() {
                     {filteredItems.map((item) => (
                         <RestaurantMenuItem 
                             key={item.id} 
+                            restaurantOpen={r?.isOpen ?? false} // 🟢 Pass restaurant open/closed state
                             item={{
                                 id: item.id,
                                 name: item.name,
                                 description: item.description || "",
                                 price: item.price,
                                 image: item.imageUrl || "/placeholder.svg",
-                                isAvailable: item.available, // 🟢 Maps backend 'available' field
+                                isAvailable: item.available, // 🟢 Consistent mapping to 'available' field
                                 restaurantId: item.restaurantId,
                                 category: item.category || "",
                             }} 
