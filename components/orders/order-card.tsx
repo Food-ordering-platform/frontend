@@ -74,7 +74,7 @@ export function OrderCard({ order, onRate }: OrderCardProps) {
                         </h3>
                         <div className="flex items-center gap-2 mt-1">
                             <span className="text-[10px] text-gray-500 font-mono bg-white px-1.5 py-0.5 rounded border border-gray-200">
-                                #{order.reference?.slice(-6).toUpperCase()}
+                                #{order.reference}
                             </span>
                             <span className="text-[10px] text-gray-400">•</span>
                             <span className="text-xs text-gray-500 flex items-center gap-1">
@@ -113,7 +113,7 @@ export function OrderCard({ order, onRate }: OrderCardProps) {
                 <Separator className="bg-gray-100" />
 
                 {/* Delivery Info */}
-                <div className="flex items-start gap-3 bg-gray-50 p-3 rounded-xl">
+                {/* <div className="flex items-start gap-3 bg-gray-50 p-3 rounded-xl">
                     <div className="mt-0.5 h-6 w-6 rounded-full bg-white border border-gray-100 flex items-center justify-center shrink-0 shadow-sm">
                         <MapPin className="h-3 w-3 text-[#7b1e3a]" />
                     </div>
@@ -123,7 +123,7 @@ export function OrderCard({ order, onRate }: OrderCardProps) {
                             {order.deliveryAddress}
                         </p>
                     </div>
-                </div>
+                </div> */}
             </div>
 
             {/* --- FOOTER: Actions --- */}
