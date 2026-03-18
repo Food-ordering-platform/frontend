@@ -34,7 +34,7 @@ import {
 } from "@/services/order/order.queries";
 import { CreateOrderDto, OrderQuote } from "@/types/order.type";
 
-const PLATFORM_FEE = 350;
+const PLATFORM_FEE = 500;
 
 export default function CheckoutPage() {
   const router = useRouter();

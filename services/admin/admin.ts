@@ -1,7 +1,7 @@
 // services/admin/admin.ts
 import { LoginData } from "@/types/auth.type";
 import api from "../axios";
-import { AdminAnalytics, AdminUser, AdminPayout } from "@/types/admin.type";
+import { AdminAnalytics, AdminUser, AdminPayout, AdminChartData } from "@/types/admin.type";
 
 export const loginAdmin = async (credentials: LoginData) => {
   const { data } = await api.post("/admin/login", credentials);
@@ -10,6 +10,11 @@ export const loginAdmin = async (credentials: LoginData) => {
 
 export const getAdminAnalytics = async (): Promise<AdminAnalytics> => {
   const { data } = await api.get("/admin/analytics");
+  return data.data;
+};
+
+export const getAdminChartAnalytics = async (): Promise<AdminChartData[]> => {
+  const { data } = await api.get("/admin/analytics/chart");
   return data.data;
 };
 

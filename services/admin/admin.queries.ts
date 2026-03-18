@@ -19,6 +19,13 @@ export const useGetAdminAnalytics = () => {
   });
 };
 
+export const useGetAdminChartAnalytics = () => {
+  return useQuery({
+    queryKey: ["adminChartAnalytics"],
+    queryFn: adminService.getAdminChartAnalytics,
+  });
+};
+
 export const useGetAllUsers = (role?: string) => {
   return useQuery({
     queryKey: ["adminUsers", role],

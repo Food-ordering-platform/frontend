@@ -32,3 +32,10 @@ export interface AdminPayout {
     email: string;
   };
 }
+
+// Add this interface to your existing file
+export interface AdminChartData {
+  month: string;
+  Revenue: number;
+  Profit: number;
+}
