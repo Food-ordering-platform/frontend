@@ -1,4 +1,4 @@
-// app/admin/layout.tsx
+// app/(admin)/layout.tsx
 "use client";
 
 import { useState } from "react";
@@ -8,9 +8,9 @@ import { LayoutDashboard, Users, WalletCards, LifeBuoy, LogOut, Menu, X } from "
 import { Button } from "@/components/ui/button";
 import { AdminProtectedRoute } from "@/components/auth/admin-protected-route";
 import { useAuth } from "@/lib/auth-context";
-// 🟢 Import Sheet for the mobile slide-out menu
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
+// 🟢 FIX: Removed "/admin" from all the hrefs
 const navItems = [
   { href: "/", label: "Analytics", icon: LayoutDashboard },
   { href: "/users", label: "User Management", icon: Users },
@@ -22,20 +22,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const { logout } = useAuth();
   
-  // State to control mobile menu
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // 🟢 SECRET PATH: Replace this with your actual chosen secret string
   const isSecretLoginPage = pathname.includes("/access-portal-772");
 
   if (isSecretLoginPage) {
     return <>{children}</>;
   }
 
-  // Desktop Sidebar Content
   const SidebarContent = () => (
     <>
-     <nav className="flex-1 p-4 space-y-1">
+      <nav className="flex-1 p-4 space-y-1">
         {navItems.map((item) => {
           // 🟢 FIX: Simplified the active check since paths now match perfectly
           const isActive = pathname === item.href;
@@ -72,9 +69,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <AdminProtectedRoute>
       <div className="flex min-h-screen bg-gray-50">
-        {/* ========================================== */}
-        {/* DESKTOP SIDEBAR (Hidden on mobile)         */}
-        {/* ========================================== */}
+        {/* Desktop Sidebar */}
         <aside className="w-64 bg-white border-r border-gray-200 hidden md:flex flex-col fixed h-screen top-0 left-0 z-10">
           <div className="h-16 flex items-center px-6 border-b border-gray-200 shrink-0">
             <h1 className="text-xl font-black text-[#7b1e3a] tracking-tight">ChowEazy Admin</h1>
@@ -82,17 +77,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <SidebarContent />
         </aside>
 
-        {/* ========================================== */}
-        {/* MAIN CONTENT AREA                          */}
-        {/* ========================================== */}
-        {/* md:pl-64 pushes the content over so it doesn't hide behind the fixed desktop sidebar */}
+        {/* Main Content Area */}
         <main className="flex-1 flex flex-col min-w-0 md:pl-64">
           
-          {/* MOBILE TOP NAVIGATION BAR */}
+          {/* Mobile Top Nav */}
           <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 md:hidden sticky top-0 z-20">
               <h1 className="text-xl font-black text-[#7b1e3a] tracking-tight">ChowEazy Admin</h1>
               
-              {/* MOBILE HAMBURGER MENU */}
               <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
                 <SheetTrigger asChild>
                   <Button variant="ghost" size="icon" className="md:hidden">
@@ -108,7 +99,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </Sheet>
           </div>
 
-          {/* PAGE CONTENT */}
           <div className="flex-1 p-4 md:p-8 overflow-auto">
             {children}
           </div>
