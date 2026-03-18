@@ -3,29 +3,22 @@
 
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Check, Trash2 } from "lucide-react";
+import { Check, Trash2, Loader2 } from "lucide-react";
+import { useGetAllUsers, useApproveUser, useDeleteUser } from "@/services/admin/admin.queries";
 
 export default function UserManagementPage() {
-  const [activeTab, setActiveTab] = useState("vendors");
+  const [activeTab, setActiveTab] = useState("VENDOR"); // Default to VENDOR
+  const { data: users, isLoading } = useGetAllUsers(activeTab);
+  const approveMutation = useApproveUser();
+  const deleteMutation = useDeleteUser();
 
-  // Mock data for frontend implementation
-  const mockUsers = [
-    { id: "1", name: "Mama Put Extravaganza", email: "mama@test.com", role: "VENDOR", isVerified: false, date: "2026-03-18" },
-    { id: "2", name: "John Doe", email: "john@rider.com", role: "RIDER", isVerified: true, date: "2026-03-15" },
-    { id: "3", name: "Alice Smith", email: "alice@customer.com", role: "CUSTOMER", isVerified: true, date: "2026-03-10" },
-  ];
-
-  const handleApprove = (id: string) => {
-    console.log("Approve user:", id);
-    // Future: approveMutation.mutate(id)
-  };
-
-  const UserTable = ({ roleFilter }: { roleFilter: string }) => {
-    const filteredUsers = mockUsers.filter(u => u.role === roleFilter);
+  const UserTable = () => {
+    if (isLoading) return <div className="p-8 flex justify-center"><Loader2 className="animate-spin text-[#7b1e3a]" /></div>;
+    if (!users || users.length === 0) return <div className="p-8 text-center text-gray-500">No users found in this category.</div>;
 
     return (
       <Card className="shadow-sm">
@@ -40,11 +33,11 @@ export default function UserManagementPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredUsers.map((user) => (
+            {users.map((user) => (
               <TableRow key={user.id}>
                 <TableCell className="font-medium">{user.name}</TableCell>
                 <TableCell>{user.email}</TableCell>
-                <TableCell>{user.date}</TableCell>
+                <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
                 <TableCell>
                   {user.isVerified ? (
                     <Badge className="bg-green-100 text-green-700 hover:bg-green-100">Approved</Badge>
@@ -54,11 +47,24 @@ export default function UserManagementPage() {
                 </TableCell>
                 <TableCell className="text-right space-x-2">
                   {!user.isVerified && (
-                    <Button size="sm" className="bg-[#7b1e3a] hover:bg-[#60152b]" onClick={() => handleApprove(user.id)}>
+                    <Button 
+                      size="sm" 
+                      className="bg-[#7b1e3a] hover:bg-[#60152b]" 
+                      onClick={() => approveMutation.mutate(user.id)}
+                      disabled={approveMutation.isPending}
+                    >
                       <Check className="h-4 w-4 mr-1" /> Approve
                     </Button>
                   )}
-                  <Button size="sm" variant="destructive" className="bg-red-50 text-red-600 hover:bg-red-100">
+                  <Button 
+                    size="sm" 
+                    variant="destructive" 
+                    className="bg-red-50 text-red-600 hover:bg-red-100"
+                    onClick={() => {
+                        if(confirm("Are you sure you want to delete this user?")) deleteMutation.mutate(user.id)
+                    }}
+                    disabled={deleteMutation.isPending}
+                  >
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </TableCell>
@@ -79,14 +85,12 @@ export default function UserManagementPage() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="bg-gray-100">
-          <TabsTrigger value="vendors" className="data-[state=active]:text-[#7b1e3a]">Vendors</TabsTrigger>
-          <TabsTrigger value="riders" className="data-[state=active]:text-[#7b1e3a]">Riders</TabsTrigger>
-          <TabsTrigger value="customers" className="data-[state=active]:text-[#7b1e3a]">Customers</TabsTrigger>
+          <TabsTrigger value="VENDOR" className="data-[state=active]:text-[#7b1e3a]">Vendors</TabsTrigger>
+          <TabsTrigger value="RIDER" className="data-[state=active]:text-[#7b1e3a]">Riders</TabsTrigger>
+          <TabsTrigger value="CUSTOMER" className="data-[state=active]:text-[#7b1e3a]">Customers</TabsTrigger>
         </TabsList>
         <div className="mt-4">
-          <TabsContent value="vendors"><UserTable roleFilter="VENDOR" /></TabsContent>
-          <TabsContent value="riders"><UserTable roleFilter="RIDER" /></TabsContent>
-          <TabsContent value="customers"><UserTable roleFilter="CUSTOMER" /></TabsContent>
+          <UserTable />
         </div>
       </Tabs>
     </div>
