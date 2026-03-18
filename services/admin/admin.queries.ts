@@ -4,6 +4,14 @@ import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/error-utils";
 import * as adminService from "./admin";
 
+export const useAdminLogin = () => {
+  return useMutation({
+    mutationFn: adminService.loginAdmin,
+    // We handle onSuccess directly inside the component so we can use the Next.js router 
+    // and your AuthContext's checkAuth function.
+  });
+};
+
 export const useGetAdminAnalytics = () => {
   return useQuery({
     queryKey: ["adminAnalytics"],

@@ -9,21 +9,41 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { ShieldCheck, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { useAdminLogin } from "@/services/admin/admin.queries";
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { login, isLoading } = useAuth();
+  
+  // We only need checkAuth from the context to refresh the global state after login
+  const { checkAuth } = useAuth(); 
   const router = useRouter();
+  
+  // Initialize our new admin-specific query hook
+  const loginMutation = useAdminLogin();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await login({ email, password });
-      // After login, manually push to the dashboard root
-      router.push("/");
-    } catch (err) {
-      toast.error("Access Denied", { description: "Invalid admin credentials." });
+      // 1. Call the admin-only API
+      const res = await loginMutation.mutateAsync({ email, password });
+      
+      if (res.token) {
+        // 2. Save the token exactly where AuthContext expects it
+        localStorage.setItem("accessToken", res.token);
+        
+        // 3. Force AuthContext to reload the user profile with the new token
+        await checkAuth();
+        
+        toast.success("Welcome back to the Command Center.");
+        
+        // 4. Send them to the main dashboard
+        router.push("/");
+      }
+    } catch (err: any) {
+      // Safely catch Axios errors or fallback to a generic message
+      const errorMessage = err.response?.data?.message || "Invalid admin credentials.";
+      toast.error("Access Denied", { description: errorMessage });
     }
   };
 
@@ -47,7 +67,7 @@ export default function AdminLoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="h-12"
+                className="h-12 focus:ring-[#7b1e3a] focus:border-[#7b1e3a]"
               />
             </div>
             <div className="space-y-2">
@@ -58,15 +78,15 @@ export default function AdminLoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="h-12"
+                className="h-12 focus:ring-[#7b1e3a] focus:border-[#7b1e3a]"
               />
             </div>
             <Button 
               type="submit" 
               className="w-full h-12 bg-[#7b1e3a] hover:bg-[#60152b] text-white font-bold"
-              disabled={isLoading}
+              disabled={loginMutation.isPending}
             >
-              {isLoading ? <Loader2 className="animate-spin" /> : "Authenticate"}
+              {loginMutation.isPending ? <Loader2 className="animate-spin" /> : "Authenticate"}
             </Button>
           </form>
         </CardContent>
