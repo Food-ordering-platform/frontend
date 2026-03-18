@@ -35,16 +35,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   // Desktop Sidebar Content
   const SidebarContent = () => (
     <>
-      <nav className="flex-1 p-4 space-y-1">
+     <nav className="flex-1 p-4 space-y-1">
         {navItems.map((item) => {
-          // Check if current path matches the exact href, or if we are at root /admin
-          const isActive = pathname === item.href || (pathname === '/admin' && item.href === '/admin');
+          // 🟢 FIX: Simplified the active check since paths now match perfectly
+          const isActive = pathname === item.href;
           const Icon = item.icon;
           return (
             <Link 
               key={item.href} 
               href={item.href}
-              onClick={() => setIsMobileMenuOpen(false)} // Close menu when a link is clicked on mobile
+              onClick={() => setIsMobileMenuOpen(false)} 
             >
               <div className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                 isActive ? "bg-[#7b1e3a]/10 text-[#7b1e3a]" : "text-gray-600 hover:bg-gray-100"
