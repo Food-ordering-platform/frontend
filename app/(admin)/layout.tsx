@@ -12,10 +12,10 @@ import { useAuth } from "@/lib/auth-context";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 const navItems = [
-  { href: "/admin", label: "Analytics", icon: LayoutDashboard },
-  { href: "/admin/users", label: "User Management", icon: Users },
-  { href: "/admin/payouts", label: "Payouts", icon: WalletCards },
-  { href: "/admin/support", label: "Support Tickets", icon: LifeBuoy },
+  { href: "/", label: "Analytics", icon: LayoutDashboard },
+  { href: "/users", label: "User Management", icon: Users },
+  { href: "/payouts", label: "Payouts", icon: WalletCards },
+  { href: "/support", label: "Support Tickets", icon: LifeBuoy },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
