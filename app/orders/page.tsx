@@ -123,14 +123,14 @@ export default function OrdersPage() {
           </AnimatePresence>
 
           {/* Rating Dialog */}
-          <RatingDialog 
+          {/* <RatingDialog 
              orderId={orderToRate || ""} 
              isOpen={!!orderToRate} 
              onClose={() => {
                 setOrderToRate(null);
                 refetch(); // Refresh to show the new rating
              }} 
-          />
+          /> */}
       </main>
       <Footer />
     </div>
