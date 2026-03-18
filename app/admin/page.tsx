@@ -2,13 +2,11 @@
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { TrendingUp, Users, Store, Bike, CheckCircle2, XCircle, DollarSign, Wallet, Loader2 } from "lucide-react";
-// 🟢 Import both hooks
 import { useGetAdminAnalytics, useGetAdminChartAnalytics } from "@/services/admin/admin.queries";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
 export default function AdminDashboard() {
   const { data: analytics, isLoading: isStatsLoading, isError: isStatsError } = useGetAdminAnalytics();
-  // 🟢 Fetch the real chart data from the backend
   const { data: chartData, isLoading: isChartLoading } = useGetAdminChartAnalytics();
 
   if (isStatsLoading) {
@@ -21,15 +19,16 @@ export default function AdminDashboard() {
 
   const formatMoney = (amount: number) => `₦${amount.toLocaleString()}`;
 
+  // 🟢 UPDATED: Labels changed to reflect exact "Paid" states and "Total" counts
   const stats = [
     { title: "Total Revenue", value: formatMoney(analytics.revenue), icon: DollarSign, color: "text-green-600" },
     { title: "Platform Profit", value: formatMoney(analytics.profit), icon: Wallet, color: "text-[#7b1e3a]" },
-    { title: "Orders Processed", value: analytics.totalOrders, icon: TrendingUp, color: "text-blue-600" },
+    { title: "Total Paid Orders", value: analytics.totalOrders, icon: TrendingUp, color: "text-blue-600" },
     { title: "Orders Delivered", value: analytics.deliveredOrders, icon: CheckCircle2, color: "text-green-500" },
     { title: "Orders Failed", value: analytics.failedOrders, icon: XCircle, color: "text-red-500" },
     { title: "Total Customers", value: analytics.customers, icon: Users, color: "text-purple-600" },
-    { title: "Active Vendors", value: analytics.vendors, icon: Store, color: "text-orange-500" },
-    { title: "Active Riders", value: analytics.riders, icon: Bike, color: "text-teal-500" },
+    { title: "Total Vendors", value: analytics.vendors, icon: Store, color: "text-orange-500" },
+    { title: "Total Riders", value: analytics.riders, icon: Bike, color: "text-teal-500" },
   ];
 
   return (
@@ -76,7 +75,6 @@ export default function AdminDashboard() {
             ) : (
               <div className="h-[300px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  {/* 🟢 Injecting the dynamic chartData from React Query */}
                   <BarChart data={chartData || []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
                     <XAxis 
@@ -107,34 +105,62 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        {/* User Distribution Panel */}
-        <Card className="shadow-sm border-gray-200">
+        {/* 🟢 NEW: Users & Fleet Status Panel */}
+        <Card className="shadow-sm border-gray-200 flex flex-col">
           <CardHeader>
-            <CardTitle className="text-lg font-bold">User Distribution</CardTitle>
-            <CardDescription>Active platform accounts</CardDescription>
+            <CardTitle className="text-lg font-bold">Users & Fleet Status</CardTitle>
+            <CardDescription>Live platform activity</CardDescription>
           </CardHeader>
-          <CardContent>
-             <div className="space-y-6 pt-4">
+          <CardContent className="flex-1 flex flex-col">
+             
+             {/* Total User Breakdown */}
+             <div className="space-y-5 pt-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="h-3 w-3 rounded-full bg-purple-600"></div>
                     <span className="font-medium text-gray-700">Customers</span>
                   </div>
-                  <span className="font-bold">{analytics.customers}</span>
+                  <span className="font-bold text-gray-900">{analytics.customers}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="h-3 w-3 rounded-full bg-orange-500"></div>
                     <span className="font-medium text-gray-700">Vendors</span>
                   </div>
-                  <span className="font-bold">{analytics.vendors}</span>
+                  <span className="font-bold text-gray-900">{analytics.vendors}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="h-3 w-3 rounded-full bg-teal-500"></div>
-                    <span className="font-medium text-gray-700">Riders</span>
+                    <span className="font-medium text-gray-700">Total Fleet</span>
                   </div>
-                  <span className="font-bold">{analytics.riders}</span>
+                  <span className="font-bold text-gray-900">{analytics.riders}</span>
+                </div>
+             </div>
+
+             {/* Live Fleet Status Section */}
+             <div className="mt-auto pt-6 border-t border-gray-100">
+                <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Live Rider Activity</h4>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                     <div className="flex items-center gap-3">
+                       {/* Glowing dot for "Online" */}
+                       <div className="relative flex h-3 w-3">
+                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                         <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                       </div>
+                       <span className="font-medium text-gray-700">Available Online</span>
+                     </div>
+                     <span className="font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-md">{analytics.onlineRiders}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                     <div className="flex items-center gap-3">
+                       <div className="h-3 w-3 rounded-full bg-blue-500"></div>
+                       <span className="font-medium text-gray-700">Out for Delivery</span>
+                     </div>
+                     <span className="font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">{analytics.activeDeliveries}</span>
+                  </div>
                 </div>
              </div>
           </CardContent>

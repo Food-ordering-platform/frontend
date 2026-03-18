@@ -8,6 +8,8 @@ export interface AdminAnalytics {
   failedOrders: number;
   customers: number;
   vendors: number;
+  onlineRiders:number
+  activeDeliveries:number
   riders: number;
 }
 
