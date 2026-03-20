@@ -30,12 +30,16 @@ export default function SignupPage() {
       </div>
 
       <main className="flex-1 flex items-center justify-center px-4 py-8 sm:py-12 relative z-10">
-        <Card className="w-full max-w-md border-0 shadow-2xl shadow-gray-200/50 bg-white/90 backdrop-blur-xl rounded-[2.5rem] overflow-hidden ring-1 ring-gray-100">
+        {/*
+          max-w-sm  = 384px — mobile (nice and compact)
+          sm:max-w-md = 448px — tablet and up (gives the checkbox section room to breathe)
+        */}
+        <Card className="w-full max-w-sm sm:max-w-md border-0 shadow-2xl shadow-gray-200/50 bg-white/90 backdrop-blur-xl rounded-[2.5rem] overflow-hidden ring-1 ring-gray-100">
 
           {/* Brand Header Strip */}
           <div className="h-1.5 w-full bg-[#7b1e3a]" />
 
-          <CardHeader className="space-y-3 text-center pt-10 pb-6 px-6 sm:px-10">
+          <CardHeader className="space-y-3 text-center pt-10 pb-6 px-8">
             <div className="mx-auto bg-[#7b1e3a]/10 w-16 h-16 rounded-2xl flex items-center justify-center mb-2">
               <ShoppingBag className="w-8 h-8 text-[#7b1e3a]" />
             </div>
@@ -47,12 +51,12 @@ export default function SignupPage() {
             </CardDescription>
           </CardHeader>
 
-          <CardContent className="px-6 sm:px-10 pb-8">
+          <CardContent className="px-8 pb-8">
             <SignupForm />
           </CardContent>
 
           <CardFooter className="flex flex-col space-y-4 pt-6 pb-10 bg-gray-50/80 border-t border-gray-100">
-            <div className="text-center text-sm sm:text-base text-gray-500">
+            <div className="text-center text-sm text-gray-500">
               Already have an account?{" "}
               <Link
                 href="/login"
