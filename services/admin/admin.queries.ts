@@ -76,3 +76,45 @@ export const useMarkPayoutPaid = () => {
     onError: (error) => toast.error(getErrorMessage(error)),
   });
 };
+
+export const useGetLogisticsCompanies = () => {
+  return useQuery({
+    queryKey: ["adminLogistics"],
+    queryFn: adminService.getLogisticsCompanies,
+  });
+};
+
+export const useCreateLogisticsCompany = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: adminService.createLogisticsCompany,
+    onSuccess: () => {
+      toast.success("Logistics company added successfully");
+      queryClient.invalidateQueries({ queryKey: ["adminLogistics"] });
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
+  });
+};
+
+export const useDownloadSettlement = () => {
+  return useMutation({
+    mutationFn: adminService.downloadCompanySettlement,
+    onSuccess: () => {
+      toast.success("Excel sheet downloaded successfully");
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
+  });
+};
+
+export const useMarkCompanyPaid = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: adminService.markCompanyPaid,
+    onSuccess: () => {
+      toast.success("Company balance cleared (Zeroed-Out)");
+      queryClient.invalidateQueries({ queryKey: ["adminLogistics"] });
+      queryClient.invalidateQueries({ queryKey: ["adminAnalytics"] });
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
+  });
+};

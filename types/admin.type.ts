@@ -41,3 +41,25 @@ export interface AdminChartData {
   Revenue: number;
   Profit: number;
 }
+
+export interface LogisticsCompany {
+  id: string;
+  name: string;
+  managerEmail: string;
+  inviteCode: string;
+  bankName: string;
+  accountNumber: string;
+  showEarningsToRiders: boolean;
+  _count?: {
+    riders: number;
+  };
+  createdAt: string;
+}
+
+export interface CreateLogisticsCompanyData {
+  name: string;
+  managerEmail: string;
+  bankName: string;
+  accountNumber: string;
+  showEarningsToRiders: boolean;
+}
