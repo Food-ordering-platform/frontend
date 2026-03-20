@@ -30,8 +30,8 @@ export default function SignupPage() {
       </div>
 
       <main className="flex-1 flex items-center justify-center px-4 py-8 sm:py-12 relative z-10">
-        <Card className="w-full max-w-md sm:max-w-lg lg:max-w-xl border-0 shadow-2xl shadow-gray-200/50 bg-white/90 backdrop-blur-xl rounded-[2.5rem] overflow-hidden ring-1 ring-gray-100">
-          
+        <Card className="w-full max-w-md border-0 shadow-2xl shadow-gray-200/50 bg-white/90 backdrop-blur-xl rounded-[2.5rem] overflow-hidden ring-1 ring-gray-100">
+
           {/* Brand Header Strip */}
           <div className="h-1.5 w-full bg-[#7b1e3a]" />
 
@@ -39,11 +39,11 @@ export default function SignupPage() {
             <div className="mx-auto bg-[#7b1e3a]/10 w-16 h-16 rounded-2xl flex items-center justify-center mb-2">
               <ShoppingBag className="w-8 h-8 text-[#7b1e3a]" />
             </div>
-            <CardTitle className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-gray-900">
+            <CardTitle className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">
               Create Account
             </CardTitle>
-            <CardDescription className="text-sm sm:text-base md:text-lg text-gray-500 max-w-[280px] sm:max-w-[320px] mx-auto">
-              Join ChowEazy for fast & delicious food delivery
+            <CardDescription className="text-sm sm:text-base text-gray-500 mx-auto">
+              Join ChowEazy for fast &amp; delicious food delivery
             </CardDescription>
           </CardHeader>
 
