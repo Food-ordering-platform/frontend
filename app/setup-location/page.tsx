@@ -1,35 +1,35 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { GoogleMap, useJsApiLoader, Libraries, Autocomplete } from "@react-google-maps/api";
+import { GoogleMap, useJsApiLoader, Libraries } from "@react-google-maps/api";
 import { Button } from "@/components/ui/button";
-import { MapPin, Loader2, ArrowLeft, Crosshair, Search } from "lucide-react";
+import { MapPin, Loader2, ArrowLeft, Crosshair, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useUpdateProfile } from "@/services/auth/auth.queries";
+import debounce from "lodash.debounce";
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
-// Set default center to Warri, Nigeria since that's your launch base
-const DEFAULT_CENTER = { lat: 5.5544, lng: 5.7932 }; 
-
+const DEFAULT_CENTER = { lat: 5.5544, lng: 5.7932 };
 const LIBRARIES: Libraries = ["places"];
 
 const MAP_OPTIONS: google.maps.MapOptions = {
   disableDefaultUI: true,
-  zoomControl: true,
-  clickableIcons: true,
-  // Optional: Restrict map panning to Nigeria bounds
+  zoomControl: false,
+  clickableIcons: false,
   restriction: {
-    latLngBounds: {
-      north: 13.89,
-      south: 4.27,
-      west: 2.67,
-      east: 14.68,
-    },
+    latLngBounds: { north: 13.89, south: 4.27, west: 2.67, east: 14.68 },
     strictBounds: false,
   },
 };
+
+interface Suggestion {
+  placeId: string;
+  mainText: string;
+  secondaryText: string;
+  description: string;
+}
 
 interface SetupLocationProps {
   isModal?: boolean;
@@ -49,131 +49,265 @@ export default function SetupLocationPage({
   const [isDragging, setIsDragging] = useState(false);
   const [isFetchingGPS, setIsFetchingGPS] = useState(false);
 
+  const [query, setQuery] = useState("");
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+
   const mapRef = useRef<google.maps.Map | null>(null);
   const geocoderRef = useRef<google.maps.Geocoder | null>(null);
-  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+  const sessionTokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
+  const autocompleteServiceRef = useRef<google.maps.places.AutocompleteService | null>(null);
+  const placesServiceRef = useRef<google.maps.places.PlacesService | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // KEY FIX: track whether the user has focus on the search input.
+  // Map-driven resets (idle, drag) must never fire while this is true.
+  const isSearchFocusedRef = useRef(false);
 
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
     libraries: LIBRARIES,
   });
 
-  const fetchAddress = useCallback((lat: number, lng: number) => {
-    if (!geocoderRef.current) {
-      geocoderRef.current = new google.maps.Geocoder();
-    }
-
-    geocoderRef.current.geocode({ location: { lat, lng } }, (results, status) => {
-      if (status === "OK" && results?.[0]) {
-        setAddress(results[0].formatted_address);
-        // Clear placeName when dragging so it doesn't hold onto an old search result
-        setPlaceName(""); 
-      } else {
-        setAddress("Unknown location");
-      }
-    });
+  const renewSessionToken = useCallback(() => {
+    if (!window.google) return;
+    sessionTokenRef.current = new google.maps.places.AutocompleteSessionToken();
   }, []);
 
-  const handleMapLoad = useCallback((mapInstance: google.maps.Map) => {
-    mapRef.current = mapInstance;
-    geocoderRef.current = new google.maps.Geocoder();
-    // Initial fetch for the default center
-    fetchAddress(DEFAULT_CENTER.lat, DEFAULT_CENTER.lng);
-  }, [fetchAddress]);
+  const fetchAddress = useCallback(
+    debounce((lat: number, lng: number) => {
+      if (!geocoderRef.current) return;
+      geocoderRef.current.geocode({ location: { lat, lng } }, (results, status) => {
+        if (status === "OK" && results?.[0]) {
+          setAddress(results[0].formatted_address);
+        } else {
+          setAddress("Unknown location");
+        }
+      });
+    }, 600),
+    [],
+  );
 
-  const handleMapUnmount = useCallback(() => {
-    mapRef.current = null;
-  }, []);
-
-  const handlePlaceChanged = () => {
-    if (autocompleteRef.current) {
-      const place = autocompleteRef.current.getPlace();
-
-      if (!place.geometry || !place.geometry.location) {
-        toast.error("Please select a valid location from the dropdown.");
+  const fetchSuggestions = useCallback(
+    debounce((input: string) => {
+      if (!autocompleteServiceRef.current || input.length < 2) {
+        setSuggestions([]);
+        setIsSearching(false);
         return;
       }
+      autocompleteServiceRef.current.getPlacePredictions(
+        {
+          input,
+          componentRestrictions: { country: "ng" },
+          sessionToken: sessionTokenRef.current ?? undefined,
+          types: ["geocode", "establishment"],
+        },
+        (predictions, status) => {
+          setIsSearching(false);
+          if (
+            status === google.maps.places.PlacesServiceStatus.OK &&
+            predictions
+          ) {
+            setSuggestions(
+              predictions.map((p) => ({
+                placeId: p.place_id,
+                mainText: p.structured_formatting.main_text,
+                secondaryText: p.structured_formatting.secondary_text ?? "",
+                description: p.description,
+              })),
+            );
+            setShowDropdown(true);
+            setActiveIndex(-1);
+          } else {
+            setSuggestions([]);
+          }
+        },
+      );
+    }, 300),
+    [],
+  );
 
-      const lat = place.geometry.location.lat();
-      const lng = place.geometry.location.lng();
-      const coords = { lat, lng };
+  const handleMapLoad = useCallback(
+    (mapInstance: google.maps.Map) => {
+      mapRef.current = mapInstance;
+      geocoderRef.current = new google.maps.Geocoder();
+      autocompleteServiceRef.current = new google.maps.places.AutocompleteService();
+      placesServiceRef.current = new google.maps.places.PlacesService(mapInstance);
+      renewSessionToken();
+      fetchAddress(DEFAULT_CENTER.lat, DEFAULT_CENTER.lng);
+    },
+    [fetchAddress, renewSessionToken],
+  );
 
-      setCenter(coords);
-      mapRef.current?.panTo(coords);
-      mapRef.current?.setZoom(18);
+  const selectSuggestion = useCallback(
+    (suggestion: Suggestion) => {
+      if (!placesServiceRef.current) return;
 
-      setPlaceName(place.name || "");
-      setAddress(place.formatted_address || "");
+      setQuery(suggestion.mainText);
+      setShowDropdown(false);
+      setSuggestions([]);
+      setPlaceName(suggestion.mainText);
+      setAddress(suggestion.description);
+      // User completed a selection — they're no longer actively searching
+      isSearchFocusedRef.current = false;
+
+      placesServiceRef.current.getDetails(
+        {
+          placeId: suggestion.placeId,
+          fields: ["geometry", "formatted_address", "name"],
+          sessionToken: sessionTokenRef.current ?? undefined,
+        },
+        (place, status) => {
+          renewSessionToken();
+          if (
+            status === google.maps.places.PlacesServiceStatus.OK &&
+            place?.geometry?.location
+          ) {
+            const coords = {
+              lat: place.geometry.location.lat(),
+              lng: place.geometry.location.lng(),
+            };
+            setCenter(coords);
+            mapRef.current?.panTo(coords);
+            mapRef.current?.setZoom(17);
+            setPlaceName(place.name ?? suggestion.mainText);
+            setAddress(place.formatted_address ?? suggestion.description);
+          } else {
+            toast.error("Couldn't load location details");
+          }
+        },
+      );
+    },
+    [renewSessionToken],
+  );
+
+  const handleQueryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setQuery(val);
+    if (val.length >= 2) {
+      setIsSearching(true);
+      fetchSuggestions(val);
+    } else {
+      setSuggestions([]);
+      setShowDropdown(false);
     }
   };
 
-  const handleDragStart = () => {
-    setIsDragging(true);
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showDropdown || suggestions.length === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex((i) => Math.min(i + 1, suggestions.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((i) => Math.max(i - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (activeIndex >= 0) {
+        selectSuggestion(suggestions[activeIndex]);
+        searchInputRef.current?.blur();
+      }
+    } else if (e.key === "Escape") {
+      setShowDropdown(false);
+      searchInputRef.current?.blur();
+    }
   };
 
-  const handleIdle = () => {
+  const clearSearch = () => {
+    setQuery("");
+    setSuggestions([]);
+    setShowDropdown(false);
+    setPlaceName("");
+    isSearchFocusedRef.current = false;
+    searchInputRef.current?.focus();
+  };
+
+  // Close dropdown on outside click/touch
+  useEffect(() => {
+    const handler = (e: MouseEvent | TouchEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node) &&
+        searchInputRef.current !== e.target
+      ) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    document.addEventListener("touchstart", handler);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("touchstart", handler);
+    };
+  }, []);
+
+  const handleDragStart = () => {
+    // Only register a drag if the user isn't searching.
+    // On mobile, tapping the input can briefly fire map touch events.
+    if (isSearchFocusedRef.current) return;
+    setIsDragging(true);
+    setShowDropdown(false);
+  };
+
+  const handleIdle = useCallback(() => {
     if (!mapRef.current) return;
+    setIsDragging(false);
+
+    // CRITICAL: never overwrite the query or address while the user is typing
+    if (isSearchFocusedRef.current) return;
 
     const currentCenter = mapRef.current.getCenter();
     if (!currentCenter) return;
-
-    fetchAddress(currentCenter.lat(), currentCenter.lng());
-    setIsDragging(false);
-  };
+    const lat = currentCenter.lat();
+    const lng = currentCenter.lng();
+    setCenter({ lat, lng });
+    fetchAddress(lat, lng);
+    // Only clear the place name on a genuine map drag (not on initial load or after a search selection)
+    if (isDragging) {
+      setPlaceName("");
+      setQuery("");
+    }
+  }, [fetchAddress, isDragging]);
 
   const handleUseGPS = () => {
-    if (!navigator.geolocation) {
-      toast.error("Geolocation not supported by your browser");
-      return;
-    }
-
+    if (!navigator.geolocation) return toast.error("Geolocation not supported");
     setIsFetchingGPS(true);
+    isSearchFocusedRef.current = false;
 
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const coords = {
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-        };
-
-        setCenter(coords);
-        mapRef.current?.panTo(coords);
-        mapRef.current?.setZoom(18);
-        fetchAddress(coords.lat, coords.lng);
-
+      ({ coords }) => {
+        const location = { lat: coords.latitude, lng: coords.longitude };
+        setCenter(location);
+        mapRef.current?.panTo(location);
+        mapRef.current?.setZoom(17);
+        fetchAddress(location.lat, location.lng);
+        setPlaceName("");
+        setQuery("");
         setIsFetchingGPS(false);
       },
-      (error) => {
-        console.error("GPS Error:", error);
-        toast.error("Unable to fetch your location. Please check permissions.");
+      () => {
+        toast.error("Unable to fetch your location");
         setIsFetchingGPS(false);
       },
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: true, timeout: 10000 },
     );
   };
 
   const handleConfirm = async () => {
-    const mapCenter = mapRef.current?.getCenter();
+    if (!mapRef.current) return;
+    const mapCenter = mapRef.current.getCenter();
     if (!mapCenter) return;
-
     const lat = mapCenter.lat();
     const lng = mapCenter.lng();
     const finalAddress = placeName ? `${placeName}, ${address}` : address;
 
     try {
-      await updateProfile({
-        address: finalAddress,
-        latitude: lat,
-        longitude: lng,
-      });
-
-      toast.success("Location saved successfully");
-
-      if (isModal && onComplete) {
-        onComplete();
-      } else {
-        router.back();
-      }
+      await updateProfile({ latitude: lat, longitude: lng, address: finalAddress });
+      toast.success("Location saved!");
+      isModal && onComplete ? onComplete() : router.back();
     } catch {
       toast.error("Failed to save location");
     }
@@ -181,123 +315,195 @@ export default function SetupLocationPage({
 
   if (!isLoaded) {
     return (
-      <div className="h-full w-full flex items-center justify-center min-h-[400px]">
+      <div className="h-full flex items-center justify-center min-h-[400px]">
         <Loader2 className="animate-spin h-8 w-8 text-[#7b1e3a]" />
       </div>
     );
   }
 
   return (
-    <div className={cn("flex flex-col w-full bg-gray-50", isModal ? "h-[80vh] min-h-[500px]" : "h-[100dvh]")}>
-      
-      {/* Search Bar Container */}
-      <div className="absolute top-0 left-0 right-0 z-20 p-4 pt-6 pointer-events-none">
-        <div className="flex gap-3 items-center pointer-events-auto">
+    <div
+      className={cn(
+        "relative flex flex-col w-full bg-gray-50 overflow-hidden",
+        isModal ? "h-[85vh] min-h-[520px] rounded-2xl" : "h-[100dvh]",
+      )}
+    >
+      {/* Search bar */}
+      <div className="absolute top-0 left-0 right-0 z-50 p-3 pt-safe-top">
+        <div className="flex gap-2 items-center">
           {!isModal && (
             <Button
               size="icon"
               variant="outline"
               onClick={() => router.back()}
-              className="h-12 w-12 shrink-0 rounded-full bg-white shadow-md hover:bg-gray-50 border-none"
+              className="h-11 w-11 shrink-0 rounded-full bg-white shadow-md border-none"
             >
               <ArrowLeft className="h-5 w-5 text-gray-700" />
             </Button>
           )}
 
-          <div className="flex-1 relative shadow-md rounded-full bg-white overflow-hidden">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 z-10" />
-            
-            <Autocomplete
-              onLoad={(autoC) => (autocompleteRef.current = autoC)}
-              onPlaceChanged={handlePlaceChanged}
-              options={{ 
-                // 🟢 RESTRICT TO NIGERIA HERE
-                componentRestrictions: { country: "ng" }, 
-                fields: ["geometry", "formatted_address", "name"] 
-              }}
-              // Add a generic wrapper style so Google's dropdown doesn't break
-              className="w-full h-full" 
-            >
+          <div className="flex-1 relative">
+            <div className="flex items-center h-12 bg-white rounded-full shadow-md px-4 gap-2">
+              {isSearching ? (
+                <Loader2 className="h-4 w-4 text-gray-400 animate-spin shrink-0" />
+              ) : (
+                <Search className="h-4 w-4 text-gray-400 shrink-0" />
+              )}
               <input
+                ref={searchInputRef}
                 type="text"
-                placeholder="Search for your street or area..."
-                className="w-full h-12 pl-12 pr-4 rounded-full border-none focus:ring-0 focus:outline-none bg-transparent text-gray-800 font-medium placeholder:text-gray-400 placeholder:font-normal"
-                // Prevent form submission on enter
-                onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }} 
+                inputMode="search"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                value={query}
+                onChange={handleQueryChange}
+                onKeyDown={handleKeyDown}
+                onFocus={() => {
+                  isSearchFocusedRef.current = true;
+                  if (suggestions.length > 0) setShowDropdown(true);
+                }}
+                onBlur={() => {
+                  // Small delay so tap-to-select on mobile fires before we lose focus state
+                  setTimeout(() => {
+                    isSearchFocusedRef.current = false;
+                  }, 300);
+                }}
+                placeholder="Search street or area..."
+                className="flex-1 bg-transparent text-gray-800 text-sm font-medium placeholder:text-gray-400 focus:outline-none min-w-0"
               />
-            </Autocomplete>
+              {query.length > 0 && (
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={clearSearch}
+                  className="shrink-0 p-0.5 rounded-full text-gray-400 hover:text-gray-600 active:text-gray-800"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+
+            {showDropdown && suggestions.length > 0 && (
+              <div
+                ref={dropdownRef}
+                className="absolute left-0 right-0 top-[calc(100%+6px)] bg-white rounded-2xl shadow-xl overflow-hidden z-50 border border-gray-100"
+              >
+                {suggestions.map((s, i) => (
+                  <button
+                    key={s.placeId}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      selectSuggestion(s);
+                      searchInputRef.current?.blur();
+                    }}
+                    className={cn(
+                      "w-full flex items-center gap-3 px-4 py-3 text-left transition-colors",
+                      "active:bg-gray-100 touch-manipulation",
+                      i === activeIndex ? "bg-[#7b1e3a]/5" : "hover:bg-gray-50",
+                      i !== 0 && "border-t border-gray-50",
+                    )}
+                  >
+                    <div className="shrink-0 w-8 h-8 rounded-full bg-[#7b1e3a]/10 flex items-center justify-center">
+                      <MapPin className="h-4 w-4 text-[#7b1e3a]" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate">
+                        {s.mainText}
+                      </p>
+                      {s.secondaryText && (
+                        <p className="text-xs text-gray-500 truncate mt-0.5">
+                          {s.secondaryText}
+                        </p>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Map Container */}
-      <div className="flex-1 relative w-full h-full">
+      {/* Map */}
+      <div className="flex-1 relative w-full">
         <GoogleMap
           mapContainerStyle={{ width: "100%", height: "100%" }}
           center={center}
           zoom={15}
           options={MAP_OPTIONS}
           onLoad={handleMapLoad}
-          onUnmount={handleMapUnmount}
+          onUnmount={() => { mapRef.current = null; }}
           onDragStart={handleDragStart}
           onIdle={handleIdle}
         />
 
-        {/* Center Pin */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none drop-shadow-2xl z-10">
-          <MapPin className={cn(
-            "text-[#7b1e3a] fill-[#7b1e3a] h-12 w-12 pb-2 transition-transform duration-200",
-            isDragging ? "-translate-y-4 scale-110" : ""
-          )} />
-          {/* A small dot under the pin to show exact center */}
-          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-1 bg-black/20 rounded-[100%] blur-[1px]"></div>
+        {/* Pin */}
+        <div
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 pointer-events-none z-20 transition-all duration-150"
+          style={{ marginTop: isDragging ? "-60px" : "-48px" }}
+        >
+          <MapPin className="text-[#7b1e3a] fill-[#7b1e3a] h-12 w-12 drop-shadow-lg" />
         </div>
+        <div
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 pointer-events-none z-20 transition-all duration-150 rounded-full bg-black/20"
+          style={{
+            width: isDragging ? "6px" : "10px",
+            height: isDragging ? "3px" : "5px",
+            filter: isDragging ? "blur(2px)" : "blur(1px)",
+          }}
+        />
 
-        {/* GPS Button */}
-        <div className="absolute bottom-6 right-4 z-10">
+        {/* GPS button */}
+        <div className="absolute bottom-6 right-4 z-20">
           <Button
             size="icon"
             onClick={handleUseGPS}
-            className="h-14 w-14 rounded-full bg-white text-[#7b1e3a] shadow-[0_4px_20px_rgba(0,0,0,0.15)] hover:bg-gray-50 border border-gray-100"
+            disabled={isFetchingGPS}
+            className="h-14 w-14 rounded-full bg-white text-[#7b1e3a] shadow-lg hover:bg-gray-50 border border-gray-100"
           >
             {isFetchingGPS ? (
-              <Loader2 className="animate-spin h-6 w-6" />
+              <Loader2 className="animate-spin h-5 w-5" />
             ) : (
-              <Crosshair className="h-6 w-6" />
+              <Crosshair className="h-5 w-5" />
             )}
           </Button>
         </div>
       </div>
 
-      {/* Bottom Confirmation Sheet */}
-      <div className="bg-white p-6 rounded-t-3xl shadow-[0_-20px_40px_rgba(0,0,0,0.08)] z-20 relative -mt-4">
-        <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-5"></div>
-        
-        <p className="text-xs font-bold text-[#7b1e3a] uppercase tracking-widest mb-4">
+      {/* Bottom sheet */}
+      <div className="bg-white px-5 pt-4 pb-6 rounded-t-3xl shadow-[0_-12px_32px_rgba(0,0,0,0.07)] z-30 relative">
+        <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4" />
+        <p className="text-[10px] font-bold text-[#7b1e3a] uppercase tracking-widest mb-3">
           Delivery Address
         </p>
-
-        <div className="flex gap-4 mb-6 items-start">
-          <div className="mt-1 bg-[#7b1e3a]/10 p-2.5 rounded-full shrink-0">
-            <MapPin className="text-[#7b1e3a] h-6 w-6" />
+        <div className="flex gap-3 mb-5 items-start">
+          <div className="mt-0.5 bg-[#7b1e3a]/10 p-2 rounded-full shrink-0">
+            <MapPin className="text-[#7b1e3a] h-5 w-5" />
           </div>
           <div className="flex-1 min-w-0">
             {placeName && !isDragging && (
-              <p className="font-extrabold text-gray-900 text-lg leading-tight truncate">{placeName}</p>
+              <p className="font-bold text-gray-900 text-base leading-snug truncate">
+                {placeName}
+              </p>
             )}
-            <p className="text-sm text-gray-600 mt-1 line-clamp-2 leading-relaxed">
-              {isDragging ? "Moving map..." : address}
+            <p className="text-sm text-gray-500 mt-0.5 line-clamp-2 leading-relaxed">
+              {isDragging ? "Drop pin to set location…" : address}
             </p>
           </div>
         </div>
-
         <Button
           onClick={handleConfirm}
-          disabled={isPending || isDragging}
-          className="w-full h-14 bg-[#7b1e3a] hover:bg-[#5e162c] text-white text-lg font-bold transition-all shadow-lg shadow-[#7b1e3a]/20 rounded-xl"
+          disabled={isPending || isDragging || address === "Locating..."}
+          className="w-full h-14 bg-[#7b1e3a] hover:bg-[#5e162c] text-white text-base font-bold rounded-xl shadow-md shadow-[#7b1e3a]/20 disabled:opacity-50"
         >
-          {isPending && <Loader2 className="animate-spin mr-2 h-5 w-5" />}
-          {isDragging ? "Drop pin to confirm" : "Confirm Location"}
+          {isPending ? (
+            <><Loader2 className="animate-spin mr-2 h-4 w-4" /> Saving…</>
+          ) : isDragging ? (
+            "Drop pin to confirm"
+          ) : (
+            "Confirm Location"
+          )}
         </Button>
       </div>
     </div>

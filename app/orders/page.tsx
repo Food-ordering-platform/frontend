@@ -13,6 +13,21 @@ import { motion, AnimatePresence } from "framer-motion"
 import { Badge } from "@/components/ui/badge"
 import { RatingDialog } from "@/components/orders/rating-dialog"
 
+// 🟢 Define exactly which statuses belong to which tab based on your backend
+const ACTIVE_STATUSES = [
+  "PENDING", 
+  "PREPARING", 
+  "READY_FOR_PICKUP", 
+  "RIDER_ACCEPTED", 
+  "OUT_FOR_DELIVERY"
+];
+
+const COMPLETED_STATUSES = [
+  "DELIVERED", 
+  "CANCELLED", 
+  "REFUNDED"
+];
+
 export default function OrdersPage() {
   const { user } = useAuth()
   const { data: orders = [], isLoading, refetch, isFetching } = useGetOrders(user?.id!)
@@ -21,17 +36,18 @@ export default function OrdersPage() {
   // Rating State
   const [orderToRate, setOrderToRate] = useState<string | null>(null);
 
-  // Calculate stats for the tabs
-  const activeCount = orders.filter(o => ["pending", "preparing", "out_for_delivery", "confirmed"].includes(o.status)).length;
-  const completedCount = orders.filter(o => ["delivered", "cancelled"].includes(o.status)).length;
+  // 🟢 Calculate stats using the exact uppercase arrays
+  const activeCount = orders.filter(o => ACTIVE_STATUSES.includes(o.status)).length;
+  const completedCount = orders.filter(o => COMPLETED_STATUSES.includes(o.status)).length;
   const allCount = orders.length;
 
   const filteredOrders = useMemo(() => {
     if (filter === "all") return orders
     return orders.filter((o) => {
-        if (filter === "active") return ["pending", "preparing", "out_for_delivery", "confirmed"].includes(o.status);
-        if (filter === "completed") return ["delivered", "cancelled"].includes(o.status);
-        return o.status === filter
+        // 🟢 Filter using the exact uppercase arrays
+        if (filter === "active") return ACTIVE_STATUSES.includes(o.status);
+        if (filter === "completed") return COMPLETED_STATUSES.includes(o.status);
+        return o.status === filter;
     })
   }, [orders, filter])
 
@@ -62,7 +78,7 @@ export default function OrdersPage() {
             </Button>
           </div>
 
-          {/* ALIVE TABS */}
+          {/* ACTIVE TABS */}
           <div className="flex justify-start mb-8">
             <div className="flex p-1 bg-white border border-gray-200 rounded-xl relative shadow-sm">
                 {[
@@ -123,14 +139,14 @@ export default function OrdersPage() {
           </AnimatePresence>
 
           {/* Rating Dialog */}
-          <RatingDialog 
+          {/* <RatingDialog 
              orderId={orderToRate || ""} 
              isOpen={!!orderToRate} 
              onClose={() => {
                 setOrderToRate(null);
                 refetch(); // Refresh to show the new rating
              }} 
-          />
+          /> */}
       </main>
       <Footer />
     </div>

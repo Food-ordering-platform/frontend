@@ -33,7 +33,7 @@ import { Suspense } from "react";
 import { motion } from "framer-motion";
 
 // Fixed Platform Fee for Display
-const PLATFORM_FEE = 350;
+const PLATFORM_FEE = 500;
 
 function OrderDetailsContent() {
   const searchParams = useSearchParams();
@@ -178,7 +178,7 @@ function OrderDetailsContent() {
                 </div>
 
                 {/* 🟢 NEW: RATING BUTTON LOGIC */}
-                {order.status === "DELIVERED" && (
+                {/* {order.status === "DELIVERED" && (
                    <RatingDialog 
                      orderId={order.id} 
                      trigger={
@@ -187,7 +187,7 @@ function OrderDetailsContent() {
                        </Button>
                      }
                    />
-                )}
+                )} */}
               </div>
             </div>
 

@@ -42,7 +42,7 @@ export interface MenuItem {
   available: boolean;
   imageUrl?: string;
   restaurantId: string;
-  categoryId: string; // Ensure this matches backend field
+  category: string; // Ensure this matches backend field
   createdAt: string;
   updatedAt: string;
 }
