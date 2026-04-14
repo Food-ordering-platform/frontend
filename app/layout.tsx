@@ -67,7 +67,7 @@ export default function RootLayout({
           <Providers>
             <CartProvider>
               {children}
-              {/* <InstallPrompt />  */}
+                <InstallPrompt /> 
               <Toaster />
             </CartProvider>
           </Providers>
